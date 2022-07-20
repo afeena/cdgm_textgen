@@ -1,1 +1,1 @@
-# DGMs-for-text-generation
+# DGMs for text generation
