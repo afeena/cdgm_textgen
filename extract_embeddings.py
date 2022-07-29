@@ -57,7 +57,7 @@ if __name__ == "__main__":
                 print(dictionary_inv[k], file=out)
 
 
-    # fairseq reuires this format as an input for pre-trained embeddings
+    # cdgm_textgen reuires this format as an input for pre-trained embeddings
     with open(f"{args.output}.txt", "w") as out:
         out.write("{} {}".format(embed.shape[0], embed.shape[1]))
         out.write("\n")
