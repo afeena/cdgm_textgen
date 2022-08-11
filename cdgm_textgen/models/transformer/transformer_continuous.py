@@ -12,6 +12,7 @@ from fairseq.models.transformer.transformer_base import (
     TransformerModelBase,
     TransformerDecoderBase
 )
+from torch.nn import Identity
 
 
 @dataclass
@@ -41,7 +42,7 @@ class TransformerModelContinuous(TransformerModelBase):
             metric=cfg.decoder_nn_metric
         )
         if cfg.no_last_dec_layer_norm:
-            decoder.layers[-1].final_layer_norm = None
+            decoder.layers[-1].final_layer_norm = Identity(decoder.embed_dim, export=cfg.export)
 
 
         decoder.target_embed = cls.build_embedding(cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path)
