@@ -7,9 +7,9 @@ from torch import Tensor
 from dataclasses import dataclass, field
 
 from cdgm_textgen.models import register_model
+from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from fairseq.models.transformer import TransformerConfig
-from fairseq.models.transformer.transformer_base import (
-    TransformerModelBase,
+from fairseq.models.transformer import (
     TransformerDecoderBase
 )
 from torch.nn import Identity
