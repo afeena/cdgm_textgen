@@ -89,7 +89,7 @@ if __name__=="__main__":
      with open("tmp_decode_batch_script.sh", "a") as scr:
          current_set= f"--input {v}"
          hyp_file = f"{eval_dir}/{src}_{trg}_{checkpoint_name}_{k}_{task}_beam{beam}{iters}{decoding_m}{tag}.hyp"
-         fairseq_command = f"python ~/cdgm_textgen/decode.py {data} {kv_params} --path {checkpoint_path} {current_set} > {hyp_file}\n"
+         fairseq_command = f"python ~/develop/cdgm_textgen/decode.py {data} {kv_params} --path {checkpoint_path} {current_set} > {hyp_file}\n"
          scr.write(fairseq_command)
          eval_ready_file = f"{eval_dir}/{src}_{trg}_{checkpoint_name}_{k}_{task}_beam{beam}{iters}{decoding_m}{tag}.eval"
          eval_command = f"cat {hyp_file} | grep -P \"^H\" | sort -V | cut -f3- | $MOSES/scripts/recaser/detruecase.perl | $MOSES/scripts/tokenizer/detokenizer.perl -l {trg} > {eval_ready_file}\n"
