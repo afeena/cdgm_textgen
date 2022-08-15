@@ -5,8 +5,9 @@
 """isort:skip_file"""
 
 from .transformer_continuous import TransformerModelContinuous
-
+from .transformer_base import TransformerModelBase
 
 __all__ = [
     "TransformerModelContinuous",
+    "TransformerModelBase"
 ]
