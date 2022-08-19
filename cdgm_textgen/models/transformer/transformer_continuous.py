@@ -1,10 +1,11 @@
+import math
 from typing import Any, Dict, List, Optional, Tuple
 import faiss
 import torch
 from torch import Tensor
 import torch.nn.functional as F
 from torch.nn import Identity
-
+import scipy.special as scp
 from dataclasses import dataclass, field
 
 from cdgm_textgen.models import register_model
@@ -141,6 +142,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             sample: Optional[Dict[str, Tensor]] = None,
     ):
         scores = self.__nearest_neighbor_search(net_output[0])
+        #TODO this is only for case k=1!
+        norm_const_denominator = (2*math.pi)*scp.iv(self.target_embed.size[-1]/2-1,1)
+        scores -= 1/norm_const_denominator
 
         return scores
 
@@ -150,7 +154,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 features = F.normalize(features, p=2.0, dim=-1)
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
-            sim, _tokens = self.faiss_index.search(ff, self._beam_size)
+            sim, _tokens = self.faiss_index.search(ff, 2)
             _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
             sim = sim.view(features.shape[0], features.shape[1], -1)
 
