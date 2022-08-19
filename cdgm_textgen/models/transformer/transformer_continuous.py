@@ -154,7 +154,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 features = F.normalize(features, p=2.0, dim=-1)
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
-            sim, _tokens = self.faiss_index.search(ff, 2)
+            sim, _tokens = self.faiss_index.search(ff, self._beam_size)
             _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
             sim = sim.view(features.shape[0], features.shape[1], -1)
 
