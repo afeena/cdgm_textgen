@@ -148,13 +148,13 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-    def __nearest_neighbor_search(self, features):
+    def __nearest_neighbor_search(self, features, beam_size=5):
         with torch.no_grad():
             if self.metric=="cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
-            sim, _tokens = self.faiss_index.search(ff, self._beam_size)
+            sim, _tokens = self.faiss_index.search(ff, beam_size)
             _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
             sim = sim.view(features.shape[0], features.shape[1], -1)
 
@@ -166,20 +166,3 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             output_proj = output_proj.scatter_(-1,_tokens,sim)
                  
             return output_proj
-
-    def set_beam_size(self, beam_size):
-        """Sets the beam size in the decoder and all children."""
-        if getattr(self, "_beam_size", -1) != beam_size:
-            seen = set()
-
-            def apply_set_beam_size(module):
-                if (
-                    module != self
-                    and hasattr(module, "set_beam_size")
-                    and module not in seen
-                ):
-                    seen.add(module)
-                    module.set_beam_size(beam_size)
-
-            self.apply(apply_set_beam_size)
-            self._beam_size = beam_size
