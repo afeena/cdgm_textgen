@@ -147,8 +147,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         scores = self.__nearest_neighbor_search(net_output[0])
         #TODO this is only for case k=1!
         with torch.no_grad():
-            m = torch.tensor(self.target_embed.weight.shape[-1]/2-1)
-            scores -= _neglogcmk(m, torch.tensor([1.], device=m.device))
+            m = torch.tensor([self.target_embed.weight.shape[-1]/2-1], device=net_output[0].device)
+            k = torch.tensor([1.], device=net_output[0].device)
+            scores -= _neglogcmk(m, k)
 
         return scores
 
