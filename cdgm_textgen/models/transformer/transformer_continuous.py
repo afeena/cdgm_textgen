@@ -143,7 +143,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     ):
         scores = self.__nearest_neighbor_search(net_output[0])
         #TODO this is only for case k=1!
-        norm_const_denominator = (2*math.pi)*scp.iv(self.target_embed.weight.size[-1]/2-1,1)
+        norm_const_denominator = (2*math.pi)*scp.iv(self.target_embed.weight.shape[-1]/2-1,1)
         scores -= 1/norm_const_denominator
 
         return scores
