@@ -12,6 +12,9 @@ from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 
+from cdgm_textgen.modules.cmk_approx import _neglogcmk
+
+
 @dataclass
 class ContinuousTransformerConfig(TransformerConfig):
     target_embed_path: Optional[str] = field(
@@ -143,8 +146,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     ):
         scores = self.__nearest_neighbor_search(net_output[0])
         #TODO this is only for case k=1!
-        norm_const_denominator = (2*math.pi)*scp.iv(self.target_embed.weight.shape[-1]/2-1,1)
-        scores -= 1/norm_const_denominator
+        with torch.no_grad():
+            scores -= _neglogcmk(self.target_embed.weight.shape[-1]/2-1, 1)
 
         return scores
 
