@@ -167,7 +167,7 @@ class vMFCriterion(ContinuousCriterion):
     def compute_loss(self, model, net_output, sample):
         parsed_outputs = self._parse_model_outputs(model, net_output, sample)
 
-        from fairseq.modules import neg_log_cmk_approx
+        from cdgm_textgen.modules import neg_log_cmk_approx
         m = torch.tensor([parsed_outputs["outs"].shape[-1]], device=parsed_outputs["kappa"].device)
 
         cmk_approx = neg_log_cmk_approx(m, parsed_outputs["kappa"])
