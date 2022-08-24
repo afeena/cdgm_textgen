@@ -29,6 +29,8 @@ from fairseq_cli.generate import get_symbols_to_strip_from_output
 import cdgm_textgen.tasks.utils as cdgm_utils
 
 tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
+tasks.fairseq_task.FairseqTask.build_generator = cdgm_utils.build_ar_generator
+
 
 tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
 tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
