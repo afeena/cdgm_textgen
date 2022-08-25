@@ -149,7 +149,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         with torch.no_grad():
             m = torch.tensor([self.target_embed.weight.shape[-1]/2-1], device=net_output[0].device)
             k = torch.tensor([1.], device=net_output[0].device)
-            scores -= _neglogcmk(m, k)
+            scores += _neglogcmk(m, k)
 
         return scores
 
