@@ -19,7 +19,7 @@ from typing import Optional
 
 import torch
 
-from .meters import AverageMeter, StopwatchMeter, TimeMeter
+from fairseq.logging.meters import AverageMeter, StopwatchMeter, TimeMeter
 
 logger = logging.getLogger(__name__)
 

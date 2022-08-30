@@ -10,13 +10,14 @@ import torch.nn as nn
 from torch import Tensor
 
 from fairseq import utils
-from fairseq.dataclass.utils import gen_parser_from_dataclass
 from fairseq.models import FairseqEncoderDecoderModel, register_model
 from fairseq.models.transformer import (
     TransformerConfig,
     TransformerDecoderBase,
     TransformerEncoderBase,
 )
+
+from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 
 @register_model("transformer_base", dataclass=TransformerConfig)
 class TransformerModelBase(FairseqEncoderDecoderModel):

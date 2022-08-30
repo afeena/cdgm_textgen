@@ -9,21 +9,22 @@ Ghazvininejad, Marjan, et al.
 "Constant-time machine translation with conditional masked language models."
 arXiv preprint arXiv:1904.09324 (2019).
 """
-from argparse import ArgumentParser
-
 import omegaconf
 import torch
 import torch.nn.functional as F
-from cdgm_textgen.models import register_model
+
 from fairseq.utils import new_arange
 from fairseq.models.nat.nonautoregressive_transformer import NATransformerDecoder
 from fairseq.models.nat import ensemble_decoder
 from fairseq.modules.transformer_sentence_encoder import init_bert_params
 from fairseq import utils
+from fairseq.models.nat.cmlm_transformer import CMLMNATransformerModel
+
+from cdgm_textgen.models import register_model
 from cdgm_textgen.dataclass.utils import convert_omegaconf_to_namesapce
 from cdgm_textgen.iterative_refinement_generator import DecoderOut
-from fairseq.models.nat.cmlm_transformer import CMLMNATransformerModel
 from cdgm_textgen.models.nat.c_cmlm_transformer_config import CCMLMTransformerConfig
+
 import faiss
 import faiss.contrib.torch_utils
 

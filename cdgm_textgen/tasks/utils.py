@@ -92,6 +92,7 @@ def build_ar_generator(
             SequenceGenerator,
             SequenceGeneratorWithAlignment,
         )
+        from cdgm_textgen.custom_generator import NaiveBeamGenerator
 
         # Choose search strategy. Defaults to Beam Search.
         sampling = getattr(args, "sampling", False)
@@ -159,6 +160,8 @@ def build_ar_generator(
             if getattr(args, "print_alignment", False):
                 seq_gen_cls = SequenceGeneratorWithAlignment
                 extra_gen_cls_kwargs["print_alignment"] = args.print_alignment
+            if getattr(args, "custom_gen", False):
+                seq_gen_cls = NaiveBeamGenerator
             else:
                 seq_gen_cls = SequenceGenerator
 

@@ -1,24 +1,28 @@
+import argparse
+import collections
+
+from omegaconf import DictConfig, OmegaConf
+
 # Copyright (c) Facebook, Inc. and its affiliates.
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import argparse
+
 import ast
 import inspect
 import logging
 import os
 import re
-import collections
 from argparse import ArgumentError, ArgumentParser, Namespace
 from dataclasses import _MISSING_TYPE, MISSING, is_dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 from fairseq.dataclass import FairseqDataclass
-from fairseq.dataclass.configs import FairseqConfig
 from hydra.core.global_hydra import GlobalHydra
 from hydra.experimental import compose, initialize
 from omegaconf import DictConfig, OmegaConf, open_dict, _utils
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 
 logger = logging.getLogger(__name__)
 
@@ -390,7 +394,7 @@ def convert_namespace_to_omegaconf(args: Namespace) -> DictConfig:
     # Here we are using field values provided in args to override counterparts inside config object
     overrides, deletes = override_module_args(args)
 
-    # configs will be in cdgm_textgen/config after installation
+    # configs will be in fairseq/config after installation
     config_path = os.path.join("..", "config")
 
     GlobalHydra.instance().clear()

@@ -20,18 +20,18 @@ from collections import namedtuple
 import numpy as np
 import torch
 
-from fairseq import checkpoint_utils, distributed_utils, options, tasks, utils
-from fairseq.dataclass.configs import FairseqConfig
-from fairseq.dataclass.utils import convert_namespace_to_omegaconf
-from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
-from fairseq_cli.generate import get_symbols_to_strip_from_output
+from fairseq import checkpoint_utils, distributed_utils, tasks, utils
 
+from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
+from cdgm_textgen_cli.generate import get_symbols_to_strip_from_output
+
+from cdgm_textgen import options
+from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 import cdgm_textgen.tasks.utils as cdgm_utils
 
 tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
 tasks.fairseq_task.FairseqTask.build_generator = cdgm_utils.build_ar_generator
-
-
 tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
 tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
 tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step

@@ -7,14 +7,15 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
-import torch.nn.functional as F
 import torch
+import torch.nn.functional as F
+from torch import Tensor
+
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
-from torch import Tensor
-import power_spherical
 
+import power_spherical
 
 def _mean_ds(x: Tensor, dim=None) -> Tensor:
     return (

@@ -5,7 +5,6 @@ import argparse
 import stat
 import subprocess
 
-
 batch_conf = """#!/bin/bash
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

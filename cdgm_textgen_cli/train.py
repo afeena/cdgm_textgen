@@ -31,9 +31,6 @@ from fairseq import tasks
 from fairseq import checkpoint_utils, options, quantization_utils, utils
 from fairseq.data import data_utils, iterators
 from fairseq.data.plasma_utils import PlasmaStore
-from cdgm_textgen.dataclass.configs import FairseqConfig
-from fairseq.dataclass.initialize import add_defaults
-from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 from fairseq.distributed import fsdp_enable_wrap, fsdp_wrap
 from fairseq.distributed import utils as distributed_utils
 from fairseq.file_io import PathManager
@@ -43,6 +40,9 @@ from fairseq.trainer import Trainer
 import wandb
 
 import cdgm_textgen.tasks.utils as cdgm_utils
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
+from cdgm_textgen.dataclass.initialize import add_defaults
+from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
 tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
 

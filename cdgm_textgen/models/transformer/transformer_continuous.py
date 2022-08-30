@@ -1,17 +1,16 @@
-import math
 from typing import Any, Dict, List, Optional, Tuple
 import faiss
 import torch
 from torch import Tensor
 import torch.nn.functional as F
 from torch.nn import Identity
-import scipy.special as scp
+
 from dataclasses import dataclass, field
+
+from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
-from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
-
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 

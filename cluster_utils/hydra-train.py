@@ -4,8 +4,6 @@ import yaml
 import argparse
 import stat
 import subprocess
-import datetime
-import time
 
 batch_conf = """#!/bin/bash
 #SBATCH --partition=gpu

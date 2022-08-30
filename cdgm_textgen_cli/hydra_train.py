@@ -7,16 +7,17 @@
 import logging
 import os
 
-import hydra
 import torch
+import hydra
 from hydra.core.hydra_config import HydraConfig
+
 from omegaconf import OmegaConf, open_dict
 
+from cdgm_textgen.dataclass.utils import omegaconf_no_object_check
 from fairseq import distributed_utils, metrics
-from cdgm_textgen.dataclass.configs import FairseqConfig
-from fairseq.dataclass.initialize import add_defaults, hydra_init
-from fairseq.dataclass.utils import omegaconf_no_object_check
 from fairseq.utils import reset_logging
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
+from cdgm_textgen.dataclass.initialize import add_defaults, hydra_init
 from cdgm_textgen_cli.train import main as pre_main
 
 logger = logging.getLogger("fairseq_cli.hydra_train")
