@@ -8,6 +8,7 @@ from torch import Tensor
 
 from cdgm_textgen.sequence_generator import EnsembleModel
 
+
 class NaiveBeamGenerator(nn.Module):
     def __init__(
             self,
@@ -168,7 +169,7 @@ class NaiveBeamGenerator(nn.Module):
                 incremental_states,
                 self.temperature,
             )
-            #check for None and set it to inf
+            # check for None and set it to inf
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
 
             lprobs[:, self.pad] = -math.inf  # never select pad
@@ -185,4 +186,3 @@ class NaiveBeamGenerator(nn.Module):
                 scores.view(bsz, beam_size, -1)[:, :, :step],
                 tokens[:, : step + 1],
             )
-

@@ -36,7 +36,7 @@ def main(cfg: DictConfig, override_args=None):
     reset_logging()
 
     assert (
-        cfg.dataset.max_tokens is not None or cfg.dataset.batch_size is not None
+            cfg.dataset.max_tokens is not None or cfg.dataset.batch_size is not None
     ), "Must specify batch size either with --max-tokens or --batch-size"
 
     use_fp16 = cfg.common.fp16
@@ -124,6 +124,7 @@ def main(cfg: DictConfig, override_args=None):
                         tm_probs.view(-1, out.size(-1)), 1).view(
                         out.size(0), -1).detach()
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+
 
 def cli_main():
     parser = options.get_validation_parser()

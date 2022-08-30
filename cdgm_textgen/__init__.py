@@ -9,8 +9,8 @@ import cdgm_textgen.criterions  # noqa
 import cdgm_textgen.models  # noqa
 import cdgm_textgen.modules  # noqa
 import cdgm_textgen.tasks  # noqa
-import cdgm_textgen.dataclass # noqa
-import cdgm_textgen.logging # noqa
+import cdgm_textgen.dataclass  # noqa
+import cdgm_textgen.logging  # noqa
 
 import fairseq.distributed  # noqa
 import fairseq.optim  # noqa
@@ -22,4 +22,3 @@ import fairseq.token_generation_constraints  # noqa
 
 import fairseq.benchmark  # noqa
 import fairseq.model_parallel  # noqa
-

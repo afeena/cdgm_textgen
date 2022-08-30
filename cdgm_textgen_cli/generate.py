@@ -26,16 +26,15 @@ from fairseq.logging.meters import StopwatchMeter, TimeMeter
 
 
 def main(cfg: DictConfig):
-
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
     assert cfg.common_eval.path is not None, "--path required for generation!"
     assert (
-        not cfg.generation.sampling or cfg.generation.nbest == cfg.generation.beam
+            not cfg.generation.sampling or cfg.generation.nbest == cfg.generation.beam
     ), "--sampling requires --nbest to be equal to --beam"
     assert (
-        cfg.generation.replace_unk is None or cfg.dataset.dataset_impl == "raw"
+            cfg.generation.replace_unk is None or cfg.dataset.dataset_impl == "raw"
     ), "--replace-unk requires a raw text dataset (--dataset-impl=raw)"
 
     if cfg.common_eval.results_path is not None:
@@ -290,8 +289,8 @@ def _main(cfg: DictConfig, output_file):
                                     lambda x: "{:.4f}".format(x),
                                     # convert from base e to base 2
                                     hypo["positional_scores"]
-                                    .div_(math.log(2))
-                                    .tolist(),
+                                        .div_(math.log(2))
+                                        .tolist(),
                                 )
                             ),
                         ),
@@ -346,8 +345,8 @@ def _main(cfg: DictConfig, output_file):
                 # Score only the top hypothesis
                 if has_target and j == 0:
                     if (
-                        align_dict is not None
-                        or cfg.common_eval.post_process is not None
+                            align_dict is not None
+                            or cfg.common_eval.post_process is not None
                     ):
                         # Convert back to tokens for evaluation with unk replacement and/or without BPE
                         target_tokens = tgt_dict.encode_line(
@@ -407,7 +406,7 @@ def cli_main():
         metavar="ARCH",
         default="wav2vec2",
         help="Model architecture. For constructing tasks that rely on "
-        "model args (e.g. `AudioPretraining`)",
+             "model args (e.g. `AudioPretraining`)",
     )
     args = options.parse_args_and_arch(parser)
     main(args)

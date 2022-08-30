@@ -7,13 +7,14 @@ from fairseq.models.transformer import TransformerConfig
 from dataclasses import dataclass, field
 from typing import Optional
 
+
 @dataclass
 class CCMLMTransformerConfig(TransformerConfig):
     target_embed_path: Optional[str] = field(
         default=None,
         metadata={"help": "path to target embeddings"},
     )
-    kappa: ChoiceEnum(["norm","norm2","tau","none"]) = field(
+    kappa: ChoiceEnum(["norm", "norm2", "tau", "none"]) = field(
         default="none",
         metadata={"help": "the type of kappa to use"},
     )
@@ -50,5 +51,3 @@ class CCMLMTransformerConfig(TransformerConfig):
             "help": "copy source embeddings"
         },
     )
-
-

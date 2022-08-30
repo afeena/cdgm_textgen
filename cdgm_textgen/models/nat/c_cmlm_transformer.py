@@ -49,8 +49,8 @@ class CCMLMNATransformerModel(CMLMNATransformerModel):
 
     @classmethod
     def build_decoder(cls, args, tgt_dict, embed_tokens):
-        #TODO: no last layernorm
-        decoder = ContNATransformerDecoder(args, tgt_dict, embed_tokens,)
+        # TODO: no last layernorm
+        decoder = ContNATransformerDecoder(args, tgt_dict, embed_tokens, )
         if getattr(args, "apply_bert_init", False):
             decoder.apply(init_bert_params)
 

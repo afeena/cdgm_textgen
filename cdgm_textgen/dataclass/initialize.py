@@ -5,16 +5,16 @@
 """isort:skip_file"""
 
 import logging
+
 from hydra.core.config_store import ConfigStore
-from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 from omegaconf import DictConfig, OmegaConf
 
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 
 logger = logging.getLogger(__name__)
 
 
 def hydra_init(cfg_name="config") -> None:
-
     cs = ConfigStore.instance()
     cs.store(name=f"{cfg_name}", node=FairseqConfig)
 

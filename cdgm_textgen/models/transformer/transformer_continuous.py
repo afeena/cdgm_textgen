@@ -29,11 +29,11 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "metric for NN decoding"},
     )
 
+
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-
         decoder = ContinuousTransformerDecoder(
             cfg,
             tgt_dict,
@@ -43,12 +43,10 @@ class TransformerModelContinuous(TransformerModelBase):
         if cfg.no_last_dec_layer_norm:
             decoder.layers[-1].final_layer_norm = Identity(decoder.embed_dim, export=cfg.export)
 
-
         decoder.target_embed = cls.build_embedding(cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path)
 
         decoder.target_embed.weight.requires_grad = False
         decoder.setup_faiss_index()
-
 
         return decoder
 
@@ -107,13 +105,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def setup_faiss_index(self):
         res = faiss.StandardGpuResources()
-        if self.metric=="cosine":
+        if self.metric == "cosine":
             self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
             self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
-        elif self.metric=="l2":
+        elif self.metric == "l2":
             self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
             self.faiss_index.add(self.target_embed.weight.data)
-
 
     def forward(
             self,
@@ -144,7 +141,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             sample: Optional[Dict[str, Tensor]] = None,
     ):
         scores = self.__nearest_neighbor_search(net_output[0])
-        #TODO this is only for case k=1!
+        # TODO this is only for case k=1!
         with torch.no_grad():
             m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
             k = torch.tensor([1.], device=net_output[0].device)
@@ -154,7 +151,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def __nearest_neighbor_search(self, features, beam_size=5):
         with torch.no_grad():
-            if self.metric=="cosine":
+            if self.metric == "cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
@@ -162,11 +159,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
             sim = sim.view(features.shape[0], features.shape[1], -1)
 
-            #sequence generator expects the matrix emb x vocab, so...
+            # sequence generator expects the matrix emb x vocab, so...
             output_proj = torch.full(
                 (features.shape[0], features.shape[1], self.dict_len), 0.0
             ).to(features.device)
 
-            output_proj = output_proj.scatter_(-1,_tokens,sim)
-                 
+            output_proj = output_proj.scatter_(-1, _tokens, sim)
+
             return output_proj

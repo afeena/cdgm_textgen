@@ -49,17 +49,17 @@ def interpret_dc_type(field_type):
 
     typestring = str(field_type)
     if re.match(
-        r"(typing.|^)Union\[(.*), NoneType\]$", typestring
+            r"(typing.|^)Union\[(.*), NoneType\]$", typestring
     ) or typestring.startswith("typing.Optional"):
         return field_type.__args__[0]
     return field_type
 
 
 def gen_parser_from_dataclass(
-    parser: ArgumentParser,
-    dataclass_instance: FairseqDataclass,
-    delete_default: bool = False,
-    with_prefix: Optional[str] = None,
+        parser: ArgumentParser,
+        dataclass_instance: FairseqDataclass,
+        delete_default: bool = False,
+        with_prefix: Optional[str] = None,
 ) -> None:
     """
     convert a dataclass instance to tailing parser arguments.
@@ -82,7 +82,7 @@ def gen_parser_from_dataclass(
         return full_name
 
     def get_kwargs_from_dc(
-        dataclass_instance: FairseqDataclass, k: str
+            dataclass_instance: FairseqDataclass, k: str
     ) -> Dict[str, Any]:
         """k: dataclass attributes"""
 
@@ -109,8 +109,8 @@ def gen_parser_from_dataclass(
             if field_choices is not None:
                 kwargs["choices"] = field_choices
             if (
-                isinstance(inter_type, type)
-                and (issubclass(inter_type, List) or issubclass(inter_type, Tuple))
+                    isinstance(inter_type, type)
+                    and (issubclass(inter_type, List) or issubclass(inter_type, Tuple))
             ) or ("List" in str(inter_type) or "Tuple" in str(inter_type)):
                 if "int" in str(inter_type):
                     kwargs["type"] = lambda x: eval_str_list(x, int)
@@ -129,7 +129,7 @@ def gen_parser_from_dataclass(
                         else None
                     )
             elif (
-                isinstance(inter_type, type) and issubclass(inter_type, Enum)
+                    isinstance(inter_type, type) and issubclass(inter_type, Enum)
             ) or "Enum" in str(inter_type):
                 kwargs["type"] = str
                 if field_default is not MISSING:
@@ -183,7 +183,7 @@ def gen_parser_from_dataclass(
 
         if "default" in kwargs:
             if isinstance(kwargs["default"], str) and kwargs["default"].startswith(
-                "${"
+                    "${"
             ):
                 if kwargs["help"] is None:
                     # this is a field with a name that will be added elsewhere
@@ -222,7 +222,7 @@ def _set_legacy_defaults(args, cls):
 
 
 def _override_attr(
-    sub_node: str, data_class: Type[FairseqDataclass], args: Namespace
+        sub_node: str, data_class: Type[FairseqDataclass], args: Namespace
 ) -> List[str]:
     overrides = []
 
@@ -243,12 +243,12 @@ def _override_attr(
 
         field_type = interpret_dc_type(v.type)
         if (
-            isinstance(val, str)
-            and not val.startswith("${")  # not interpolation
-            and field_type != str
-            and (
+                isinstance(val, str)
+                and not val.startswith("${")  # not interpolation
+                and field_type != str
+                and (
                 not inspect.isclass(field_type) or not issubclass(field_type, Enum)
-            )  # not choices enum
+        )  # not choices enum
         ):
             # upgrade old models that stored complex parameters as string
             val = ast.literal_eval(val)
@@ -258,9 +258,9 @@ def _override_attr(
 
         v_type = getattr(v.type, "__origin__", None)
         if (
-            (v_type is List or v_type is list or v_type is Optional)
-            # skip interpolation
-            and not (isinstance(val, str) and val.startswith("${"))
+                (v_type is List or v_type is list or v_type is Optional)
+                # skip interpolation
+                and not (isinstance(val, str) and val.startswith("${"))
         ):
             # if type is int but val is float, then we will crash later - try to convert here
             if hasattr(v.type, "__args__"):
@@ -268,7 +268,7 @@ def _override_attr(
                 if len(t_args) == 1 and (t_args[0] is float or t_args[0] is int):
                     val = list(map(t_args[0], val))
         elif val is not None and (
-            field_type is int or field_type is bool or field_type is float
+                field_type is int or field_type is bool or field_type is float
         ):
             try:
                 val = field_type(val)
@@ -295,7 +295,7 @@ def _override_attr(
 
 
 def migrate_registry(
-    name, value, registry, args, overrides, deletes, use_name_as_val=False
+        name, value, registry, args, overrides, deletes, use_name_as_val=False
 ):
     if value in registry:
         overrides.append("{}={}".format(name, value))
@@ -477,8 +477,8 @@ def overwrite_args_by_name(cfg: DictConfig, overrides: Dict[str, any]):
                     setattr(cfg[k], override_key, val)
             elif k in overrides:
                 if (
-                    k in REGISTRIES
-                    and overrides[k] in REGISTRIES[k]["dataclass_registry"]
+                        k in REGISTRIES
+                        and overrides[k] in REGISTRIES[k]["dataclass_registry"]
                 ):
                     cfg[k] = DictConfig(
                         REGISTRIES[k]["dataclass_registry"][overrides[k]]
@@ -507,6 +507,7 @@ def merge_with_parent(dc: FairseqDataclass, cfg: DictConfig, remove_missing=Fals
     OmegaConf.set_struct(merged_cfg, True)
     return merged_cfg
 
+
 def _flatten_config(cfg, parent_key="", sep="_"):
     items = []
     for k, v in cfg.items():
@@ -516,6 +517,7 @@ def _flatten_config(cfg, parent_key="", sep="_"):
         else:
             items.append((new_key, v))
     return dict(items)
+
 
 def convert_omegaconf_to_namesapce(cfg: DictConfig):
     config = OmegaConf.to_container(cfg)

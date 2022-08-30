@@ -17,6 +17,7 @@ from fairseq.dataclass import FairseqDataclass
 
 import power_spherical
 
+
 def _mean_ds(x: Tensor, dim=None) -> Tensor:
     return (
         x.float().mean().type_as(x)
@@ -254,7 +255,7 @@ class PowerSphericalRevKLCriterion(ContinuousCriterion):
 
         entropy = q.entropy()
         neg_ce = _mean_ds(log_pz, dim=0)
-        loss = -entropy-neg_ce
+        loss = -entropy - neg_ce
         loss = _mean_ds(loss)
         logging = {"kappa": _mean_ds(parsed_outputs["kappa"])}
 

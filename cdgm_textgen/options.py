@@ -8,8 +8,13 @@ from pathlib import Path
 from typing import Callable, List, Optional, Union
 
 import torch
+
 from fairseq import utils
 from fairseq.data.indexed_dataset import get_available_dataset_impl
+# this import is for backward compatibility
+from fairseq.utils import csv_str_list, eval_bool, eval_str_dict, eval_str_list  # noqa
+
+from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 from cdgm_textgen.dataclass.configs import (
     CheckpointConfig,
     CDGMCommonConfig as CommonConfig,
@@ -22,10 +27,6 @@ from cdgm_textgen.dataclass.configs import (
     OptimizationConfig,
     EMAConfig,
 )
-from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
-
-# this import is for backward compatibility
-from fairseq.utils import csv_str_list, eval_bool, eval_str_dict, eval_str_list  # noqa
 
 
 def get_preprocessing_parser(default_task="translation"):
@@ -86,11 +87,11 @@ def get_validation_parser(default_task=None):
 
 
 def parse_args_and_arch(
-    parser: argparse.ArgumentParser,
-    input_args: List[str] = None,
-    parse_known: bool = False,
-    suppress_defaults: bool = False,
-    modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None,
+        parser: argparse.ArgumentParser,
+        input_args: List[str] = None,
+        parse_known: bool = False,
+        suppress_defaults: bool = False,
+        modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None,
 ):
     """
     Args:
@@ -186,7 +187,7 @@ def parse_args_and_arch(
         extra = None
     # Post-process args.
     if (
-        hasattr(args, "batch_size_valid") and args.batch_size_valid is None
+            hasattr(args, "batch_size_valid") and args.batch_size_valid is None
     ) or not hasattr(args, "batch_size_valid"):
         args.batch_size_valid = args.batch_size
     if hasattr(args, "max_tokens_valid") and args.max_tokens_valid is None:
@@ -394,10 +395,10 @@ def add_model_args(parser):
 
 
 def get_args(
-    data: Union[str, Path],
-    task: str = "translation",
-    arch: str = "transformer",
-    **overrides
+        data: Union[str, Path],
+        task: str = "translation",
+        arch: str = "transformer",
+        **overrides
 ):
     parser = get_training_parser(task)
     args = parse_args_and_arch(parser, [str(data), "--task", task, "--arch", arch])

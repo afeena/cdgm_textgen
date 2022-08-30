@@ -25,20 +25,20 @@ logger = logging.getLogger(__name__)
 
 
 def progress_bar(
-    iterator,
-    log_format: Optional[str] = None,
-    log_interval: int = 100,
-    log_file: Optional[str] = None,
-    epoch: Optional[int] = None,
-    prefix: Optional[str] = None,
-    aim_repo: Optional[str] = None,
-    aim_run_hash: Optional[str] = None,
-    aim_param_checkpoint_dir: Optional[str] = None,
-    tensorboard_logdir: Optional[str] = None,
-    default_log_format: str = "tqdm",
-    wandb_project: Optional[str] = None,
-    wandb_run_name: Optional[str] = None,
-    azureml_logging: Optional[bool] = False,
+        iterator,
+        log_format: Optional[str] = None,
+        log_interval: int = 100,
+        log_file: Optional[str] = None,
+        epoch: Optional[int] = None,
+        prefix: Optional[str] = None,
+        aim_repo: Optional[str] = None,
+        aim_run_hash: Optional[str] = None,
+        aim_param_checkpoint_dir: Optional[str] = None,
+        tensorboard_logdir: Optional[str] = None,
+        default_log_format: str = "tqdm",
+        wandb_project: Optional[str] = None,
+        wandb_run_name: Optional[str] = None,
+        azureml_logging: Optional[bool] = False,
 ):
     if log_format is None:
         log_format = default_log_format
@@ -89,12 +89,12 @@ def progress_bar(
 
 
 def build_progress_bar(
-    args,
-    iterator,
-    epoch: Optional[int] = None,
-    prefix: Optional[str] = None,
-    default: str = "tqdm",
-    no_progress_bar: str = "none",
+        args,
+        iterator,
+        epoch: Optional[int] = None,
+        prefix: Optional[str] = None,
+        default: str = "tqdm",
+        no_progress_bar: str = "none",
 ):
     """Legacy wrapper that takes an argparse.Namespace."""
     if getattr(args, "no_progress_bar", False):
@@ -326,6 +326,7 @@ try:
 
     from aim import Repo as AimRepo
 
+
     @functools.lru_cache()
     def get_aim_run(repo, run_hash):
         from aim import Run
@@ -526,7 +527,6 @@ class WandBProgressBarWrapper(BaseProgressBar):
                 wandb.log({prefix + key: stats[key].val}, step=step)
             elif isinstance(stats[key], Number):
                 wandb.log({prefix + key: stats[key]}, step=step)
-
 
 
 try:
