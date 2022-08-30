@@ -12,12 +12,12 @@ from fairseq import utils
 from fairseq.data.indexed_dataset import get_available_dataset_impl
 from cdgm_textgen.dataclass.configs import (
     CheckpointConfig,
-    CommonConfig,
+    CDGMCommonConfig as CommonConfig,
     CommonEvalConfig,
     DatasetConfig,
     DistributedTrainingConfig,
     EvalLMConfig,
-    GenerationConfig,
+    CDGMGenerationConfig as GenerationConfig,
     InteractiveConfig,
     OptimizationConfig,
     EMAConfig,
