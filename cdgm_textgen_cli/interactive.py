@@ -23,7 +23,7 @@ import torch
 from fairseq import checkpoint_utils, distributed_utils, tasks, utils
 
 from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
-from fairseq_cli.generate import get_symbols_to_strip_from_output
+from cdgm_textgen_cli.generate import get_symbols_to_strip_from_output
 
 from cdgm_textgen import options
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
