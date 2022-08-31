@@ -111,6 +111,7 @@ class NaiveBeamGenerator(nn.Module):
             sample: Dict[str, Dict[str, Tensor]],
             prefix_tokens: Optional[Tensor] = None,
             bos_token: Optional[int] = None,
+            constraints: Optional[Tensor] = None,
     ):
         incremental_states = torch.jit.annotate(
             List[Dict[str, Dict[str, Optional[Tensor]]]],
