@@ -21,12 +21,14 @@ from fairseq.dataclass.configs import (
     GenerationConfig
 )
 
+from cdgm_textgen.dataclass.constants import GENERATOR_TYPES
+
 
 @dataclass
 class CDGMGenerationConfig(GenerationConfig):
-    custom_gen: bool = field(
-        default=False,
-        metadata={"help": "use custom naive beam generator from lib"},
+    gen_type: GENERATOR_TYPES = field(
+        default="seq2seq",
+        metadata={"help": "define type of the generator"},
     )
 
     # arguments for iterative refinement generator

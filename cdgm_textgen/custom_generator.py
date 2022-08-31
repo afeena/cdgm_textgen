@@ -110,7 +110,6 @@ class NaiveBeamGenerator(nn.Module):
             self,
             sample: Dict[str, Dict[str, Tensor]],
             prefix_tokens: Optional[Tensor] = None,
-            constraints: Optional[Tensor] = None,
             bos_token: Optional[int] = None,
     ):
         incremental_states = torch.jit.annotate(
@@ -186,3 +185,5 @@ class NaiveBeamGenerator(nn.Module):
                 scores.view(bsz, beam_size, -1)[:, :, :step],
                 tokens[:, : step + 1],
             )
+
+            print(cand_scores, cand_indices, cand_beams)
