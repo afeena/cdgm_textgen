@@ -30,7 +30,6 @@ class CDGMGenerationConfig(GenerationConfig):
         default="seq2seq",
         metadata={"help": "define type of the generator"},
     )
-
     # arguments for iterative refinement generator
     decoding_measure: str = field(
         default="cosine",
@@ -45,7 +44,6 @@ class CDGMGenerationConfig(GenerationConfig):
         default=False,
         metadata={"help": "approximate knn with faiss"},
     )
-
 
 @dataclass
 class CDGMCommonConfig(CommonConfig):
