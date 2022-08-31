@@ -158,7 +158,8 @@ def build_generator(self, models, args, seq_gen_cls=None,
     if gen_type == "custom":
         from cdgm_textgen.custom_generator import NaiveBeamGenerator
         seq_gen_cls = NaiveBeamGenerator
-        seq_gen_cls(
+
+        return seq_gen_cls(
             models,
             self.target_dictionary,
             beam_size=getattr(args, "beam", 5),
