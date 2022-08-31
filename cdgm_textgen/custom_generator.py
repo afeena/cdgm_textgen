@@ -63,6 +63,7 @@ class NaiveBeamGenerator(nn.Module):
         self.model.set_decoder_beam_size(self.beam_size)
         self.min_len = min_len
         self.max_len = max_len or self.model.max_decoder_positions()
+        self.temperature = temperature
         self.search = search.BeamSearch(tgt_dict)
         self.model.eval()
 
