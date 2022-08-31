@@ -160,8 +160,17 @@ class NaiveBeamGenerator(nn.Module):
         encoder_outs = self.model.reorder_encoder_out(encoder_outs, new_order)
 
         max_len = self.max_len
-        scores = None
-        tokens = None
+        # initialize buffers
+        scores = (
+            torch.zeros(bsz * beam_size, max_len + 1).to(src_tokens).float()
+        )  # +1 for eos; pad is never chosen for scoring
+        tokens = (
+            torch.zeros(bsz * beam_size, max_len + 2)
+                .to(src_tokens)
+                .long()
+                .fill_(self.pad)
+        )  # +2 for eos and pad
+        tokens[:, 0] = self.eos if bos_token is None else bos_token
         for step in range(max_len + 1):
             lprobs, avg_attn_scores = self.model.forward_decoder(
                 tokens[:, : step + 1],
