@@ -38,6 +38,7 @@ class NaiveBeamGenerator(nn.Module):
         self.tgt_dict = tgt_dict
         self.pad = tgt_dict.pad()
         self.unk = tgt_dict.unk()
+        self.unk_penalty = unk_penalty
         self.eos = tgt_dict.eos() if eos is None else eos
         self.symbols_to_strip_from_output = (
             symbols_to_strip_from_output.union({self.eos})
