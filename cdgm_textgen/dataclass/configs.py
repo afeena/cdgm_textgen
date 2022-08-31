@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 from dataclasses import _MISSING_TYPE, dataclass, field
 from typing import Any, Optional
-from omegaconf import II, MISSING
+from omegaconf import MISSING
 
 from fairseq.dataclass.configs import (
     FairseqDataclass,
@@ -55,14 +55,14 @@ class CDGMCommonConfig(CommonConfig):
 
 @dataclass
 class CDGMTextgenConfig(FairseqDataclass):
-    common: CommonConfig = CDGMCommonConfig()
+    common: CDGMCommonConfig = CDGMCommonConfig()
     common_eval: CommonEvalConfig = CommonEvalConfig()
     distributed_training: DistributedTrainingConfig = DistributedTrainingConfig()
     dataset: DatasetConfig = DatasetConfig()
     optimization: OptimizationConfig = OptimizationConfig()
     checkpoint: CheckpointConfig = CheckpointConfig()
     bmuf: FairseqBMUFConfig = FairseqBMUFConfig()
-    generation: GenerationConfig = CDGMGenerationConfig()
+    generation: CDGMGenerationConfig = CDGMGenerationConfig()
     eval_lm: EvalLMConfig = EvalLMConfig()
     interactive: InteractiveConfig = InteractiveConfig()
     model: Any = MISSING

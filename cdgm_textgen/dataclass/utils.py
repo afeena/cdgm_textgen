@@ -1,8 +1,6 @@
 import argparse
 import collections
 
-from omegaconf import DictConfig, OmegaConf
-
 # Copyright (c) Facebook, Inc. and its affiliates.
 #
 # This source code is licensed under the MIT license found in the
