@@ -92,9 +92,12 @@ if __name__ == "__main__":
             eval_command = f"cat {hyp_file} | grep -P \"^H\" | sort -V | cut -f3- | $MOSES/scripts/recaser/detruecase.perl | $MOSES/scripts/tokenizer/detokenizer.perl -l {trg} > {eval_ready_file}\n"
             scr.write(eval_command)
             current_ref = model_config["refs"][k]
-            score_file = f"{eval_dir}/{src}_{trg}_{checkpoint_name}_{k}_{task}_beam{beam}{iters}{decoding_m}{tag}.sacrebleu"
-            score_command = f"cat {eval_ready_file} | sacrebleu {current_ref} > {score_file}\n"
-            scr.write(score_command)
+            blue_score_file = f"{eval_dir}/{src}_{trg}_{checkpoint_name}_{k}_{task}_beam{beam}{iters}{decoding_m}{tag}.sacrebleu"
+            blue_score_command = f"cat {eval_ready_file} | sacrebleu {current_ref} > {blue_score_file}\n"
+            bert_score_file = f"{eval_dir}/{src}_{trg}_{checkpoint_name}_{k}_{task}_beam{beam}{iters}{decoding_m}{tag}.bert"
+            bert_score_command = f"bert-score -r {current_ref} -c {eval_ready_file}  --lang {trg} --rescale_with_baseline > {bert_score_file}\n"
+            scr.write(blue_score_command)
+            scr.write(bert_score_command)
             scr.write("\n")
 
     st = os.stat('tmp_decode_batch_script.sh')
