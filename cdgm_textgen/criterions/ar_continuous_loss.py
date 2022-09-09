@@ -236,10 +236,9 @@ class MixtureModelCriterion(CosineARCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
-        target = target[mask]
         modes_out = net_output[0]["modes_out"]
 
-        modes_probs = F.softmax(modes_out, dim=-1)
+        modes_probs = F.log_softmax(modes_out, dim=-1)
 
         # here out is BxTxD*num_modes, reshape it to BxTxMxD
         out = net_output[0]
@@ -248,4 +247,18 @@ class MixtureModelCriterion(CosineARCriterion):
         num_modes = model.num_modes
         out = out.view(bsz, -1, num_modes, dim)
 
-        
+        # need to extend target here for PS
+        target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
+
+        kappa = torch.norm(out, dim=-1)
+        out = F.normalize(out, dim=-1)
+        target = target[mask]
+        kappa = kappa[mask]
+        out = out[mask]
+
+        d_x = power_spherical.PowerSpherical(out, kappa)
+
+        p_out = -d_x.log_prob(target)
+        loss = torch.logsumexp(modes_probs+p_out,dim=-1)
+        print(loss)
+
