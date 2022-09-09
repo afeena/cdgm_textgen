@@ -231,6 +231,7 @@ class ARGaussianvKLCriterion(KLCriterion):
         loss = loss.mean(-1)
         return loss, {}
 
+
 @register_criterion("ar_mixture_ps_loss")
 class MixtureModelCriterion(CosineARCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
@@ -253,18 +254,17 @@ class MixtureModelCriterion(CosineARCriterion):
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
 
-        #apply padding mask
+        # apply padding mask
         target = target[mask]
         kappa = kappa[mask]
         out = out[mask]
         modes_probs = modes_probs[mask]
 
-        #get PS probs for each component
+        # get PS probs for each component
         d_x = power_spherical.PowerSpherical(out, kappa)
 
         p_out = -d_x.log_prob(target)
 
-        #sum over components
-        loss = torch.logsumexp(modes_probs+p_out,dim=-1)
+        # sum over components
+        loss = torch.logsumexp(modes_probs + p_out, dim=-1)
         print(loss.sum())
-

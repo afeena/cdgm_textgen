@@ -34,7 +34,6 @@ class ContinuousTransformerConfig(TransformerConfig):
     )
 
 
-
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
     @classmethod
@@ -113,9 +112,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.num_modes = num_modes
         if self.num_modes > 1:
             self.ouput_modes = torch.nn.Linear(self.output_embed_dim,
-                                               self.output_embed_dim*self.num_modes)
+                                               self.output_embed_dim * self.num_modes)
             self.modes_ff = torch.nn.Linear(self.output_embed_dim,
-                                               self.num_modes)
+                                            self.num_modes)
 
     def setup_faiss_index(self):
         res = faiss.StandardGpuResources()
