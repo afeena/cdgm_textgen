@@ -231,7 +231,7 @@ class ARGaussianvKLCriterion(KLCriterion):
         loss = loss.mean(-1)
         return loss, {}
 
-
+@register_criterion("ar_mixture_ps_loss")
 class MixtureModelCriterion(CosineARCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
