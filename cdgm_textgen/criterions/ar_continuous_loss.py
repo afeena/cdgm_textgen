@@ -252,13 +252,19 @@ class MixtureModelCriterion(CosineARCriterion):
 
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
+
+        #apply padding mask
         target = target[mask]
         kappa = kappa[mask]
         out = out[mask]
+        modes_probs = modes_probs[mask]
 
+        #get PS probs for each component
         d_x = power_spherical.PowerSpherical(out, kappa)
 
         p_out = -d_x.log_prob(target)
+
+        #sum over components
         loss = torch.logsumexp(modes_probs+p_out,dim=-1)
-        print(loss)
+        print(loss.sum())
 
