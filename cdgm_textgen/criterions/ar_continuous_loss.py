@@ -230,3 +230,22 @@ class ARGaussianvKLCriterion(KLCriterion):
         loss = torch.distributions.kl.kl_divergence(p, q)
         loss = loss.mean(-1)
         return loss, {}
+
+
+class MixtureModelCriterion(CosineARCriterion):
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+        target = target[mask]
+        modes_out = net_output[0]["modes_out"]
+
+        modes_probs = F.softmax(modes_out, dim=-1)
+
+        # here out is BxTxD*num_modes, reshape it to BxTxMxD
+        out = net_output[0]
+        bsz = out.size(0)
+        dim = model.decoder.output_embed_dim
+        num_modes = model.num_modes
+        out = out.view(bsz, -1, num_modes, dim)
+
+        
