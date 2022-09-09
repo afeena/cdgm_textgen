@@ -28,6 +28,11 @@ class ContinuousTransformerConfig(TransformerConfig):
         default="cosine",
         metadata={"help": "metric for NN decoding"},
     )
+    num_modes: int = field(
+        default=1,
+        metadata={"help": "number of modes for the distribution"},
+    )
+
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
@@ -38,7 +43,8 @@ class TransformerModelContinuous(TransformerModelBase):
             cfg,
             tgt_dict,
             embed_tokens,
-            metric=cfg.decoder_nn_metric
+            metric=cfg.decoder_nn_metric,
+            num_modes=cfg.num_modes
         )
         if cfg.no_last_dec_layer_norm:
             decoder.layers[-1].final_layer_norm = Identity(decoder.embed_dim, export=cfg.export)
@@ -46,6 +52,7 @@ class TransformerModelContinuous(TransformerModelBase):
         decoder.target_embed = cls.build_embedding(cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path)
 
         decoder.target_embed.weight.requires_grad = False
+
         decoder.setup_faiss_index()
 
         return decoder
@@ -90,7 +97,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                  embed_tokens,
                  no_encoder_attn=False,
                  output_projection=None,
-                 metric="cosine"
+                 metric="cosine",
+                 num_modes=1,
                  ):
         super().__init__(cfg,
                          dictionary, embed_tokens,
@@ -102,6 +110,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.output_projection = None
         self.dict_len = len(self.dictionary)
         self.metric = metric
+        self.num_modes = num_modes
+        if self.num_modes>1:
+            self.ouput_modes = torch.nn.Linear(self.output_embed_dim,
+                                               self.output_embed_dim*self.num_modes)
+            self.modes_ff = torch.nn.Linear(self.output_embed_dim,
+                                               self.num_modes)
 
     def setup_faiss_index(self):
         res = faiss.StandardGpuResources()
@@ -132,6 +146,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
+        if self.num_modes > 1:
+            modes_out = self.modes_ff(x)
+            extra["modes_out"] = modes_out
+            x = self.ouput_modes(x)
+
         return x, extra
 
     def get_normalized_probs(
@@ -149,7 +168,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-    def __nearest_neighbor_search(self, features, k_nearest=5):
+    def __nearest_neighbor_search(self, features, k_nearest=2048):
         with torch.no_grad():
             if self.metric == "cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
