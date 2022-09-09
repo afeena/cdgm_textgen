@@ -245,7 +245,7 @@ class MixtureModelCriterion(CosineARCriterion):
         out = net_output[0]
         bsz = out.size(0)
         dim = model.decoder.output_embed_dim
-        num_modes = model.num_modes
+        num_modes = model.decoder.num_modes
         out = out.view(bsz, -1, num_modes, dim)
 
         # need to extend target here to match output shape
