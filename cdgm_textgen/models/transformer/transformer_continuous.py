@@ -110,11 +110,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.dict_len = len(self.dictionary)
         self.metric = metric
         self.num_modes = num_modes
-        if self.num_modes > 1:
-            self.ouput_modes = torch.nn.Linear(self.output_embed_dim,
-                                               self.output_embed_dim * self.num_modes)
-            self.modes_ff = torch.nn.Linear(self.output_embed_dim,
-                                            self.num_modes)
+
+        self.ouput_modes = torch.nn.Linear(self.output_embed_dim,
+                                           self.output_embed_dim * self.num_modes)
+        self.modes_ff = torch.nn.Linear(self.output_embed_dim,
+                                        self.num_modes)
 
     def setup_faiss_index(self):
         res = faiss.StandardGpuResources()
@@ -145,10 +145,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        if self.num_modes > 1:
-            modes_out = self.modes_ff(x)
-            extra["modes_out"] = modes_out
-            x = self.ouput_modes(x)
+
+        modes_out = self.modes_ff(x)
+        extra["modes_out"] = modes_out
+        x = self.ouput_modes(x)
 
         return x, extra
 
@@ -158,14 +158,23 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
     ):
-        scores = self.__nearest_neighbor_search(net_output[0])
-        # TODO this is only for case k=1 (cosine)!
         with torch.no_grad():
-            m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
-            k = torch.tensor([1.], device=net_output[0].device)
-            scores += _neglogcmk(m, k)
+            out = net_output[0]
+            kappa = torch.norm(out, -1)
+            if self.num_modes > 1:
+                bsz = out.shape[0]
+                out = out.view(bsz, -1, self.num_modes, self.output_embed_dim)
+                modes_out = net_output[1]["modes_out"]
+                _, idx = F.softmax(modes_out, -1).max(dim=-1)
+                idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
+                out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
+                kappa = kappa[idx_bool_mask].view(bsz, -1)
 
-        return scores
+            scores = self.__nearest_neighbor_search(out)
+            m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
+            scores += _neglogcmk(m, kappa)
+
+            return scores
 
     def __nearest_neighbor_search(self, features, k_nearest=2048):
         with torch.no_grad():
