@@ -248,8 +248,9 @@ class MixtureModelCriterion(CosineARCriterion):
         num_modes = model.decoder.num_modes
         out = out.view(bsz, -1, num_modes, dim)
 
-        # need to extend target here to match output shape
+        # need to extend target and mask here to match output shape
         target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
+        mask = mask.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
 
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
