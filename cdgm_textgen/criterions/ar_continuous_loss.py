@@ -251,8 +251,7 @@ class MixtureModelCriterion(CosineARCriterion):
 
         # need to extend target and mask here to match output shape
         target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
-        mask = mask.repeat(1, num_modes).view(bsz, -1, num_modes)
-        print(target.shape, mask.shape, out.shape)
+        print(target.shape, out.shape, modes_probs.shape)
 
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
@@ -262,6 +261,8 @@ class MixtureModelCriterion(CosineARCriterion):
         kappa = kappa[mask]
         out = out[mask]
         modes_probs = modes_probs[mask]
+
+        print(target.shape, out.shape, modes_probs.shape)
 
         # get PS probs for each component
         d_x = power_spherical.PowerSpherical(out, kappa)
