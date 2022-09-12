@@ -160,15 +160,18 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     ):
         with torch.no_grad():
             out = net_output[0]
-            kappa = torch.norm(out, -1)
+            kappa = None
             if self.num_modes > 1:
                 bsz = out.shape[0]
                 out = out.view(bsz, -1, self.num_modes, self.output_embed_dim)
+
                 modes_out = net_output[1]["modes_out"]
                 _, idx = F.softmax(modes_out, -1).max(dim=-1)
                 idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
                 out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
-                kappa = kappa[idx_bool_mask].view(bsz, -1)
+                kappa = torch.norm(out, -1)
+            else:
+                kappa = torch.norm(out, -1)
 
             scores = self.__nearest_neighbor_search(out)
             m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
