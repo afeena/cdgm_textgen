@@ -268,4 +268,4 @@ class MixtureModelCriterion(CosineARCriterion):
         # sum over components
         loss = torch.logsumexp(modes_probs + p_out, dim=-1)
         print(loss.mean())
-        return loss, {}
+        return loss.mean(), {}
