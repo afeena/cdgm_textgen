@@ -264,8 +264,8 @@ class MixtureModelCriterion(CosineARCriterion):
         # get PS probs for each component
         d_x = power_spherical.PowerSpherical(out, kappa)
 
-        p_out = -d_x.log_prob(target)
+        p_out = d_x.log_prob(target)
 
         # sum over components
-        loss = torch.logsumexp(modes_probs + p_out, dim=-1)
+        loss = torch.logsumexp(modes_probs + p_out, dim=-1) * -1.0
         return loss.mean(), {}
