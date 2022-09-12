@@ -95,4 +95,4 @@ if __name__ == "__main__":
 
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
     output, error = process.communicate()
-    print(output, error)
+    print(job_name, output)
