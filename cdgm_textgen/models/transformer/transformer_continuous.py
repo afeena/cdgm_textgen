@@ -179,7 +179,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return scores
 
-    def __nearest_neighbor_search(self, features, k_nearest=2048):
+    def __nearest_neighbor_search(self, features, k_nearest=5):
         with torch.no_grad():
             if self.metric == "cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
