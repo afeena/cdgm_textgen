@@ -268,6 +268,6 @@ class MixtureModelCriterion(ARPowerSphericalCriterion):
 
         # sum over components
         loss = torch.logsumexp(modes_probs + p_out, dim=-1)
-        loss = -loss.mean(-1) + (self.kappa_lambda * torch.pow(kappa, 2)).mean(-1)
+        loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean(-1)
         logging = {"kappa": kappa.mean(-1)}
         return loss, logging
