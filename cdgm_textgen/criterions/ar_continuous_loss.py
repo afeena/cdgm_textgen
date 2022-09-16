@@ -150,13 +150,7 @@ class KLCriterion(FairseqCriterion):
         return loss, 1, logging_output
 
     def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-        out = net_output[0]
-
-        loss, logging = self.compute_kl(out, target, mask)
-
-        return loss, logging
+        raise NotImplementedError
 
 
 @dataclass
@@ -196,19 +190,46 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         else:
             return q, p
 
-    def compute_kl(self, out, target, mask):
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+        out = net_output[0]
+        modes_out = net_output[1].get(["modes_out"], None)
+
+        if modes_out:
+            bsz = out.size(0)
+            dim = model.decoder.output_embed_dim
+            num_modes = model.decoder.num_modes
+            out = out.view(bsz, -1, num_modes, dim)
+
+        loss, logging = self.compute_kl(out, target, mask, modes_out)
+
+        return loss, logging
+
+    def sample_z(self, q, modes_out=None):
+        if modes_out is None:
+            return q.rsample(), q.entropy()
+        else:
+            bsz = modes_out.szie(0)
+            num_modes = modes_out.szie(-1)
+            components_samples = torch.multinomial(F.softmax(modes_out, -1).view(-1,num_modes), 1).view(bsz, -1)
+            samples_mask = F.one_hot(components_samples, num_modes).bool()
+            return q.rsample()[samples_mask], q.entropy()[samples_mask]
+
+    def compute_kl(self, out, target, mask, modes_out=None):
         target = target[mask]
-        out = out[mask]
 
         kappa = torch.norm(out, dim=-1)
         kappa = kappa[mask]
+        out = out[mask]
+        if modes_out:
+            modes_out = modes_out[mask]
 
         out = F.normalize(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
-        z = q.rsample((self.n_samples,))
+        z, entropy = self.sample_z(q, modes_out)
         log_pz = p.log_prob(z)
 
-        entropy = q.entropy()
         neg_ce = log_pz.mean(0)
         loss = -entropy - neg_ce
         loss = loss.mean(-1)
