@@ -222,7 +222,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         kappa = torch.norm(out, dim=-1)
         kappa = kappa[mask]
         out = out[mask]
-        if modes_out:
+        if modes_out is not None:
             modes_out = modes_out[mask]
 
         out = F.normalize(out, dim=-1)
