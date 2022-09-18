@@ -146,7 +146,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_heads=alignment_heads,
         )
 
-        modes_out = self.modes_ff(x)
+        if self.num_modes>1:
+            modes_out = self.modes_ff(x)
+        else:
+            modes_out = None
         extra["modes_out"] = modes_out
         x = self.ouput_modes(x)
 
