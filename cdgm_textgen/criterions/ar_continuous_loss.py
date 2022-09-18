@@ -210,8 +210,8 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         if modes_out is None:
             return q.rsample(), q.entropy()
         else:
-            bsz = modes_out.szie(0)
-            num_modes = modes_out.szie(-1)
+            bsz = modes_out.size(0)
+            num_modes = modes_out.size(-1)
             components_samples = torch.multinomial(F.softmax(modes_out, -1).view(-1,num_modes), 1).view(bsz, -1)
             samples_mask = F.one_hot(components_samples, num_modes).bool()
             return q.rsample()[samples_mask], q.entropy()[samples_mask]
