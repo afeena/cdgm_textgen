@@ -230,7 +230,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
             num_modes = modes_out.size(-1)
             components_samples = torch.multinomial(F.softmax(modes_out, -1).view(-1,num_modes), 1).view(bsz, -1)
             samples_mask = F.one_hot(components_samples, num_modes).bool().squeeze()
-            return q.rsample()[samples_mask], q.entropy()[samples_mask]
+            return q.rsample()[samples_mask], q.entropy()[samples_mask], samples_mask
 
     def compute_kl(self, out, target, mask, modes_out=None):
         target = target[mask]
@@ -243,13 +243,13 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
         out = F.normalize(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
-        z, entropy = self.sample_z(q, modes_out)
+        z, entropy, sample_mask = self.sample_z(q, modes_out)
         log_pz = p.log_prob(z)
 
         neg_ce = log_pz.mean(0)
         loss = -entropy - neg_ce
         loss = loss.mean(-1)
-        return loss, {"kappa": kappa.mean(-1)}
+        return loss, {"kappa": kappa[sample_mask].mean(-1)}
 
 
 @register_criterion("ar_gaussian_kl_loss")
