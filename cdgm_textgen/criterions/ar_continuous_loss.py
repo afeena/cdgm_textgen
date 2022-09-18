@@ -194,7 +194,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
-        modes_out = net_output[1].get(["modes_out"], None)
+        modes_out = net_output[1].get("modes_out", None)
 
         if modes_out:
             bsz = out.size(0)
