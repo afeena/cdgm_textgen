@@ -196,7 +196,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         out = net_output[0]
         modes_out = net_output[1].get("modes_out", None)
 
-        if modes_out:
+        if modes_out is not None:
             bsz = out.size(0)
             dim = model.decoder.output_embed_dim
             num_modes = model.decoder.num_modes
