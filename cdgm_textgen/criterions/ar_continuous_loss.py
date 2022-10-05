@@ -252,7 +252,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         if modes_out is not None:
             modes_probs = F.log_softmax(modes_out, dim=-1)
             #re-arrange mixtures components to calculate log probs
-            z_samples = torch.cat(z_samples.chunk(modes_out.shape(-1),dim=2),0).squeeze()
+            z_samples = torch.cat(z_samples.chunk(modes_out.shape[-1],dim=2),0).squeeze()
             p_out = p.log_prob(z_samples)
             log_pz = torch.logsumexp(modes_probs + p_out, dim=0)
 
