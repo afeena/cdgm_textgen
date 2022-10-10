@@ -260,9 +260,9 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         else:
             log_pz = p.log_prob(z_samples)
             neg_ce = log_pz.mean(0)
-            entropy = q.entropy()
+            entropy = -q.entropy()
 
-        loss = -entropy - neg_ce
+        loss = entropy - neg_ce
         loss = loss.mean(-1)
 
         return loss, {"kappa": kappa.mean()}
