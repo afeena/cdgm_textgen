@@ -254,8 +254,8 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
             p_out = p.log_prob(z_samples.transpose(0,1))
             log_pz = torch.logsumexp(modes_probs + p_out.t(), dim=-1)
             neg_ce = log_pz
-            q_out = q.log_prob(z_samples.transpose(0,1))
-            entropy = torch.logsumexp(modes_probs + q_out.t(), dim=-1)
+            q_out = q.log_prob(z_samples)
+            entropy = torch.logsumexp(modes_probs + q_out, dim=-1)
 
         else:
             log_pz = p.log_prob(z_samples)
