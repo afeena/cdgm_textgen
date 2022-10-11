@@ -12,7 +12,7 @@ from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
-
+import wandb
 
 @dataclass
 class ContinuousTransformerConfig(TransformerConfig):
@@ -155,6 +155,19 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    def get_max_mixture_component(self,
+                                  out: Tensor,
+                                  modes_out: Tensor):
+
+        bsz = out.shape[0]
+        out = out.view(bsz, -1, self.num_modes, self.output_embed_dim)
+
+        _, idx = F.softmax(modes_out, -1).max(dim=-1)
+        idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
+        out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
+        wandb.log({"top_mixture_idx": wandb.Histogram(idx)})
+        return out
+
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -163,18 +176,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     ):
         with torch.no_grad():
             out = net_output[0]
-            kappa = None
-            if self.num_modes > 1:
-                bsz = out.shape[0]
-                out = out.view(bsz, -1, self.num_modes, self.output_embed_dim)
 
-                modes_out = net_output[1]["modes_out"]
-                _, idx = F.softmax(modes_out, -1).max(dim=-1)
-                idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
-                out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
-                kappa = torch.norm(out, -1)
-            else:
-                kappa = torch.norm(out, -1)
+            if self.num_modes > 1:
+                out = self.get_max_mixture_component(out,
+                                                     net_output[1]["modes_out"])
+
+            kappa = torch.norm(out, dim=-1)
 
             scores = self.__nearest_neighbor_search(out)
             m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
