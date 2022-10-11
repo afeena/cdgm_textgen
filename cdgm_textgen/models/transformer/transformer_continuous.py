@@ -181,12 +181,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 out = self.get_max_mixture_component(out,
                                                      net_output[1]["modes_out"])
 
-            kappa = torch.norm(out, dim=-1)
+          #  kappa = torch.norm(out, dim=-1)
 
             scores = self.__nearest_neighbor_search(out)
-            m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
-            norm_const = _neglogcmk(m, kappa)
-            scores += norm_const.squeeze()
+           # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
+           # norm_const = _neglogcmk(m, kappa)
+           # scores += norm_const.squeeze()
 
             return scores
 
