@@ -165,7 +165,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         _, idx = F.softmax(modes_out, -1).max(dim=-1)
         idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
         out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
-        wandb.log({"top_mixture_idx": wandb.Histogram(idx.cpu().numpy())})
+        wandb.log({"top_mixture_idx": wandb.Histogram(idx.cpu().numpy(), num_bins=self.num_modes)})
         return out
 
     def get_normalized_probs(
@@ -185,7 +185,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             scores = self.__nearest_neighbor_search(out)
             m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
-            scores += _neglogcmk(m, kappa)
+            norm_const = _neglogcmk(m, kappa)
+            scores += norm_const.squeeze()
 
             return scores
 
