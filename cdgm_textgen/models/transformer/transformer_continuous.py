@@ -165,7 +165,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         _, idx = F.softmax(modes_out, -1).max(dim=-1)
         idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
         out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
-        wandb.log({"top_mixture_idx": wandb.Histogram(idx.cpu().numpy(), num_bins=self.num_modes)})
         return out
 
     def get_normalized_probs(

@@ -252,18 +252,16 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         if modes_out is not None:
             modes_probs = F.log_softmax(modes_out, dim=-1)
             p_out = p.log_prob(z_samples.transpose(0,1))
-            log_pz = torch.logsumexp(modes_probs + p_out.t(), dim=-1)
-            neg_ce = log_pz
             q_out = q.log_prob(z_samples)
-            entropy = torch.logsumexp(modes_probs + q_out, dim=-1)
+            loss = torch.sum(modes_probs*(q_out-p_out), dim=-1)
 
         else:
             log_pz = p.log_prob(z_samples)
             neg_ce = log_pz.mean(0)
             entropy = -q.entropy()
+            loss = entropy - neg_ce
 
-        loss = entropy - neg_ce
-        loss = loss.mean(-1)
+        loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.mean()}
 
