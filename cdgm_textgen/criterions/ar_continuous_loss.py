@@ -250,7 +250,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         # if sample_mask is not None:
         #     kappa = kappa[sample_mask]
         if modes_out is not None:
-            modes_probs = F.log_softmax(modes_out, dim=-1)
+            modes_probs = F.softmax(modes_out, dim=-1)
             p_out = p.log_prob(z_samples.transpose(0,1))
             q_out = q.log_prob(z_samples)
             loss = torch.sum(modes_probs*(q_out-p_out.t()), dim=-1)
