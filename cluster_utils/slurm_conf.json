@@ -7,7 +7,7 @@
     "#SBATCH --exclude=ilps-cn108",
     "#SBATCH --cpus-per-task=1",
     "#SBATCH --mem=16G",
-    "#SBATCH --time=3-12"
+    "#SBATCH --time=2-12"
   ],
   "env": [
     "export PATH=/home/etokarc/develop/torch-env/bin:$PATH",
