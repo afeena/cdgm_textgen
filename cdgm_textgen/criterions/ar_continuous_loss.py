@@ -226,8 +226,8 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
     def compute_kl(self, out, target, mask, modes_out=None):
         if modes_out is not None:
             bsz = out.size(0)
-            dim = out.size(-1)
             num_modes = modes_out.size(-1)
+            dim = torch.div(out.size(-1), num_modes)
             out = out.view(bsz, -1, num_modes, dim)
 
         kappa = torch.norm(out, dim=-1)

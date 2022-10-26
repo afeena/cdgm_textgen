@@ -31,8 +31,8 @@ if __name__ == "__main__":
 
     with open(args.slurm_config) as sc:
        slurm_config = json.load(sc)
-       batch_conf = slurm_config["batch"]
-       env = slurm_config["env"]
+       batch_conf = "\n".join(slurm_config["batch"])
+       env = "\n".join(slurm_config["env"])
        model_dir = slurm_config["model_dir"]
 
 
