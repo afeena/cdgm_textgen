@@ -5,21 +5,6 @@ import argparse
 import stat
 import subprocess
 
-batch_conf = """#!/bin/bash
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
-#SBATCH --ntasks=1
-#SBATCH --exclude=ilps-cn108
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=24G
-#SBATCH --time=3-12
-"""
-
-env = """export PATH=/home/etokarc/develop/torch-env/bin:$PATH
-source /home/etokarc/develop/torch-env/bin/activate
-"""
-
-
 def get_experiment_number(models_path):
     import os
     import re
@@ -36,63 +21,71 @@ def get_experiment_number(models_path):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--config", "-c", help="config file for the model")
-    argparser.add_argument("--excl-node", default=None, type=str, help="exclude specific node")
-    argparser.add_argument("--model-dir", default="/ivi/ilps/personal/etokarc/models/translation", type=str)
+    argparser.add_argument("--fairseq-config", "-c", help="config file for the model")
+    argparser.add_argument("--slurm-config", "-s", help="config file for the model")
     argparser.add_argument("--train-dir", default=None, type=str, help="setup dir")
-    argparser.add_argument("--exp", type=int, default=0, help="experiment number")
     argparser.add_argument("--extra", type=str, default=None, help="extra params to pass")
 
     args = argparser.parse_args()
 
-    with open(args.config) as cfg:
+
+    with open(args.slurm_config) as sc:
+       slurm_config = json.load(sc)
+       batch_conf = slurm_config["batch"]
+       env = slurm_config["env"]
+       model_dir = slurm_config["model_dir"]
+
+
+    with open(args.fairseq_config) as cfg:
         model_config = yaml.load(cfg, Loader=yaml.FullLoader)
 
     arch = model_config["model"]["_name"]
     src = model_config["task"]["source_lang"]
     trg = model_config["task"]["target_lang"]
 
-    dir_name = args.train_dir
-    if dir_name is None:
+    saving_dir_name = args.train_dir
+    if saving_dir_name is None:
         exp_number = get_experiment_number(args.model_dir)
-        dir_name = f"{args.model_dir}/{src}_{trg}_{arch}_{format(exp_number, '04d')}"
-        try:
-            os.makedirs(dir_name)
-        except FileExistsError as e:
-            print("Model dir exists, check your counter state!")
+        saving_dir_name = f"{model_dir}/{format(exp_number, '05d')}_{src}_{trg}_{arch}"
     else:
-        try:
-            exp_number = int(dir_name.rsplit("/")[-1].split("_")[-1])
-        except ValueError:
-            exp_number = args.exp
+        exp_number = int(saving_dir_name.rsplit("/")[-1].split("_")[-1])
 
-    out_file = f"#SBATCH -o {dir_name}/{src}_{trg}_{arch}-%j.log"
-    err_file = f"#SBATCH -e {dir_name}/{src}_{trg}_{arch}-%j.err"
-    job_name = f"#SBATCH -J {src}_{trg}_{arch}_{format(exp_number, '04d')}"
+    try:
+        os.makedirs(saving_dir_name)
+    except FileExistsError as e:
+        print("Such directory exists. Check your counter or make sure you will not override your model")
 
-    config_dir = os.path.dirname(os.path.abspath(args.config))
+    out_file = f"#SBATCH -o {saving_dir_name}/%j_{src}_{trg}_{arch}.log"
+    err_file = f"#SBATCH -e {saving_dir_name}/%j_{src}_{trg}_{arch}.err"
+    job_name = f"#SBATCH -J {format(exp_number, '05d')}_{src}_{trg}_{arch}"
+
+    config_dir = os.path.dirname(os.path.abspath(args.fairseq_config))
     extra_params_str = ""
     if args.extra is not None:
         extra_params = json.loads(args.extra)
         for k, v in extra_params.items():
             extra_params_str += f" {k}={v}"
 
-    fairseq_command = f"python ~/develop/cdgm_textgen/train.py --config-dir {config_dir}  --config-name {args.config} checkpoint.save_dir={dir_name} {extra_params_str}\n"
+    batch_sh_commands = f"{batch_conf}\n{out_file}\n{err_file}\n{job_name}\n{env}\n"
 
-    batch_conf = f"{batch_conf}\n{out_file}\n{err_file}\n{job_name}\n{env}\n"
+    fairseq_command = f"python ~/develop/cdgm_textgen/train.py \
+    --config-dir {config_dir}  \
+    --config-name {args.config} \
+    checkpoint.save_dir={saving_dir_name} \
+    {extra_params_str}\n"
 
-    with open("tmp_train_batch_script.sh", "w") as scr:
+    sbatch_script = f"{saving_dir_name}/{exp_number}_train_batch_script.sh"
+    with open(sbatch_script, "w") as scr:
         scr.write(batch_conf)
-        if args.excl_node is not None:
-            scr.write(f"#SBATCH --exclude={args.excl_node}\n")
         scr.write("\n")
         scr.write(fairseq_command)
 
-    st = os.stat('tmp_train_batch_script.sh')
-    os.chmod('tmp_train_batch_script.sh', st.st_mode | stat.S_IEXEC)
+    st = os.stat(sbatch_script)
+    os.chmod(sbatch_script, st.st_mode | stat.S_IEXEC)
 
-    bashCommand = "sbatch tmp_train_batch_script.sh"
+    run_training_command = f"sbatch {sbatch_script}"
 
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    process = subprocess.Popen(run_training_command.split(), stdout=subprocess.PIPE)
     output, error = process.communicate()
-    print(job_name, output)
+    job_id = output.decode("utf-8").rsplit()[-1]
+    print(f"Dir: {saving_dir_name}\nJob id: {job_id}")
