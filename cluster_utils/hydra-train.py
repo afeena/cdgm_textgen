@@ -22,7 +22,7 @@ def get_experiment_number(models_path):
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--fairseq-config", "-c", help="config file for the model")
-    argparser.add_argument("--slurm-config", "-s", help="config file for the model")
+    argparser.add_argument("--slurm-config", "-s", default="slurm_conf.json", help="config file for the slurm")
     argparser.add_argument("--train-dir", default=None, type=str, help="setup dir")
     argparser.add_argument("--extra", type=str, default=None, help="extra params to pass")
 
