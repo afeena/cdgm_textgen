@@ -194,13 +194,19 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         self.direction = kldirection
         self.target_kappa_scale = target_kappa_scale
 
-    def set_dist(self, out, target, kappa):
+    def set_dist(self, out, target, out_kappa):
+        """
+        out: model output
+        target: gold reference
+        out_kappa: scale parameter for model output
+        """
+
         norm_target = torch.norm(target, dim=-1)
-        target_scale = self.target_kappa_scale * norm_target
+        target_kappa = self.target_kappa_scale * norm_target
         p = power_spherical.PowerSpherical(target,
-                                           target_scale)
+                                           target_kappa)
         q = power_spherical.PowerSpherical(out,
-                                           kappa)
+                                           out_kappa)
 
         if self.direction == "reverse":
             return p, q
@@ -213,44 +219,32 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         out = net_output[0]
         modes_out = net_output[1].get("modes_out", None)
 
-        if modes_out is not None:
-            bsz = out.size(0)
-            dim = model.decoder.output_embed_dim
-            num_modes = model.decoder.num_modes
-            out = out.view(bsz, -1, num_modes, dim)
-
         loss, logging = self.compute_kl(out, target, mask, modes_out)
 
         return loss, logging
 
-    # def sample_z(self, q, modes_out=None):
-    #     if modes_out is None:
-    #         return q.rsample(), q.entropy(), None
-    #     else:
-            # bsz = modes_out.size(0)
-            # num_modes = modes_out.size(-1)
-            # components_samples = torch.multinomial(F.softmax(modes_out, -1).view(-1, num_modes), 1).view(bsz, -1)
-            # samples_mask = F.one_hot(components_samples, num_modes).bool().squeeze()
-            # return q.rsample()[samples_mask], q.entropy()[samples_mask], samples_mask
-
     def compute_kl(self, out, target, mask, modes_out=None):
-        target = target[mask]
+        if modes_out is not None:
+            bsz = out.size(0)
+            dim = out.size(-1)
+            num_modes = modes_out.size(-1)
+            out = out.view(bsz, -1, num_modes, dim)
 
         kappa = torch.norm(out, dim=-1)
+        out = F.normalize(out, dim=-1)
+
+        #apply padding mask
+        target = target[mask]
         kappa = kappa[mask]
         out = out[mask]
-        if modes_out is not None:
-            modes_out = modes_out[mask]
 
-        out = F.normalize(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
         z_samples = q.rsample()
 
-        #z, entropy, sample_mask = self.sample_z(q, modes_out)
-        # if sample_mask is not None:
-        #     kappa = kappa[sample_mask]
         if modes_out is not None:
+            modes_out = modes_out[mask]
             modes_probs = F.softmax(modes_out, dim=-1)
+
             p_out = p.log_prob(z_samples.transpose(0,1))
             q_out = q.log_prob(z_samples)
             loss = torch.sum(modes_probs*(q_out-p_out.t()), dim=-1)
