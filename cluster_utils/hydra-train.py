@@ -77,11 +77,10 @@ if __name__ == "__main__":
     {extra_params_str}\n"
 
     sbatch_script = f"{saving_dir_name}/{exp_number}_train_batch_script.sh"
-    log_outs_batch = "\n".join([out_file, err_file, job_name])
     with open(sbatch_script, "w") as scr:
         scr.write(batch_conf)
         scr.write("\n")
-        sc.write(log_outs_batch)
+        sc.write(batch_sh_commands)
         scr.write("\n")
         scr.write(fairseq_command)
 
