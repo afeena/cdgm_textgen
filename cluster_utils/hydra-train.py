@@ -9,8 +9,8 @@ def get_experiment_number(models_path):
     import os
     import re
 
-    occupied = sorted([int(x.split("_")[-1]) for x in os.listdir(models_path)
-                       if re.match("^\d+$", x.split("_")[-1])])
+    occupied = sorted([int(x.split("_")[0]) for x in os.listdir(models_path)
+                       if re.match("^\d+$", x.split("_")[0])])
     occupied = set(occupied)
 
     full = set([x for x in range(10000)])
@@ -54,6 +54,7 @@ if __name__ == "__main__":
         os.makedirs(saving_dir_name)
     except FileExistsError as e:
         print("Such directory exists. Check your counter or make sure you will not override your model")
+        exit(-1)
 
     out_file = f"#SBATCH -o {saving_dir_name}/%j_{src}_{trg}_{arch}.log"
     err_file = f"#SBATCH -e {saving_dir_name}/%j_{src}_{trg}_{arch}.err"
