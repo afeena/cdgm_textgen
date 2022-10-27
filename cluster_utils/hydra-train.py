@@ -60,6 +60,7 @@ if __name__ == "__main__":
     err_file = f"#SBATCH -e {saving_dir_name}/%j_{src}_{trg}_{arch}.err"
     job_name = f"#SBATCH -J {format(exp_number, '05d')}_{src}_{trg}_{arch}"
 
+
     config_dir = os.path.dirname(os.path.abspath(args.fairseq_config))
     extra_params_str = ""
     if args.extra is not None:
@@ -76,8 +77,11 @@ if __name__ == "__main__":
     {extra_params_str}\n"
 
     sbatch_script = f"{saving_dir_name}/{exp_number}_train_batch_script.sh"
+    log_outs_batch = "\n".join([out_file, err_file, job_name])
     with open(sbatch_script, "w") as scr:
         scr.write(batch_conf)
+        scr.write("\n")
+        sc.write(log_outs_batch)
         scr.write("\n")
         scr.write(fairseq_command)
 
