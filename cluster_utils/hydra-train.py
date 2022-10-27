@@ -53,7 +53,7 @@ if __name__ == "__main__":
     try:
         os.makedirs(saving_dir_name)
     except FileExistsError as e:
-        print("Such directory exists. Check your counter or make sure you will not override your model")
+        print("Directory exists. Delete or reset counter")
         exit(-1)
 
     out_file = f"#SBATCH -o {saving_dir_name}/%j_{src}_{trg}_{arch}.log"
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     with open(sbatch_script, "w") as scr:
         scr.write(batch_conf)
         scr.write("\n")
-        sc.write(batch_sh_commands)
+        scr.write(batch_sh_commands)
         scr.write("\n")
         scr.write(fairseq_command)
 
