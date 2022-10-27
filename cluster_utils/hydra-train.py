@@ -78,8 +78,6 @@ if __name__ == "__main__":
 
     sbatch_script = f"{saving_dir_name}/{exp_number}_train_batch_script.sh"
     with open(sbatch_script, "w") as scr:
-        scr.write(batch_conf)
-        scr.write("\n")
         scr.write(batch_sh_commands)
         scr.write("\n")
         scr.write(fairseq_command)

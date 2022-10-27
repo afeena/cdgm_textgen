@@ -12,7 +12,7 @@
   "env": [
     "export PATH=/home/etokarc/develop/torch-env/bin:$PATH",
     "source /home/etokarc/develop/torch-env/bin/activate",
-    "WANDB_MODE=\"offline\""
+    "export WANDB_MODE=\"offline\""
   ],
   "model_dir": "/ivi/ilps/personal/etokarc/models/translation"
 }
