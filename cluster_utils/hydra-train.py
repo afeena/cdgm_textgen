@@ -76,7 +76,7 @@ if __name__ == "__main__":
     checkpoint.save_dir={saving_dir_name} \
     {extra_params_str}\n"
 
-    sbatch_script = f"{saving_dir_name}/{exp_number}_train_batch_script.sh"
+    sbatch_script = f"{saving_dir_name}/{format(exp_number, '05d')}_train_batch_script.sh"
     with open(sbatch_script, "w") as scr:
         scr.write(batch_sh_commands)
         scr.write("\n")
