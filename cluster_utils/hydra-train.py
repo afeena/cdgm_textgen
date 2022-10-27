@@ -33,7 +33,7 @@ if __name__ == "__main__":
        slurm_config = json.load(sc)
        batch_conf = "\n".join(slurm_config["batch"])
        env = "\n".join(slurm_config["env"])
-       model_dir = slurm_config["model_dir"]
+       models_dir = slurm_config["model_dir"]
 
 
     with open(args.fairseq_config) as cfg:
@@ -45,8 +45,8 @@ if __name__ == "__main__":
 
     saving_dir_name = args.train_dir
     if saving_dir_name is None:
-        exp_number = get_experiment_number(args.model_dir)
-        saving_dir_name = f"{model_dir}/{format(exp_number, '05d')}_{src}_{trg}_{arch}"
+        exp_number = get_experiment_number(models_dir)
+        saving_dir_name = f"{models_dir}/{format(exp_number, '05d')}_{src}_{trg}_{arch}"
     else:
         exp_number = int(saving_dir_name.rsplit("/")[-1].split("_")[-1])
 
