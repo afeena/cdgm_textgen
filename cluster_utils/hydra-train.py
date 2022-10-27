@@ -68,7 +68,7 @@ if __name__ == "__main__":
         for k, v in extra_params.items():
             extra_params_str += f" {k}={v}"
 
-    batch_sh_commands = f"{batch_conf}\n{out_file}\n{err_file}\n{job_name}\n{env}\n"
+    batch_sh_commands = f"{batch_conf}\n{out_file}\n{err_file}\n{job_name}\n\n{env}\n"
 
     fairseq_command = f"python ~/develop/cdgm_textgen/train.py \
     --config-dir {config_dir}  \
