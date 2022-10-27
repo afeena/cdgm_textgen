@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     fairseq_command = f"python ~/develop/cdgm_textgen/train.py \
     --config-dir {config_dir}  \
-    --config-name {args.config} \
+    --config-name {args.fairseq_config} \
     checkpoint.save_dir={saving_dir_name} \
     {extra_params_str}\n"
 
