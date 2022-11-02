@@ -12,7 +12,7 @@ from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
-
+import wandb
 
 @dataclass
 class ContinuousTransformerConfig(TransformerConfig):
@@ -28,6 +28,10 @@ class ContinuousTransformerConfig(TransformerConfig):
         default="cosine",
         metadata={"help": "metric for NN decoding"},
     )
+    num_modes: int = field(
+        default=1,
+        metadata={"help": "number of modes for the distribution"},
+    )
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
@@ -38,7 +42,8 @@ class TransformerModelContinuous(TransformerModelBase):
             cfg,
             tgt_dict,
             embed_tokens,
-            metric=cfg.decoder_nn_metric
+            metric=cfg.decoder_nn_metric,
+            num_modes=cfg.num_modes
         )
         if cfg.no_last_dec_layer_norm:
             decoder.layers[-1].final_layer_norm = Identity(decoder.embed_dim, export=cfg.export)
@@ -46,6 +51,7 @@ class TransformerModelContinuous(TransformerModelBase):
         decoder.target_embed = cls.build_embedding(cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path)
 
         decoder.target_embed.weight.requires_grad = False
+
         decoder.setup_faiss_index()
 
         return decoder
@@ -90,7 +96,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                  embed_tokens,
                  no_encoder_attn=False,
                  output_projection=None,
-                 metric="cosine"
+                 metric="cosine",
+                 num_modes=1,
                  ):
         super().__init__(cfg,
                          dictionary, embed_tokens,
@@ -102,6 +109,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.output_projection = None
         self.dict_len = len(self.dictionary)
         self.metric = metric
+        self.num_modes = num_modes
+
+        self.ouput_modes = torch.nn.Linear(self.output_embed_dim,
+                                           self.output_embed_dim * self.num_modes)
+        self.modes_ff = torch.nn.Linear(self.output_embed_dim,
+                                        self.num_modes)
 
     def setup_faiss_index(self):
         res = faiss.StandardGpuResources()
@@ -132,7 +145,27 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
+
+        if self.num_modes>1:
+            modes_out = self.modes_ff(x)
+        else:
+            modes_out = None
+        extra["modes_out"] = modes_out
+        x = self.ouput_modes(x)
+
         return x, extra
+
+    def get_max_mixture_component(self,
+                                  out: Tensor,
+                                  modes_out: Tensor):
+
+        bsz = out.shape[0]
+        out = out.view(bsz, -1, self.num_modes, self.output_embed_dim)
+
+        _, idx = F.softmax(modes_out, -1).max(dim=-1)
+        idx_bool_mask = F.one_hot(idx, num_classes=self.num_modes).bool()
+        out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
+        return out
 
     def get_normalized_probs(
             self,
@@ -140,14 +173,21 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
     ):
-        scores = self.__nearest_neighbor_search(net_output[0])
-        # TODO this is only for case k=1 (cosine)!
         with torch.no_grad():
-            m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
-            k = torch.tensor([1.], device=net_output[0].device)
-            scores += _neglogcmk(m, k)
+            out = net_output[0]
 
-        return scores
+            if self.num_modes > 1:
+                out = self.get_max_mixture_component(out,
+                                                     net_output[1]["modes_out"])
+
+          #  kappa = torch.norm(out, dim=-1)
+
+            scores = self.__nearest_neighbor_search(out)
+           # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
+           # norm_const = _neglogcmk(m, kappa)
+           # scores += norm_const.squeeze()
+
+            return scores
 
     def __nearest_neighbor_search(self, features, k_nearest=5):
         with torch.no_grad():

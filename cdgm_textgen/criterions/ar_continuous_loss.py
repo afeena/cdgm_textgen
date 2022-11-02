@@ -150,13 +150,24 @@ class KLCriterion(FairseqCriterion):
         return loss, 1, logging_output
 
     def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-        out = net_output[0]
+        raise NotImplementedError
 
-        loss, logging = self.compute_kl(out, target, mask)
+    @staticmethod
+    def reduce_metrics(logging_outputs) -> None:
+        """Aggregate logging outputs from data parallel training."""
+        loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
+        ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
+        sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+        kappa = sum(log.get("kappa", 0) for log in logging_outputs)
 
-        return loss, logging
+        # we divide by log(2) to convert the loss from base e to base 2
+        metrics.log_scalar(
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+        metrics.log_scalar(
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+        metrics.log_scalar('kappa', kappa / sample_size, sample_size, round=3)
 
 
 @dataclass
@@ -183,36 +194,70 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         self.direction = kldirection
         self.target_kappa_scale = target_kappa_scale
 
-    def set_dist(self, out, target, kappa):
+    def set_dist(self, out, target, out_kappa):
+        """
+        out: model output
+        target: gold reference
+        out_kappa: scale parameter for model output
+        """
+
         norm_target = torch.norm(target, dim=-1)
-        target_scale = self.target_kappa_scale * norm_target
+        target_kappa = self.target_kappa_scale * norm_target
         p = power_spherical.PowerSpherical(target,
-                                           target_scale)
+                                           target_kappa)
         q = power_spherical.PowerSpherical(out,
-                                           kappa)
+                                           out_kappa)
 
         if self.direction == "reverse":
             return p, q
         else:
             return q, p
 
-    def compute_kl(self, out, target, mask):
-        target = target[mask]
-        out = out[mask]
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+        out = net_output[0]
+        modes_out = net_output[1].get("modes_out", None)
+
+        loss, logging = self.compute_kl(out, target, mask, modes_out)
+
+        return loss, logging
+
+    def compute_kl(self, out, target, mask, modes_out=None):
+        if modes_out is not None:
+            bsz = out.size(0)
+            num_modes = modes_out.size(-1)
+            dim = out.size(-1)//num_modes
+            out = out.view(bsz, -1, num_modes, dim)
 
         kappa = torch.norm(out, dim=-1)
-        kappa = kappa[mask]
-
         out = F.normalize(out, dim=-1)
-        p, q = self.set_dist(out, target, kappa)
-        z = q.rsample((self.n_samples,))
-        log_pz = p.log_prob(z)
 
-        entropy = q.entropy()
-        neg_ce = log_pz.mean(0)
-        loss = -entropy - neg_ce
-        loss = loss.mean(-1)
-        return loss, {"kappa": kappa.mean(-1)}
+        #apply padding mask
+        target = target[mask]
+        kappa = kappa[mask]
+        out = out[mask]
+
+        p, q = self.set_dist(out, target, kappa)
+        z_samples = q.rsample()
+
+        if modes_out is not None:
+            modes_out = modes_out[mask]
+            modes_probs = F.softmax(modes_out, dim=-1)
+
+            p_out = p.log_prob(z_samples.transpose(0,1))
+            q_out = q.log_prob(z_samples)
+            loss = torch.sum(modes_probs*(q_out-p_out.t()), dim=-1)
+
+        else:
+            log_pz = p.log_prob(z_samples)
+            neg_ce = log_pz.mean(0)
+            entropy = -q.entropy()
+            loss = entropy - neg_ce
+
+        loss = loss.mean(dim=-1)
+
+        return loss, {"kappa": kappa.mean()}
 
 
 @register_criterion("ar_gaussian_kl_loss")
@@ -230,3 +275,44 @@ class ARGaussianvKLCriterion(KLCriterion):
         loss = torch.distributions.kl.kl_divergence(p, q)
         loss = loss.mean(-1)
         return loss, {}
+
+
+@register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
+class MixtureModelCriterion(ARPowerSphericalCriterion):
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        modes_out = net_output[1]["modes_out"]
+
+        modes_probs = F.log_softmax(modes_out, dim=-1)
+
+        # here out is BxTxD*num_modes, reshape it to BxTxMxD
+        out = net_output[0]
+        bsz = out.size(0)
+        dim = model.decoder.output_embed_dim
+        num_modes = model.decoder.num_modes
+        out = out.view(bsz, -1, num_modes, dim)
+
+        # need to extend target to match output shape
+        target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
+
+        kappa = torch.norm(out, dim=-1)
+        out = F.normalize(out, dim=-1)
+
+        # apply padding mask
+        target = target[mask]
+        kappa = kappa[mask]
+        out = out[mask]
+        modes_probs = modes_probs[mask]
+
+        # get PS probs for each component
+        d_x = power_spherical.PowerSpherical(out, kappa)
+
+        p_out = d_x.log_prob(target)
+
+        # sum over components
+        loss = torch.logsumexp(modes_probs + p_out, dim=-1)
+        loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
+        logging = {"kappa": kappa.mean()}
+        return loss, logging
