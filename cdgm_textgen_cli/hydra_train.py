@@ -50,9 +50,9 @@ def _hydra_main(cfg: FairseqConfig, **kwargs) -> float:
 
     try:
         if cfg.common.profile:
-            with torch.cuda.profiler.profile():
-                with torch.autograd.profiler.emit_nvtx():
+            with torch.autograd.profiler.profile(profile_memory=True, with_stack=True) as prof:
                     distributed_utils.call_main(cfg, pre_main, **kwargs)
+            logger.info(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
         else:
             distributed_utils.call_main(cfg, pre_main, **kwargs)
     except BaseException as e:
