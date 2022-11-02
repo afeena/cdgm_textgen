@@ -2,7 +2,7 @@ import math
 from dataclasses import field
 from typing import Optional
 
-import torch.nn
+import torch
 import torch.nn.functional as F
 from torch.distributions import multivariate_normal
 
@@ -217,18 +217,12 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
-        modes_out = net_output[1].get("modes_out", None)
 
-        loss, logging = self.compute_kl(out, target, mask, modes_out)
+        loss, logging = self.compute_kl(out, target, mask)
 
         return loss, logging
 
-    def compute_kl(self, out, target, mask, modes_out=None):
-        if modes_out is not None:
-            bsz = out.size(0)
-            num_modes = modes_out.size(-1)
-            dim = out.size(-1)//num_modes
-            out = out.view(bsz, -1, num_modes, dim)
+    def compute_kl(self, out, target, mask, **kwargs):
 
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
@@ -241,19 +235,10 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         p, q = self.set_dist(out, target, kappa)
         z_samples = q.rsample()
 
-        if modes_out is not None:
-            modes_out = modes_out[mask]
-            modes_probs = F.softmax(modes_out, dim=-1)
-
-            p_out = p.log_prob(z_samples.transpose(0,1))
-            q_out = q.log_prob(z_samples)
-            loss = torch.sum(modes_probs*(q_out-p_out.t()), dim=-1)
-
-        else:
-            log_pz = p.log_prob(z_samples)
-            neg_ce = log_pz.mean(0)
-            entropy = -q.entropy()
-            loss = entropy - neg_ce
+        log_pz = p.log_prob(z_samples)
+        neg_ce = log_pz.mean(0)
+        entropy = -q.entropy()
+        loss = entropy - neg_ce
 
         loss = loss.mean(dim=-1)
 
@@ -291,7 +276,7 @@ class MixtureModelCriterion(ARPowerSphericalCriterion):
         out = net_output[0]
         bsz = out.size(0)
         dim = model.decoder.output_embed_dim
-        num_modes = model.decoder.num_modes
+        num_modes = model.decoder.num_mixture_components
         out = out.view(bsz, -1, num_modes, dim)
 
         # need to extend target to match output shape
