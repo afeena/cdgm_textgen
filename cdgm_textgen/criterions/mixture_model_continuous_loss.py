@@ -3,8 +3,7 @@ import torch.nn.functional as F
 from fairseq.criterions import register_criterion, FairseqCriterion
 
 
-from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, KLCriterion, ARPowerSphericalRevKLCriterion
-
+from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion
 
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=ARPowerSphericalRevKLCriterionConfig)
 class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
