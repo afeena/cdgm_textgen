@@ -218,8 +218,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
 
-        with torch.autograd.profiler.record_function("compute_kl"):
-            loss, logging = self.compute_kl(out, target, mask)
+        loss, logging = self.compute_kl(out, target, mask)
 
         return loss, logging
 
