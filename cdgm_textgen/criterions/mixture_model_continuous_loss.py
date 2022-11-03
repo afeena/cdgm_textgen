@@ -13,7 +13,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
 
-        loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
+        with torch.autograd.profiler.record_function("compute_kl"):
+            loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
 
         return loss, logging
 
