@@ -34,8 +34,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         padding_idx = dictionary.pad()
 
         self.target_embed  = Embedding(num_embeddings, self.output_embed_dim, padding_idx)
-        if cfg.model.target_embed_path:
-            embed_dict = utils.parse_embedding(cfg.model.target_embed_path)
+        if cfg.target_embed_path:
+            embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
 
 
