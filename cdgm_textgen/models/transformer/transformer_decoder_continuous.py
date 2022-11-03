@@ -117,7 +117,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                  embed_tokens
                  ):
         super().__init__(cfg, dictionary, embed_tokens)
-        self.num_mixture_components = cfg.decoder.num_mixture_components
+        self.num_mixture_components = cfg.num_mixture_components
 
         # project output to have emb_dim*num_mixture_components
         self.ouput_ff_with_mix_components = torch.nn.Linear(self.output_embed_dim,
