@@ -164,7 +164,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             if self.num_mixture_components > 1:
                 out = self.get_max_mixture_component(out,
-                                                     net_output[1]["modes_out"])
+                                                     net_output[1]["mixtures_out"])
 
             #  kappa = torch.norm(out, dim=-1)
 
