@@ -82,14 +82,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             #  kappa = torch.norm(out, dim=-1)
 
-            scores = self.__nearest_neighbor_search(out)
+            scores = self.nearest_neighbor_search(out)
             # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
             # norm_const = _neglogcmk(m, kappa)
             # scores += norm_const.squeeze()
 
             return scores
 
-    def __nearest_neighbor_search(self, features, k_nearest=5):
+    def nearest_neighbor_search(self, features, k_nearest=5):
         with torch.no_grad():
             if self.metric == "cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
