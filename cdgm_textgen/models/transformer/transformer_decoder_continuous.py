@@ -1,5 +1,7 @@
-from cdgm_textgen.modules.cmk_approx import _neglogcmk
-import wandb
+from torch.nn import Identity
+
+from cdgm_textgen.models.transformer.transformer_base import Embedding
+from fairseq import utils
 import faiss
 import torch
 from torch import Tensor
@@ -21,20 +23,31 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
-        self.target_embed = None
-        self.faiss_index = None
         self.output_projection = None
         self.dict_len = len(self.dictionary)
         self.metric = cfg.decoder_nn_metric
+        if cfg.no_last_dec_layer_norm:
+            self.layers[-1].final_layer_norm = Identity(self.embed_dim, export=cfg.export)
 
-    def setup_faiss_index(self):
+        #build target (reference) emb
+        num_embeddings = len(dictionary)
+        padding_idx = dictionary.pad()
+
+        self.target_embed  = Embedding(num_embeddings, self.output_embed_dim, padding_idx)
+        if cfg.model.target_embed_path:
+            embed_dict = utils.parse_embedding(cfg.model.target_embed_path)
+            utils.load_embedding(embed_dict, dictionary, self.target_embed)
+
+
+    @classmethod
+    def build_faiss_index(cls):
         res = faiss.StandardGpuResources()
-        if self.metric == "cosine":
-            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
-            self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
-        elif self.metric == "l2":
-            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
-            self.faiss_index.add(self.target_embed.weight.data)
+        if cls.metric == "cosine":
+            cls.faiss_index = faiss.GpuIndexFlat(res, cls.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
+            cls.faiss_index.add(F.normalize(cls.target_embed.weight, dim=-1))
+        elif cls.metric == "l2":
+            cls.faiss_index = faiss.GpuIndexFlat(res, cls.target_embed.weight.shape[-1], faiss.METRIC_L2)
+            cls.faiss_index.add(cls.target_embed.weight.data)
 
     def forward(
             self,

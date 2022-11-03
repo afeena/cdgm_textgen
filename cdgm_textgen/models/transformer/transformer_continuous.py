@@ -34,24 +34,16 @@ class ContinuousTransformerConfig(TransformerConfig):
 class TransformerModelContinuous(TransformerModelBase):
     def __init__(self, cfg, encoder, decoder):
         super().__init__(cfg, encoder, decoder)
-        self.decoder_class = ContinuousTransformerDecoder
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        decoder = cls.decoder_class(
+        decoder = ContinuousTransformerDecoder(
             cfg,
             tgt_dict,
-            embed_tokens
+            embed_tokens,
         )
 
-        if cfg.no_last_dec_layer_norm:
-            decoder.layers[-1].final_layer_norm = Identity(decoder.embed_dim, export=cfg.export)
-
-        decoder.target_embed = cls.build_embedding(cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path)
-        decoder.target_embed.weight.requires_grad = False
-
-        decoder.setup_faiss_index()
-
+        decoder.build_faiss_index()
         return decoder
 
     def forward(
@@ -101,8 +93,17 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
 
     def __init__(self, cfg, encoder, decoder):
         super(TransformerModelContinuous, self).__init__(cfg, encoder, decoder)
-        self.decoder_class = MixtureContinuousTransformerDecoder
         if cfg.num_mixture_components == 1:
             logger.error("Running continuous_transformer_mixture with 1 mixture component is not recommended! "
                          "Use continuous_transformer instead.")
             raise ValueError("num_mixture_components must be >1 for continuous_transformer_mixture")
+
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        decoder = MixtureContinuousTransformerDecoder(
+            cfg,
+            tgt_dict,
+            embed_tokens
+        )
+        decoder.build_faiss_index()
+        return decoder
