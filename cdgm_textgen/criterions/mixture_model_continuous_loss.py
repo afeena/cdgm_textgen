@@ -11,7 +11,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
-        mixture_out = net_output[1]["modes_out"]
+        mixture_out = net_output[1]["mixtures_out"]
 
         loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
 
