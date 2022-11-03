@@ -39,15 +39,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
 
 
-    @classmethod
-    def build_faiss_index(cls):
+    def build_faiss_index(self):
         res = faiss.StandardGpuResources()
-        if cls.metric == "cosine":
-            cls.faiss_index = faiss.GpuIndexFlat(res, cls.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
-            cls.faiss_index.add(F.normalize(cls.target_embed.weight, dim=-1))
-        elif cls.metric == "l2":
-            cls.faiss_index = faiss.GpuIndexFlat(res, cls.target_embed.weight.shape[-1], faiss.METRIC_L2)
-            cls.faiss_index.add(cls.target_embed.weight.data)
+        if self.metric == "cosine":
+            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
+            self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
+        elif self.metric == "l2":
+            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
+            self.faiss_index.add(self.target_embed.weight.data)
 
     def forward(
             self,

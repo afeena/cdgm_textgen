@@ -92,7 +92,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
 class TransformerMixtureModelContinuous(TransformerModelContinuous):
 
     def __init__(self, cfg, encoder, decoder):
-        super(TransformerModelContinuous, self).__init__(cfg, encoder, decoder)
+        super().__init__(cfg, encoder, decoder)
         if cfg.num_mixture_components == 1:
             logger.error("Running continuous_transformer_mixture with 1 mixture component is not recommended! "
                          "Use continuous_transformer instead.")
