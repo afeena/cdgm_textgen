@@ -168,7 +168,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             #  kappa = torch.norm(out, dim=-1)
 
-            scores = self.__nearest_neighbor_search(out)
+            scores = self.nearest_neighbor_search(out)
             # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
             # norm_const = _neglogcmk(m, kappa)
             # scores += norm_const.squeeze()
