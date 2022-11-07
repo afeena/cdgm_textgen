@@ -3,7 +3,6 @@ import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion, FairseqCriterion
 
-
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion, \
     ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
 
@@ -21,11 +20,10 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, logging
 
     def compute_kl(self, out, target, mask, mixture_out=None):
-
         kappa = torch.norm(out, dim=-1)
         out = F.normalize(out, dim=-1)
 
-        #apply padding mask
+        # apply padding mask
         target = target[mask]
         kappa = kappa[mask]
         out = out[mask]
@@ -36,13 +34,14 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         modes_out = mixture_out[mask]
         modes_probs = F.softmax(modes_out, dim=-1)
 
-        p_out = p.log_prob(z_samples.transpose(0,1))
+        p_out = p.log_prob(z_samples.transpose(0, 1))
         q_out = q.log_prob(z_samples)
-        loss = torch.sum(modes_probs*(q_out-p_out.t()), dim=-1)
+        loss = torch.sum(modes_probs * (q_out - p_out.t()), dim=-1)
 
         loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.mean()}
+
 
 @register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
 class MixtureModelCriterion(ARPowerSphericalCriterion):

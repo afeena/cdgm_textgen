@@ -185,6 +185,7 @@ class ARPowerSphericalRevKLCriterionConfig(FairseqDataclass):
         metadata={"help": "scaler to use for target emb norm"},
     )
 
+
 @register_criterion("ar_power_spherical_klmc_loss", dataclass=ARPowerSphericalRevKLCriterionConfig)
 class ARPowerSphericalRevKLCriterion(KLCriterion):
     def __init__(self, task, n_samples, kldirection, target_kappa_scale):
@@ -223,11 +224,10 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         return loss, logging
 
     def compute_kl(self, out, target, mask, **kwargs):
+        kappa = torch.norm(out, dim=-1)
+        # apply padding mask
         target = target[mask]
         out = out[mask]
-
-        kappa = torch.norm(out, dim=-1)
-        #apply padding mask
         kappa = kappa[mask]
 
         p, q = self.set_dist(out, target, kappa)

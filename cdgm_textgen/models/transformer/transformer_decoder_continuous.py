@@ -14,6 +14,7 @@ from fairseq.models.transformer import TransformerDecoderBase
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
+
 class ContinuousTransformerDecoder(TransformerDecoderBase):
     def __init__(self, cfg,
                  dictionary,
@@ -32,7 +33,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         if cfg.no_last_dec_layer_norm:
             self.layers[-1].final_layer_norm = Identity(self.embed_dim, export=cfg.export)
 
-        #build target (reference) emb
+        # build target (reference) emb
         padding_idx = dictionary.pad()
 
         self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
@@ -41,7 +42,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
         self.target_embed.weight.requires_grad = False
-
 
     def build_faiss_index(self):
         logger.info("building faiss index...")
