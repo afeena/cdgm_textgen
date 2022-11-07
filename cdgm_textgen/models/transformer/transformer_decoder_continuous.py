@@ -37,13 +37,13 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
         if cfg.target_embed_path:
-            logger.info("loading target embeddings...")
+            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
 
 
     def build_faiss_index(self):
-        logger.info("building faiss embeddings...")
+        logger.info("building faiss index...")
         res = faiss.StandardGpuResources()
         if self.metric == "cosine":
             self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
