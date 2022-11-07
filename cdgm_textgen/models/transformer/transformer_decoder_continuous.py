@@ -1,3 +1,5 @@
+import logging
+
 from torch.nn import Identity
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
@@ -10,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fairseq.models.transformer import TransformerDecoderBase
 
+logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
 class ContinuousTransformerDecoder(TransformerDecoderBase):
     def __init__(self, cfg,
@@ -30,16 +33,17 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             self.layers[-1].final_layer_norm = Identity(self.embed_dim, export=cfg.export)
 
         #build target (reference) emb
-        num_embeddings = len(dictionary)
         padding_idx = dictionary.pad()
 
-        self.target_embed  = Embedding(num_embeddings, self.output_embed_dim, padding_idx)
+        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
         if cfg.target_embed_path:
+            logger.info("loading target embeddings...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
 
 
     def build_faiss_index(self):
+        logger.info("building faiss embeddings...")
         res = faiss.StandardGpuResources()
         if self.metric == "cosine":
             self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)

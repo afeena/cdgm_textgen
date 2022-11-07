@@ -1,9 +1,12 @@
+import power_spherical
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion, FairseqCriterion
 
 
-from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion
+from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion, \
+    ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
+
 
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=ARPowerSphericalRevKLCriterionConfig)
 class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
@@ -40,3 +43,43 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.mean()}
+
+@register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
+class MixtureModelCriterion(ARPowerSphericalCriterion):
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        modes_out = net_output[1]["modes_out"]
+
+        modes_probs = F.log_softmax(modes_out, dim=-1)
+
+        # here out is BxTxD*num_modes, reshape it to BxTxMxD
+        out = net_output[0]
+        bsz = out.size(0)
+        dim = model.decoder.output_embed_dim
+        num_modes = model.decoder.num_mixture_components
+        out = out.view(bsz, -1, num_modes, dim)
+
+        # need to extend target to match output shape
+        target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
+
+        kappa = torch.norm(out, dim=-1)
+        out = F.normalize(out, dim=-1)
+
+        # apply padding mask
+        target = target[mask]
+        kappa = kappa[mask]
+        out = out[mask]
+        modes_probs = modes_probs[mask]
+
+        # get PS probs for each component
+        d_x = power_spherical.PowerSpherical(out, kappa)
+
+        p_out = d_x.log_prob(target)
+
+        # sum over components
+        loss = torch.logsumexp(modes_probs + p_out, dim=-1)
+        loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
+        logging = {"kappa": kappa.mean()}
+        return loss, logging

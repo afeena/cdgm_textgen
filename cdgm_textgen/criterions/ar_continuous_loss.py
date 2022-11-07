@@ -185,7 +185,6 @@ class ARPowerSphericalRevKLCriterionConfig(FairseqDataclass):
         metadata={"help": "scaler to use for target emb norm"},
     )
 
-
 @register_criterion("ar_power_spherical_klmc_loss", dataclass=ARPowerSphericalRevKLCriterionConfig)
 class ARPowerSphericalRevKLCriterion(KLCriterion):
     def __init__(self, task, n_samples, kldirection, target_kappa_scale):
@@ -260,44 +259,3 @@ class ARGaussianvKLCriterion(KLCriterion):
         loss = torch.distributions.kl.kl_divergence(p, q)
         loss = loss.mean(-1)
         return loss, {}
-
-
-@register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
-class MixtureModelCriterion(ARPowerSphericalCriterion):
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-
-        modes_out = net_output[1]["modes_out"]
-
-        modes_probs = F.log_softmax(modes_out, dim=-1)
-
-        # here out is BxTxD*num_modes, reshape it to BxTxMxD
-        out = net_output[0]
-        bsz = out.size(0)
-        dim = model.decoder.output_embed_dim
-        num_modes = model.decoder.num_mixture_components
-        out = out.view(bsz, -1, num_modes, dim)
-
-        # need to extend target to match output shape
-        target = target.repeat(1, 1, num_modes).view(bsz, -1, num_modes, dim)
-
-        kappa = torch.norm(out, dim=-1)
-        out = F.normalize(out, dim=-1)
-
-        # apply padding mask
-        target = target[mask]
-        kappa = kappa[mask]
-        out = out[mask]
-        modes_probs = modes_probs[mask]
-
-        # get PS probs for each component
-        d_x = power_spherical.PowerSpherical(out, kappa)
-
-        p_out = d_x.log_prob(target)
-
-        # sum over components
-        loss = torch.logsumexp(modes_probs + p_out, dim=-1)
-        loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
-        logging = {"kappa": kappa.mean()}
-        return loss, logging

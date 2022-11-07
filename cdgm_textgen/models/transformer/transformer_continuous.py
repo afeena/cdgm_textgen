@@ -83,7 +83,7 @@ class TransformerModelContinuous(TransformerModelBase):
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     num_mixture_components: int = field(
-        default=1,
+        default=2,
         metadata={"help": "number of mixture components for the distribution"},
     )
 
