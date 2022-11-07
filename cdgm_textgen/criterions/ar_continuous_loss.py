@@ -223,7 +223,6 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         return loss, logging
 
     def compute_kl(self, out, target, mask, **kwargs):
-
         target = target[mask]
         out = out[mask]
 
@@ -231,11 +230,10 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         #apply padding mask
         kappa = kappa[mask]
 
-
         p, q = self.set_dist(out, target, kappa)
         z_samples = q.rsample((self.n_samples,))
         log_pz = p.log_prob(z_samples)
-        
+
         neg_ce = log_pz.mean(0)
         entropy = -q.entropy()
         loss = entropy - neg_ce

@@ -40,6 +40,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
+        self.target_embed.weight.requires_grad = False
 
 
     def build_faiss_index(self):
@@ -82,11 +83,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             sample: Optional[Dict[str, Tensor]] = None,
     ):
         with torch.no_grad():
-            out = net_output[0]
-
             #  kappa = torch.norm(out, dim=-1)
 
-            scores = self.nearest_neighbor_search(out)
+            scores = self.nearest_neighbor_search(net_output[0])
             # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
             # norm_const = _neglogcmk(m, kappa)
             # scores += norm_const.squeeze()
