@@ -44,7 +44,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.target_embed.weight.requires_grad = False
 
     def build_faiss_index(self):
-        logger.info("building faiss index...")
+        logger.info(f"building faiss index with {self.metric}...")
         res = faiss.StandardGpuResources()
         if self.metric == "cosine":
             self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
