@@ -199,9 +199,10 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         target: gold reference
         out_kappa: scale parameter for model output
         """
-
+        out = F.normalize(out, dim=-1)
         norm_target = torch.norm(target, dim=-1)
         target_kappa = self.target_kappa_scale * norm_target
+        target = F.normalize(target, dim=-1)
         p = power_spherical.PowerSpherical(target,
                                            target_kappa)
         q = power_spherical.PowerSpherical(out,
@@ -230,11 +231,11 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         #apply padding mask
         kappa = kappa[mask]
 
-        out = F.normalize(out, dim=-1)
+
         p, q = self.set_dist(out, target, kappa)
         z_samples = q.rsample((self.n_samples,))
-
         log_pz = p.log_prob(z_samples)
+        
         neg_ce = log_pz.mean(0)
         entropy = -q.entropy()
         loss = entropy - neg_ce
