@@ -223,16 +223,16 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
     def compute_kl(self, out, target, mask, **kwargs):
 
-        kappa = torch.norm(out, dim=-1)
-        out = F.normalize(out, dim=-1)
-
-        #apply padding mask
         target = target[mask]
-        kappa = kappa[mask]
         out = out[mask]
 
+        kappa = torch.norm(out, dim=-1)
+        #apply padding mask
+        kappa = kappa[mask]
+
+        out = F.normalize(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
-        z_samples = q.rsample()
+        z_samples = q.rsample((self.n_samples,))
 
         log_pz = p.log_prob(z_samples)
         neg_ce = log_pz.mean(0)
