@@ -33,7 +33,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         modes_out = mixture_out[mask]
         #modes_probs = F.softmax(modes_out, dim=-1)
-        uniform_probs=torch.full(modes_out.size(), 1.0/modes_out.shape[-1])
+        uniform_probs=torch.full(modes_out.size(), 1.0/modes_out.shape[-1], device=modes_out.device)
 
         p_out = p.log_prob(z_samples.transpose(0, 1))
         q_out = q.log_prob(z_samples)
