@@ -32,11 +32,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         z_samples = q.rsample()
 
         modes_out = mixture_out[mask]
-        modes_probs = F.softmax(modes_out, dim=-1)
+        #modes_probs = F.softmax(modes_out, dim=-1)
+        uniform_probs=torch.full(modes_out.size(), 1.0/modes_out.shape[-1])
 
         p_out = p.log_prob(z_samples.transpose(0, 1))
         q_out = q.log_prob(z_samples)
-        loss = torch.sum(modes_probs * (q_out - p_out.t()), dim=-1)
+        loss = torch.sum(uniform_probs * (q_out - p_out.t()), dim=-1)
 
         loss = loss.mean(dim=-1)
 
