@@ -126,7 +126,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                             self.output_embed_dim * self.num_mixture_components)
         # output of the mixture FF network
         self.mixture_output_ff = torch.nn.Linear(self.output_embed_dim,
-                                                 self.num_mixture_components)
+                                                 self.num_mixture_components, bias=False)
 
     def forward(
             self,
