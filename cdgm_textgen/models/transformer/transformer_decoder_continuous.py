@@ -126,7 +126,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                             self.output_embed_dim * self.num_mixture_components)
         # output of the mixture FF network
         self.mixture_output_ff = torch.nn.Linear(self.output_embed_dim,
-                                                 self.num_mixture_components, bias=False)
+                                                 self.num_mixture_components)#, bias=False)
 
     def forward(
             self,
@@ -182,10 +182,11 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                   out: Tensor,
                                   mixtures_out: Tensor):
         bsz = out.shape[0]
-        vals, idx = F.softmax(mixtures_out, -1).max(dim=-1)
+        dist = F.softmax(mixtures_out, -1)
+        _, idx = dist.max(dim=-1)
         #for debug purposes
         from datetime import datetime
-        torch.save(vals, f"mixture_dist_{datetime.datetime.now().timestamp()}")
+        torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
         idx_bool_mask = F.one_hot(idx, num_classes=self.num_mixture_components).bool()
         out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
         return out
