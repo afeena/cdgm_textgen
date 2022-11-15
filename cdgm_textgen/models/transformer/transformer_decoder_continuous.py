@@ -182,7 +182,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                   out: Tensor,
                                   mixtures_out: Tensor):
         bsz = out.shape[0]
-        _, idx = F.softmax(mixtures_out, -1).max(dim=-1)
+        vals, idx = F.softmax(mixtures_out, -1).max(dim=-1)
+        #for debug purposes
+        from datetime import datetime
+        torch.save(vals, f"mixture_dist_{datetime.datetime.now().timestamp()}")
         idx_bool_mask = F.one_hot(idx, num_classes=self.num_mixture_components).bool()
         out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
         return out
