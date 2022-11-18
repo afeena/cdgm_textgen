@@ -32,8 +32,6 @@ class ContinuousTransformerConfig(TransformerConfig):
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
-    def __init__(self, cfg, encoder, decoder):
-        super().__init__(cfg, encoder, decoder)
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):

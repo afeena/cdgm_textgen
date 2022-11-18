@@ -36,22 +36,24 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         # build target (reference) emb
         padding_idx = dictionary.pad()
 
-        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
-        if cfg.target_embed_path:
-            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-            embed_dict = utils.parse_embedding(cfg.target_embed_path)
-            utils.load_embedding(embed_dict, dictionary, self.target_embed)
-        self.target_embed.weight.requires_grad = False
+        with torch.no_grad():
+            self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
+            if cfg.target_embed_path:
+                logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+                embed_dict = utils.parse_embedding(cfg.target_embed_path)
+                utils.load_embedding(embed_dict, dictionary, self.target_embed)
+            self.target_embed.weight.requires_grad = False
 
     def build_faiss_index(self):
-        logger.info(f"building faiss index with {self.metric}...")
-        res = faiss.StandardGpuResources()
-        if self.metric == "cosine":
-            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
-            self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
-        elif self.metric == "l2":
-            self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
-            self.faiss_index.add(self.target_embed.weight.data)
+        with torch.no_grad():
+            logger.info(f"building faiss index with {self.metric}...")
+            res = faiss.StandardGpuResources()
+            if self.metric == "cosine":
+                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
+                self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
+            elif self.metric == "l2":
+                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
+                self.faiss_index.add(self.target_embed.weight.data)
 
     def forward(
             self,
@@ -90,7 +92,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             # norm_const = _neglogcmk(m, kappa)
             # scores += norm_const.squeeze()
 
-            return scores
+        return scores
 
     def nearest_neighbor_search(self, features, k_nearest=5):
         with torch.no_grad():
@@ -123,10 +125,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # project output to have emb_dim*num_mixture_components
         self.ouput_ff_with_mix_components = torch.nn.Linear(self.output_embed_dim,
-                                                            self.output_embed_dim * self.num_mixture_components)
+                                                            self.output_embed_dim * self.num_mixture_components, bias=False)
         # output of the mixture FF network
         self.mixture_output_ff = torch.nn.Linear(self.output_embed_dim,
-                                                 self.num_mixture_components)#, bias=False)
+                                                 self.num_mixture_components, bias=False)
 
     def forward(
             self,
