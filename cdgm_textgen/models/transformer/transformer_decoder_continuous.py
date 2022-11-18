@@ -1,3 +1,4 @@
+import gc
 import logging
 
 from torch.nn import Identity
@@ -101,6 +102,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
             sim, _tokens = self.faiss_index.search(ff, k_nearest)
+
+            del ff
+
             _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
             sim = sim.view(features.shape[0], features.shape[1], -1)
 
@@ -110,6 +114,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             ).to(features.device)
 
             output_proj = output_proj.scatter_(-1, _tokens, sim)
+
+            del _tokens
+            del sim
+
+            gc.collect()
+            torch.cuda.empty_cache()
 
             return output_proj
 
@@ -158,6 +168,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         return x.view(x.shape[0], -1, self.num_mixture_components, self.output_embed_dim), extra
 
+    @torch.jit.export
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -186,9 +197,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         bsz = out.shape[0]
         dist = F.softmax(mixtures_out, -1)
         _, idx = dist.max(dim=-1)
+
         #for debug purposes
-        from datetime import datetime
-        torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+        # from datetime import datetime
+        # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
         idx_bool_mask = F.one_hot(idx, num_classes=self.num_mixture_components).bool()
         out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
+
+        del idx_bool_mask
+        gc.collect()
+        torch.cuda.empty_cache()
+
         return out
