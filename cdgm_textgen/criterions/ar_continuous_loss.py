@@ -31,7 +31,7 @@ class CosineARCriterion(CrossEntropyCriterion):
         loss, logging = self.compute_loss(model, net_output, sample)
 
         logging_output = {
-            "loss": loss.data,
+            "loss": loss.detach(),
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),
             "sample_size": 1,
@@ -47,7 +47,7 @@ class CosineARCriterion(CrossEntropyCriterion):
         target = target[mask]
         loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
         loss = loss.mean(-1)
-        return loss, loss
+        return loss, None
 
 
 @register_criterion("l2_ar_criterion")
@@ -140,7 +140,7 @@ class KLCriterion(FairseqCriterion):
         loss, logging = self.compute_loss(model, net_output, sample)
 
         logging_output = {
-            "loss": loss.data,
+            "loss": loss.detach(),
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),
             "sample_size": 1,
@@ -226,7 +226,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
     def compute_kl(self, out, target, mask, **kwargs):
         # apply padding mask
         target = target[mask]
-        
+
         kappa = torch.norm(out, dim=-1)
         out = out[mask]
         kappa = kappa[mask]
@@ -241,7 +241,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
         loss = loss.mean(dim=-1)
 
-        return loss, {"kappa": kappa.mean()}
+        return loss, {"kappa": kappa.mean().detach()}
 
 
 @register_criterion("ar_gaussian_kl_loss")

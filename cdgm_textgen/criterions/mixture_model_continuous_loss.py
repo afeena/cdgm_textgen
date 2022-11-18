@@ -41,7 +41,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         loss = loss.mean(dim=-1)
 
-        return loss, {"kappa": kappa.mean()}
+        return loss, {"kappa": kappa.mean().detach()}
 
 
 @register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
@@ -81,5 +81,5 @@ class MixtureModelCriterion(ARPowerSphericalCriterion):
         # sum over components
         loss = torch.logsumexp(modes_probs + p_out, dim=-1)
         loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
-        logging = {"kappa": kappa.mean()}
+        logging = {"kappa": kappa.mean().detach()}
         return loss, logging
