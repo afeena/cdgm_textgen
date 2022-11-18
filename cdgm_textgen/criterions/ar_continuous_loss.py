@@ -226,8 +226,9 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
     def compute_kl(self, out, target, mask, **kwargs):
         # apply padding mask
         target = target[mask]
-        out = out[mask]
+        
         kappa = torch.norm(out, dim=-1)
+        out = out[mask]
         kappa = kappa[mask]
 
         p, q = self.set_dist(out, target, kappa)
