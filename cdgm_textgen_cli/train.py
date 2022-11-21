@@ -13,17 +13,16 @@ from cdgm_textgen.dataclass.configs import CDGMTextgenConfig
 from cdgm_textgen.dataclass.initialize import add_defaults as cdgm_add_defaults
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf as cdgm_convert_namespace_to_omegaconf
 
-#path config and helper functions
+# path config and helper functions
 train.FairseqConfig = CDGMTextgenConfig
 train.add_defaults = cdgm_add_defaults
 train.convert_namespace_to_omegaconf = cdgm_convert_namespace_to_omegaconf
 
-#patch tasks for fairseq
+# patch tasks for fairseq
 train.tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
 train.tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
 train.tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
 train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
-
 
 if __name__ == "__main__":
     train.cli_main()

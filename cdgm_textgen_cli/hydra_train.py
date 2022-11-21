@@ -6,18 +6,16 @@
 
 
 import fairseq_cli.hydra_train as hydra_train
-from cdgm_textgen.dataclass.utils import cdgm_omegaconf_no_object_check
+from cdgm_textgen.dataclass.utils import omegaconf_no_object_check as cdgm_omegaconf_no_object_check
 from cdgm_textgen.dataclass.configs import CDGMTextgenConfig
 from cdgm_textgen.dataclass.initialize import add_defaults as cdgm_add_defaults
 from cdgm_textgen.dataclass.initialize import hydra_init as cdgm_hydra_init
 from cdgm_textgen_cli.train import main as cdgm_pre_main
 
-
-
 hydra_train.omegaconf_no_object_check = cdgm_omegaconf_no_object_check
 hydra_train.FairseqConfig = CDGMTextgenConfig
 hydra_train.add_defaults = cdgm_add_defaults
-hydra_train.hydra_init=cdgm_hydra_init
+hydra_train.hydra_init = cdgm_hydra_init
 hydra_train.pre_main = cdgm_pre_main
 
 if __name__ == "__main__":
