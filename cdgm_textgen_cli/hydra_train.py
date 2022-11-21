@@ -18,5 +18,8 @@ fairseq_hydra_train.add_defaults = cdgm_add_defaults
 fairseq_hydra_train.hydra_init = cdgm_hydra_init
 fairseq_hydra_train.pre_main = cdgm_pre_main
 
+def cli_main():
+    fairseq_hydra_train.cli_main()
+
 if __name__ == "__main__":
     fairseq_hydra_train.cli_main()
