@@ -39,6 +39,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         q_out = q.log_prob(z_samples)
         loss = torch.sum(modes_probs * (q_out - p_out.t()), dim=-1)
 
+        #calculate posterior
+        with torch.no_grad():
+            lmodes_probs = torch.log(modes_probs)+q_out
+            lmodes_probs = lmodes_probs - torch.logsumexp(lmodes_probs, dim=-1)
+            print(lmodes_probs)
+
         loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.mean().detach()}
