@@ -136,9 +136,14 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # project output to have emb_dim*num_mixture_components
         self.ouput_ff_with_mix_components = torch.nn.Linear(self.output_embed_dim,
                                                             self.output_embed_dim * self.num_mixture_components, bias=False)
-        # output of the mixture FF network
-        self.mixture_output_ff = torch.nn.Linear(self.output_embed_dim,
-                                                 self.num_mixture_components, bias=False)
+        # define mixture head to predict the cluster
+        self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
+                                               self.output_embed_dim//2, bias=False)
+        self.mixture_head_relu = torch.nn.ReLU()
+        self.mixture_head_dropout = torch.nn.Dropout(cfg.mixture_dropout)
+        self.mixture_head_ff_2 = torch.nn.Linear(self.output_embed_dim//2,
+                                               self.num_mixture_components, bias=False)
+
 
     def forward(
             self,
@@ -161,12 +166,18 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             alignment_heads=alignment_heads,
         )
 
-        mixtures_out = self.mixture_output_ff(x)
+        extra["mixtures_out"] = self.forward_mixture(x)
 
-        extra["mixtures_out"] = mixtures_out
         x = self.ouput_ff_with_mix_components(x)
 
         return x.view(x.shape[0], -1, self.num_mixture_components, self.output_embed_dim), extra
+
+    def forward_mixture(self, decoder_output):
+        m = self.mixture_head_ff_1(decoder_output)
+        m = self.mixture_head_relu(self.mixture_head_dropout(m))
+        m = self.mixture_head_ff_2(m)
+
+        return m
 
     @torch.jit.export
     def get_normalized_probs(

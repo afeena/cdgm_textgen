@@ -84,6 +84,10 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         default=2,
         metadata={"help": "number of mixture components for the distribution"},
     )
+    mixture_dropout: float = field(
+        default=0,
+        metadata={"help": "fropout for the mixture head"},
+    )
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)

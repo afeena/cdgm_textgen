@@ -1,14 +1,36 @@
+from dataclasses import field
+from typing import Optional
+
 import power_spherical
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion, FairseqCriterion
 
+from cdgm_textgen import dataclass
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion, \
     ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
 
 
-@register_criterion("power_spherical_klmc_mixture_loss", dataclass=ARPowerSphericalRevKLCriterionConfig)
+@dataclass
+class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
+    mixture_regularizer: str = field(default=None)
+    mixture_regularizer_weight: float = field(default=0.1)
+
+
+@register_criterion("power_spherical_klmc_mixture_loss", dataclass=MixturePSKLCriterionConfig)
 class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
+    def __init__(self, task, n_samples,
+                 kldirection,
+                 target_kappa_scale,
+                 mixture_regularizer,
+                 mixture_regularizer_weight):
+        super().__init__(task,
+                         n_samples,
+                         kldirection,
+                         target_kappa_scale)
+        self.mixture_regularizer = mixture_regularizer
+        self.mixture_regularizer_weight = 0 if mixture_regularizer is None else mixture_regularizer_weight
+
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
@@ -31,21 +53,24 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         p, q = self.set_dist(out, target, kappa)
         z_samples = q.rsample()
 
-        modes_out = mixture_out[mask]
-        modes_probs = F.softmax(modes_out, dim=-1) #prior
-        #uniform_probs=torch.full(modes_out.size(), 1.0/modes_out.shape[-1], device=modes_out.device)
+        mixture_out = mixture_out[mask]
+        mixture_out_probs = F.softmax(mixture_out, dim=-1)  # prior
+        # uniform_probs=torch.full(modes_out.size(), 1.0/modes_out.shape[-1], device=modes_out.device)
 
         p_out = p.log_prob(z_samples.transpose(0, 1))
         q_out = q.log_prob(z_samples)
-        loss = torch.sum(modes_probs * (q_out - p_out.t()), dim=-1)
+        loss = torch.sum(mixture_out_probs * (q_out - p_out.t()), dim=-1)
 
-        #calculate posterior
-        with torch.no_grad():
-            lmodes_probs = torch.log(modes_probs)+q_out
-            lmodes_probs = lmodes_probs - torch.logsumexp(lmodes_probs, dim=-1)
-            print(lmodes_probs)
-
-        loss = loss.mean(dim=-1)
+        if self.mixture_regularizer == "posterior":
+            lmodes_probs = torch.log(mixture_out_probs) + q_out
+            lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+            entropy_reg = self.mixture_regularizer_weight * lmodes_probs * torch.exp(lmodes_probs)
+            loss = loss.mean(dim=-1) + entropy_reg.mean(dim=-1)
+        elif self.mixture_regularizer == "prior":
+            entropy_reg = self.mixture_regularizer_weight * mixture_out_probs*torch.log(mixture_out_probs)
+            loss = loss.mean(dim=-1) + entropy_reg.mean(dim=-1)
+        else:
+            loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.mean().detach()}
 
