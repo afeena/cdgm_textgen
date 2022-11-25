@@ -71,7 +71,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if self.mixture_regularizer == "posterior":
             lmodes_probs = torch.log(mixture_out_probs) + q_out
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-            entropy_reg = (lmodes_probs * torch.exp(lmodes_probs).mean(dim=-1))
+            entropy_reg = (lmodes_probs * torch.exp(lmodes_probs)).mean(dim=-1)
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         elif self.mixture_regularizer == "prior":
             entropy_reg =  (mixture_out_probs * torch.log(mixture_out_probs)).mean(dim=-1)
