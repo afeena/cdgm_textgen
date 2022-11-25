@@ -6,15 +6,22 @@ import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion, FairseqCriterion
 
-from cdgm_textgen import dataclass
-from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, ARPowerSphericalRevKLCriterion, \
+from dataclasses import dataclass
+from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
+    ARPowerSphericalRevKLCriterion, \
     ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
 
 
 @dataclass
 class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
-    mixture_regularizer: str = field(default=None)
-    mixture_regularizer_weight: float = field(default=0.1)
+    mixture_regularizer: str = field(
+        default=None,
+        metadata={"help": "type of mixture reg: posterior or prior"},
+    )
+    mixture_regularizer_weight: float = field(
+        default=0.1,
+        metadata={"help": "weight of mixture reg"},
+    )
 
 
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=MixturePSKLCriterionConfig)
@@ -67,7 +74,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             entropy_reg = self.mixture_regularizer_weight * lmodes_probs * torch.exp(lmodes_probs)
             loss = loss.mean(dim=-1) + entropy_reg.mean(dim=-1)
         elif self.mixture_regularizer == "prior":
-            entropy_reg = self.mixture_regularizer_weight * mixture_out_probs*torch.log(mixture_out_probs)
+            entropy_reg = self.mixture_regularizer_weight * mixture_out_probs * torch.log(mixture_out_probs)
             loss = loss.mean(dim=-1) + entropy_reg.mean(dim=-1)
         else:
             loss = loss.mean(dim=-1)

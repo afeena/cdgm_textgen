@@ -50,7 +50,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"building faiss index with {self.metric}...")
             res = faiss.StandardGpuResources()
             if self.metric == "cosine":
-                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_INNER_PRODUCT)
+                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
+                                                      faiss.METRIC_INNER_PRODUCT)
                 self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
             elif self.metric == "l2":
                 self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
@@ -135,15 +136,15 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # project output to have emb_dim*num_mixture_components
         self.ouput_ff_with_mix_components = torch.nn.Linear(self.output_embed_dim,
-                                                            self.output_embed_dim * self.num_mixture_components, bias=False)
+                                                            self.output_embed_dim * self.num_mixture_components,
+                                                            bias=False)
         # define mixture head to predict the cluster
         self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
-                                               self.output_embed_dim//2, bias=False)
+                                                 self.output_embed_dim // 2, bias=False)
         self.mixture_head_relu = torch.nn.ReLU()
         self.mixture_head_dropout = torch.nn.Dropout(cfg.mixture_dropout)
-        self.mixture_head_ff_2 = torch.nn.Linear(self.output_embed_dim//2,
-                                               self.num_mixture_components, bias=False)
-
+        self.mixture_head_ff_2 = torch.nn.Linear(self.output_embed_dim // 2,
+                                                 self.num_mixture_components, bias=False)
 
     def forward(
             self,
@@ -209,7 +210,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         dist = F.softmax(mixtures_out, -1)
         _, idx = dist.max(dim=-1)
 
-        #for debug purposes
+        # for debug purposes
         # from datetime import datetime
         # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
