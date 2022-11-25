@@ -14,11 +14,11 @@ from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
 
 @dataclass
 class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
-    mixture_regularizer: str = field(
+    mixture_regularizer: Optional[str] = field(
         default=None,
         metadata={"help": "type of mixture reg: posterior or prior"},
     )
-    mixture_regularizer_weight: float = field(
+    mixture_regularizer_weight: Optional[float] = field(
         default=0.1,
         metadata={"help": "weight of mixture reg"},
     )
