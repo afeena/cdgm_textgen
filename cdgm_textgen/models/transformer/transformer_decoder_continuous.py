@@ -140,12 +140,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                             bias=False)
         # define mixture head to predict the cluster
         self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
-                                                 self.output_embed_dim // 2, bias=False)
-        self.mixture_head_relu = torch.nn.ReLU()
-        self.mixture_head_dropout = torch.nn.Dropout(cfg.mixture_dropout)
-        self.mixture_head_ff_2 = torch.nn.Linear(self.output_embed_dim // 2,
                                                  self.num_mixture_components, bias=False)
-
     def forward(
             self,
             prev_output_tokens,
@@ -174,11 +169,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return x.view(x.shape[0], -1, self.num_mixture_components, self.output_embed_dim), extra
 
     def forward_mixture(self, decoder_output):
-        m = self.mixture_head_ff_1(decoder_output)
-        m = self.mixture_head_relu(self.mixture_head_dropout(m))
-        m = self.mixture_head_ff_2(m)
-
-        return m
+        return self.mixture_head_ff_1(decoder_output)
 
     @torch.jit.export
     def get_normalized_probs(
