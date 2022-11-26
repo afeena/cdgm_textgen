@@ -1,5 +1,4 @@
 from typing import Optional
-from torch.nn import Identity
 import logging
 
 from dataclasses import dataclass, field

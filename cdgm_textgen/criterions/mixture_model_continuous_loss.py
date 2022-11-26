@@ -74,8 +74,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             entropy_reg = (lmodes_probs * torch.exp(lmodes_probs)).mean(dim=-1)
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         elif self.mixture_regularizer == "prior":
-            entropy_reg =  (mixture_out_probs * torch.log(mixture_out_probs)).mean(dim=-1)
-            loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight *  entropy_reg).mean(dim=-1)
+            entropy_reg = (mixture_out_probs * torch.log(mixture_out_probs)).mean(dim=-1)
+            loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         else:
             loss = loss.mean(dim=-1)
 

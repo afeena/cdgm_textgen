@@ -141,6 +141,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # define mixture head to predict the cluster
         self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
                                                  self.num_mixture_components, bias=False)
+
     def forward(
             self,
             prev_output_tokens,
