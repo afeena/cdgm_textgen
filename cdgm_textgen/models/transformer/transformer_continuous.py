@@ -117,7 +117,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
         self.upgrade_state_dict(state_dict)
 
-        return super().load_state_dict(state_dict, strict)
+        return super().load_state_dict(state_dict, False)
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
