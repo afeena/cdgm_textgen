@@ -99,6 +99,26 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
                          "Use continuous_transformer instead.")
             raise ValueError("num_mixture_components must be >1 for continuous_transformer_mixture")
 
+
+    def load_state_dict(
+        self,
+        state_dict,
+        strict=False,
+        model_cfg=None,
+    ):
+        """Copies parameters and buffers from *state_dict* into this module and
+        its descendants.
+
+        Overrides the method in :class:`nn.Module`. Compared with that method
+        this additionally "upgrades" *state_dicts* from old checkpoints.
+        """
+        self.upgrade_state_dict(state_dict)
+
+        from fairseq.checkpoint_utils import prune_state_dict
+
+        new_state_dict = prune_state_dict(state_dict, model_cfg)
+        return super().load_state_dict(new_state_dict, strict)
+
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         decoder = MixtureContinuousTransformerDecoder(
