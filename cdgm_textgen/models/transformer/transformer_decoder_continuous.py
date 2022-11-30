@@ -1,6 +1,7 @@
 import gc
 import logging
 
+import power_spherical
 from torch.nn import Identity
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
@@ -124,6 +125,17 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
+    def ps_nearest_neighbor_search(self, features, k_nearest=5):
+        with torch.no_grad():
+            bsz = features.shape[0]
+            features = features.view(-1, self.output_embed_dim)
+            kappa = torch.norm(features, dim=-1).unsqueeze(1)
+            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+
+            q_dist = power_spherical.PowerSpherical(features, kappa)
+            log_probs = q_dist.log_prob(self.target_embed.weight)
+
+            return log_probs.view(bsz, -1, self.dict_len)
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
@@ -186,12 +198,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 out = self.get_max_mixture_component(out,
                                                      net_output[1]["mixtures_out"])
 
-            #  kappa = torch.norm(out, dim=-1)
-
-            scores = self.nearest_neighbor_search(out)
-            # m = torch.tensor([self.target_embed.weight.shape[-1]], device=net_output[0].device)
-            # norm_const = _neglogcmk(m, kappa)
-            # scores += norm_const.squeeze()
+            scores = self.ps_nearest_neighbor_search(out)
 
             return scores
 
