@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 import logging
 
@@ -73,6 +74,25 @@ class TransformerModelContinuous(TransformerModelBase):
         )
         return decoder_out
 
+    def load_state_dict(
+        self,
+        state_dict,
+        strict=False,
+        model_cfg=None,
+    ):
+        """Copies parameters and buffers from *state_dict* into this module and
+        its descendants.
+
+        Overrides the method in :class:`nn.Module`. Compared with that method
+        this additionally "upgrades" *state_dicts* from old checkpoints.
+        """
+        model_dict = self.state_dict()
+        #filter out keys
+        state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
+        self.upgrade_state_dict(state_dict)
+        #here allow partial loading from other models
+        return super().load_state_dict(state_dict,  strict=False)
+
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
@@ -88,6 +108,37 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         metadata={"help": "fropout for the mixture head"},
     )
 
+def upgrade_state_dict_with_pretrained_weights(
+    state_dict: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Load XLM weights into a Transformer encoder or decoder model.
+
+    Args:
+        state_dict: state dict for the model
+        pretrained_checkpoint: checkpoint to load weights from
+
+    Raises:
+        AssertionError: If architecture (num layers, attention heads, etc.)
+            does not match between the current Transformer encoder or
+            decoder and the pretrained_xlm_checkpoint
+    """
+    for key in state_dict.keys():
+
+        for search_key in ["embed_tokens", "embed_positions", "layers"]:
+            if search_key in key:
+                subkey = key[key.find(search_key):]
+                assert subkey in state_dict, (
+                    "{} Transformer encoder / decoder "
+                    "state_dict does not contain {}. Cannot "
+                    "load {} from pretrained XLM checkpoint "
+                    "{} into Transformer.".format(
+                        str(state_dict.keys()), subkey, key, pretrained_checkpoint
+                    )
+                )
+
+                state_dict[subkey] = xlm_state_dict[key]
+    return state_dict
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)
 class TransformerMixtureModelContinuous(TransformerModelContinuous):
@@ -99,25 +150,6 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
                          "Use continuous_transformer instead.")
             raise ValueError("num_mixture_components must be >1 for continuous_transformer_mixture")
 
-
-    def load_state_dict(
-        self,
-        state_dict,
-        strict=False,
-        model_cfg=None,
-    ):
-        """Copies parameters and buffers from *state_dict* into this module and
-        its descendants.
-
-        Overrides the method in :class:`nn.Module`. Compared with that method
-        this additionally "upgrades" *state_dicts* from old checkpoints.
-        """
-        model_dict = self.state_dict()
-        #filter our keys
-        state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
-        self.upgrade_state_dict(state_dict)
-
-        return super().load_state_dict(state_dict, strict)
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
