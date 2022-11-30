@@ -57,6 +57,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             elif self.metric == "l2":
                 self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
                 self.faiss_index.add(self.target_embed.weight.data)
+            else:
+                self.faiss_index = None
 
     def forward(
             self,
