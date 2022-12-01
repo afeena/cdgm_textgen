@@ -46,19 +46,19 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 utils.load_embedding(embed_dict, dictionary, self.target_embed)
             self.target_embed.weight.requires_grad = False
 
-    def build_faiss_index(self):
+    def build_index(self):
         with torch.no_grad():
             logger.info(f"building faiss index with {self.metric}...")
             res = faiss.StandardGpuResources()
             if self.metric == "cosine":
-                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
+                self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
                                                       faiss.METRIC_INNER_PRODUCT)
-                self.faiss_index.add(F.normalize(self.target_embed.weight, dim=-1))
+                self.index.add(F.normalize(self.target_embed.weight, dim=-1))
             elif self.metric == "l2":
-                self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
-                self.faiss_index.add(self.target_embed.weight.data)
+                self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
+                self.index.add(self.target_embed.weight.data)
             else:
-                self.faiss_index = None
+                self.index = F.normalize(self.target_embed.weight, dim=-1)
 
     def forward(
             self,
@@ -105,7 +105,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 features = F.normalize(features, p=2.0, dim=-1)
             # faiss works with 2d arrays only, so we need to transform 3d->2d and back
             ff = torch.flatten(features, start_dim=0, end_dim=1)
-            sim, _tokens = self.faiss_index.search(ff, k_nearest)
+            sim, _tokens = self.index.search(ff, k_nearest)
 
             del ff
 
@@ -135,7 +135,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
 
             q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = q_dist.log_prob(F.normalize(self.target_embed.weight, dim=-1))
+            log_probs = q_dist.log_prob(self.index)
 
             return log_probs.view(bsz, -1, self.dict_len)
 

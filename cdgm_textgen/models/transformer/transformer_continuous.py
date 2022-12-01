@@ -40,8 +40,7 @@ class TransformerModelContinuous(TransformerModelBase):
             tgt_dict,
             embed_tokens,
         )
-        if cfg.decoder_nn_metric is not "ps":
-            decoder.build_faiss_index()
+        decoder.build_faiss_index()
         return decoder
 
     def forward(
@@ -126,4 +125,5 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             tgt_dict,
             embed_tokens
         )
+        decoder.build_index()
         return decoder
