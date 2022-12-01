@@ -135,7 +135,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
 
             q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = q_dist.log_prob(self.target_embed.weight)
+            log_probs = q_dist.log_prob(F.normalize(self.target_embed.weight, dim=-1))
 
             return log_probs.view(bsz, -1, self.dict_len)
 
