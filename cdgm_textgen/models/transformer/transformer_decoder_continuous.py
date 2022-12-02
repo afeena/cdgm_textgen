@@ -58,8 +58,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             #     self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
             #     self.index.add(self.target_embed.weight.data)
             # else:
-            self.index = F.normalize(self.target_embed.weight, dim=-1).to(self.device)
-
+            self.index = F.normalize(self.target_embed.weight, dim=-1).cuda()
+            
     def forward(
             self,
             prev_output_tokens,
