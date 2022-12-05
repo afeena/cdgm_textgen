@@ -25,7 +25,7 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
     decoder_nn_metric: str = field(
-        default="ps",
+        default="cosine",
         metadata={"help": "metric for NN decoding"},
     )
 
