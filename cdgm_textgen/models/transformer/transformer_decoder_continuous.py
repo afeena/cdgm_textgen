@@ -109,7 +109,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             if metric in ["cosine", "l2"]:
                 norm_const = None
                 if metric == "cosine":
-                    kappa = torch.norm(features, dim=-1)
+                    kappa = torch.tensor([1.], device=features[0].device)
                     features = F.normalize(features, p=2.0, dim=-1)
                     m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
                     norm_const = _neglogcmk(m, kappa)
