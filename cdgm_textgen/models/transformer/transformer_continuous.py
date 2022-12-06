@@ -40,7 +40,7 @@ class TransformerModelContinuous(TransformerModelBase):
             tgt_dict,
             embed_tokens,
         )
-        decoder.build_faiss_index()
+        decoder.build_index()
         return decoder
 
     def forward(
