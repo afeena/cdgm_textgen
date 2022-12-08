@@ -39,7 +39,7 @@ class SequenceGenerator(nn.Module):
             lm_model=None,
             lm_weight=1.0,
             tokens_to_suppress=(),
-            metric = None,
+            metric=None,
     ):
         """Generates translations of a given source sentence.
 
