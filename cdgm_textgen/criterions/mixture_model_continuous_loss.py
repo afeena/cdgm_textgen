@@ -68,6 +68,13 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         q_out = q.log_prob(z_samples)
         loss = torch.sum(mixture_out_probs * (q_out - p_out.t()), dim=-1)
 
+       # with torch.no_grad():
+       #     from datetime import datetime
+       #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
+       #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+       #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
+       #     print("post save")
+
         if self.mixture_regularizer == "posterior":
             lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
