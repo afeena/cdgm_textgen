@@ -90,9 +90,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            scores = self.nearest_neighbor_search(net_output[0])
+            scores = self.nearest_neighbor_search(net_output[0], metric=metric)
 
         return scores
 

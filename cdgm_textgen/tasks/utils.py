@@ -78,6 +78,7 @@ def build_generator(self, models, args, seq_gen_cls=None,
         match_source_len = getattr(args, "match_source_len", False)
         diversity_rate = getattr(args, "diversity_rate", -1)
         constrained = getattr(args, "constraints", False)
+
         if prefix_allowed_tokens_fn is None:
             prefix_allowed_tokens_fn = getattr(args, "prefix_allowed_tokens_fn", None)
         if (
@@ -152,6 +153,7 @@ def build_generator(self, models, args, seq_gen_cls=None,
             match_source_len=getattr(args, "match_source_len", False),
             no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
             search_strategy=search_strategy,
+            decoder_metric = getattr(args, "decoder_metric", None)
             **extra_gen_cls_kwargs,
         )
 
