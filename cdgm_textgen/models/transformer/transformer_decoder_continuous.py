@@ -60,7 +60,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
                 self.index.add(self.target_embed.weight.data)
             else:
-                self.index = F.normalize(self.target_embed.weight, dim=-1).cuda()
+                self.index = F.normalize(self.target_embed.weight, dim=-1).cuda().detach()
 
     def forward(
             self,
@@ -209,31 +209,21 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     ):
         with torch.no_grad():
             out = net_output[0]
+            mixtures_out = net_output[1]["mixture_out"]
 
             if self.num_mixture_components > 1:
-                out = self.get_max_mixture_component(out,
-                                                     net_output[1]["mixtures_out"])
+                dist = F.softmax(mixtures_out, -1)
+                _, idx = dist.max(dim=-1)
+
+                # for debug purposes
+                # from datetime import datetime
+                # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
+                idx = idx[..., None, None].expand(-1, -1, 1, out.size(3))
+                out = torch.gather(out, dim=2, index=idx).squeeze().shape
+
+                del idx
 
             scores = self.nearest_neighbor_search(out)
 
             return scores
-
-    def get_max_mixture_component(self,
-                                  out: Tensor,
-                                  mixtures_out: Tensor):
-        bsz = out.shape[0]
-        dist = F.softmax(mixtures_out, -1)
-        _, idx = dist.max(dim=-1)
-
-        # for debug purposes
-        # from datetime import datetime
-        # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
-
-        idx_bool_mask = F.one_hot(idx, num_classes=self.num_mixture_components).bool()
-        out = out[idx_bool_mask].view(bsz, -1, self.output_embed_dim)
-
-        del idx_bool_mask
-        gc.collect()
-        torch.cuda.empty_cache()
-
-        return out
