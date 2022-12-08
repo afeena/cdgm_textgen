@@ -211,7 +211,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     ):
         with torch.no_grad():
             out = net_output[0]
-            mixtures_out = net_output[1]["mixture_out"]
+            mixtures_out = net_output[1]["mixtures_out"]
 
             if self.num_mixture_components > 1:
                 dist = F.softmax(mixtures_out, -1)
