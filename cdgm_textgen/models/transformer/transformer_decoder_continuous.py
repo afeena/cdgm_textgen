@@ -222,7 +222,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
                 idx = idx[..., None, None].expand(-1, -1, 1, out.size(3))
-                out = torch.gather(out, dim=2, index=idx)
+                out = torch.gather(out, dim=2, index=idx).squeeze(dim=2)
 
                 del idx
 
