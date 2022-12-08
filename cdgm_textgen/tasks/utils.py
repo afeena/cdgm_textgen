@@ -64,7 +64,7 @@ def build_generator(self, models, args, seq_gen_cls=None,
                 compute_alignment=getattr(args, "print_alignment", False),
             )
 
-        from fairseq.sequence_generator import (
+        from cdgm_textgen.sequence_generator import (
             SequenceGenerator,
             SequenceGeneratorWithAlignment,
         )
