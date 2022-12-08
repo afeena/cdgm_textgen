@@ -1,8 +1,8 @@
-import os
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 import logging
 
 from dataclasses import dataclass, field
+from torch import Tensor
 
 from fairseq.models.transformer import TransformerConfig
 from cdgm_textgen.models.transformer.transformer_decoder_continuous import ContinuousTransformerDecoder, \
@@ -95,7 +95,14 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
-
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric:  Optional[str] = None,
+    ):
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     num_mixture_components: int = field(
