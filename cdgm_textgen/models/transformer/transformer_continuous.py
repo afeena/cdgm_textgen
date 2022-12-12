@@ -40,7 +40,6 @@ class TransformerModelContinuous(TransformerModelBase):
             tgt_dict,
             embed_tokens,
         )
-        decoder.build_index()
         return decoder
 
     def forward(
@@ -132,5 +131,4 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             tgt_dict,
             embed_tokens
         )
-        decoder.build_index()
         return decoder

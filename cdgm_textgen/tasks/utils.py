@@ -139,6 +139,9 @@ def build_generator(self, models, args, seq_gen_cls=None,
             else:
                 seq_gen_cls = SequenceGenerator
 
+        decoding_measure = getattr(args, "decoding_measure")
+        if getattr(args, "rebuild_index"):
+            models.build_index(metric=decoding_measure)
         return seq_gen_cls(
             models,
             self.target_dictionary,

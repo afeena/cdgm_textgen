@@ -48,15 +48,16 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 utils.load_embedding(embed_dict, dictionary, self.target_embed)
             self.target_embed.weight.requires_grad = False
 
-    def build_index(self):
+    def build_index(self, metric=None):
+        metric = self.metric if metric is None else metric
         with torch.no_grad():
             logger.info(f"building faiss index with {self.metric}...")
             res = faiss.StandardGpuResources()
-            if self.metric == "cosine":
+            if metric == "cosine":
                 self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
                                                 faiss.METRIC_INNER_PRODUCT)
                 self.index.add(F.normalize(self.target_embed.weight, dim=-1))
-            elif self.metric == "l2":
+            elif metric == "l2":
                 self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
                 self.index.add(self.target_embed.weight.data)
             else:
