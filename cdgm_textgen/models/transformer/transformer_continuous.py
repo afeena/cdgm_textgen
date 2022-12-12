@@ -39,7 +39,7 @@ class TransformerModelContinuous(TransformerModelBase):
         return decoder
 
     def build_index(self, metric=None):
-        self.decoder.build_index()
+        self.decoder.build_index(metric)
 
     def forward(
             self,
