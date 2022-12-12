@@ -131,8 +131,8 @@ class SequenceGenerator(nn.Module):
         if self.lm_model is not None:
             self.lm_model.eval()
         self.metric = metric
-        if getattr(models, "build_index", None) is not None:
-            models.build_index(metric=self.metric)
+        if any(getattr(m, "build_index", False) for m in self.model.models):
+            self.model.build_index(metric=self.metric)
 
     def cuda(self):
         self.model.cuda()
@@ -778,6 +778,9 @@ class EnsembleModel(nn.Module):
 
     def has_encoder(self):
         return hasattr(self.single_model, "encoder")
+
+    def build_index(self, metric=None):
+        return self.single_model.build_index(metric)
 
     def has_incremental_states(self):
         return self.has_incremental
