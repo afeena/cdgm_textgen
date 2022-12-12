@@ -220,6 +220,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
                 del idx
 
-            scores = self.nearest_neighbor_search(out)
+            scores = self.nearest_neighbor_search(out, metric=metric)
 
             return scores
