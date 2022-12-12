@@ -24,10 +24,6 @@ class ContinuousTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
-    decoder_nn_metric: str = field(
-        default="cosine",
-        metadata={"help": "metric for NN decoding"},
-    )
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
@@ -41,6 +37,9 @@ class TransformerModelContinuous(TransformerModelBase):
             embed_tokens,
         )
         return decoder
+
+    def build_index(self, metric=None):
+        self.decoder.build_index()
 
     def forward(
             self,

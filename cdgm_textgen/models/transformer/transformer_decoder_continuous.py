@@ -33,7 +33,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          )
         self.output_projection = None
         self.dict_len = len(self.dictionary)
-        self.metric = cfg.decoder_nn_metric
         if cfg.no_last_dec_layer_norm:
             self.layers[-1].final_layer_norm = Identity(self.embed_dim, export=cfg.export)
 
@@ -49,9 +48,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             self.target_embed.weight.requires_grad = False
 
     def build_index(self, metric=None):
-        metric = self.metric if metric is None else metric
         with torch.no_grad():
-            logger.info(f"building faiss index with {self.metric}...")
+            logger.info(f"building faiss index with {metric}...")
             res = faiss.StandardGpuResources()
             if metric == "cosine":
                 self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
@@ -100,13 +98,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def nearest_neighbor_search(self, features, k_nearest=1, metric=None):
         with torch.no_grad():
-            metric = self.metric if metric is None else metric
             output_proj = None
-            try:
-                assert metric == self.metric
-            except AssertionError:
-                logger.warning(f"Metrics inconsistency: "
-                               f"trained with {self.metric} ; decode with {metric}")
+            logger.info(f"decoding with the measure {metric}")
 
             if metric in ["cosine", "l2"]:
                 norm_const = None
