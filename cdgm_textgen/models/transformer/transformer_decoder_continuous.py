@@ -99,7 +99,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     def nearest_neighbor_search(self, features, k_nearest=1, metric=None):
         with torch.no_grad():
             output_proj = None
-            logger.info(f"decoding with the measure {metric}")
 
             if metric in ["cosine", "l2"]:
                 norm_const = None
