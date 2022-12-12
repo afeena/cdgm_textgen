@@ -131,6 +131,8 @@ class SequenceGenerator(nn.Module):
         if self.lm_model is not None:
             self.lm_model.eval()
         self.metric = metric
+        if getattr(models, "build_index", None) is not None:
+            models.build_index(metric=self.metric)
 
     def cuda(self):
         self.model.cuda()
