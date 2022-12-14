@@ -19,9 +19,9 @@ train.add_defaults = cdgm_add_defaults
 train.convert_namespace_to_omegaconf = cdgm_convert_namespace_to_omegaconf
 
 # patch tasks for fairseq
-train.tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
-train.tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
-train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
+# train.tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
+# train.tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
+# train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
 
 
 def main(cfg: CDGMTextgenConfig) -> None:
