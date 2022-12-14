@@ -167,6 +167,6 @@ class TransformerClustered(TransformerModelContinuous):
 
         # load here from file
         if cfg.init_components_file:
-            decoder.centroids[:] = torch.load(cfg.init_components_file)
+            decoder.centroids.data[:] = torch.load(cfg.init_components_file)
 
         return decoder
