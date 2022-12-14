@@ -7,6 +7,7 @@ from fairseq.tasks.translation import TranslationTask
 from fairseq.tasks import register_task
 from fairseq.data import encoders
 
+
 @dataclass
 class TranslationContinuousConfig(TranslationConfig):
     eval_nn_measure: str = field(
@@ -15,6 +16,7 @@ class TranslationContinuousConfig(TranslationConfig):
             "help": "what measure to use in evaluation for NN search"
         },
     )
+
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
@@ -27,7 +29,7 @@ class TranslationCountinuousTask(TranslationTask):
             )
 
             gen_args = json.loads(self.cfg.eval_bleu_args)
-            gen_args["decoding_measure"]=self.cfg.eval_nn_measure
+            gen_args["decoding_measure"] = self.cfg.eval_nn_measure
             self.sequence_generator = self.build_generator(
                 [model], Namespace(**gen_args)
             )
