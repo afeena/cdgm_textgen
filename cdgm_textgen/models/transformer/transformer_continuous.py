@@ -1,14 +1,21 @@
 import logging
-from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
 
-from fairseq.models.transformer import TransformerConfig
+import torch
 from torch import Tensor
 
+from fairseq.models.transformer import TransformerConfig
+
 from cdgm_textgen.models import register_model
-from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
-from cdgm_textgen.models.transformer.transformer_decoder_continuous import ContinuousTransformerDecoder, \
+from cdgm_textgen.models.transformer.transformer_decoder_continuous import (
+    ContinuousTransformerDecoder,
     MixtureContinuousTransformerDecoder
+    ClusteredTransformerDecoder,
+)
+from cdgm_textgen.models.transformer.transformer_base import (
+    TransformerModelBase
+)
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transfore_continuous")
 
@@ -110,7 +117,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     )
     mixture_dropout: float = field(
         default=0,
-        metadata={"help": "fropout for the mixture head"},
+        metadata={"help": "dropout for the mixture head"},
     )
 
 
@@ -131,4 +138,35 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             tgt_dict,
             embed_tokens
         )
+        return decoder
+
+
+
+@dataclass
+class TransformerClusteredConfig(MixtureContinuousTransformerConfig):
+    # TODO consider refactoring
+    init_components_file: Optional[str] = field(
+        default=None,
+        metadata={"help": "path to .pt file containing cluster center tensor"}
+    )
+
+
+@register_model("transformer_clustered",
+                dataclass=TransformerClusteredConfig)
+class TransformerClustered(TransformerModelContinuous):
+    """Continuous mixture model with word embedding k-means centroid init."""
+
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+
+        decoder = ClusteredTransformerDecoder(
+            cfg,
+            tgt_dict,
+            embed_tokens
+        )
+
+        # load here from file
+        if cfg.init_components_file:
+            decoder.centroids[:] = torch.load(cfg.init_components_file)
+
         return decoder

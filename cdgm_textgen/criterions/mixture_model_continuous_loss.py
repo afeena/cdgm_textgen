@@ -89,6 +89,48 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, {"kappa": kappa.mean().detach()}
 
 
+@register_criterion("ar_clustered_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
+class ClusteredCriterion(ARPowerSphericalCriterion):
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        mu, extra = net_output
+
+        # [B, T, n_components]
+        prior_scores = extra["prior_scores"]
+        log_prior = F.log_softmax(prior_scores, dim=-1)
+
+        bsz = mu.shape[0]
+        n_tokens = mu.shape[1]
+        n_components = model.decoder.num_mixture_components
+        dim = model.decoder.output_embed_dim
+
+        # mu is [B, T, n_components, dim]
+        # kappa is [B, T, n_components]
+        kappa = extra['kappa']
+
+        # need to extend target to match output shape
+        target = target.repeat(1, 1, n_components).view(bsz, -1, n_components, dim)
+
+        # apply padding mask
+        target = target[mask]
+        kappa = kappa[mask]
+        mu = mu[mask]
+        log_prior = log_prior[mask]
+
+        # get PS probs for each component
+        d_x = power_spherical.PowerSpherical(mu, kappa)
+
+        log_p_out = d_x.log_prob(target)
+
+        # sum over components
+        loss = torch.logsumexp(log_prior + log_p_out, dim=-1)
+        loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
+        logging = {"kappa": kappa.mean().detach()}
+        return loss, logging
+
+
 @register_criterion("ar_mixture_ps_loss", dataclass=ARPowerSphericalCriterionConfig)
 class MixtureModelCriterion(ARPowerSphericalCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
