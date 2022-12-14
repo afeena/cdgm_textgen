@@ -2,7 +2,6 @@ import gc
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-import faiss
 import power_spherical
 import torch
 import torch.nn.functional as F
@@ -45,17 +44,22 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 utils.load_embedding(embed_dict, dictionary, self.target_embed)
             self.target_embed.weight.requires_grad = False
 
+    def build_faiss_index(self, metric=None):
+        logger.info(f"building faiss index with {metric}...")
+        import faiss
+        res = faiss.StandardGpuResources()
+        if metric == "cosine":
+            self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
+                                            faiss.METRIC_INNER_PRODUCT)
+            self.index.add(F.normalize(self.target_embed.weight, dim=-1))
+        elif metric == "l2":
+            self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
+            self.index.add(self.target_embed.weight.data)
+
     def build_index(self, metric=None):
         with torch.no_grad():
-            logger.info(f"building faiss index with {metric}...")
-            res = faiss.StandardGpuResources()
-            if metric == "cosine":
-                self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1],
-                                                faiss.METRIC_INNER_PRODUCT)
-                self.index.add(F.normalize(self.target_embed.weight, dim=-1))
-            elif metric == "l2":
-                self.index = faiss.GpuIndexFlat(res, self.target_embed.weight.shape[-1], faiss.METRIC_L2)
-                self.index.add(self.target_embed.weight.data)
+            if metric=="l2":
+                self.index = self.target_embed.weight.cuda().detach()
             else:
                 self.index = F.normalize(self.target_embed.weight, dim=-1).cuda().detach()
 
@@ -94,10 +98,28 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-    def nearest_neighbor_search(self, features, k_nearest=1, metric=None):
-        with torch.no_grad():
-            output_proj = None
+    def faiss_nn_search(self, features, k_nearest=1, metric=None):
+        # faiss works with 2d arrays only, so we need to transform 3d->2d and back
+        ff = torch.flatten(features, start_dim=0, end_dim=1)
+        sim, _tokens = self.index.search(ff, k_nearest)
 
+        del ff
+
+        _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
+        sim = sim.view(features.shape[0], features.shape[1], -1)
+
+        # sequence generator expects the matrix emb x vocab, so...
+        output_proj = torch.full(
+            (features.shape[0], features.shape[1], self.dict_len), 0.0
+        ).to(features.device)
+
+        output_proj =  output_proj.scatter_(-1, _tokens, sim)
+        del _tokens
+        del sim
+        return  output_proj
+
+    def nearest_neighbor_search(self, features, metric=None):
+        with torch.no_grad():
             if metric in ["cosine", "l2"]:
                 norm_const = None
                 if metric == "cosine":
@@ -106,27 +128,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                     m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
                     norm_const = _neglogcmk(m, kappa)
 
-                # faiss works with 2d arrays only, so we need to transform 3d->2d and back
-                ff = torch.flatten(features, start_dim=0, end_dim=1)
-                sim, _tokens = self.index.search(ff, k_nearest)
-
-                del ff
-
-                _tokens = _tokens.view(features.shape[0], features.shape[1], -1)
-                sim = sim.view(features.shape[0], features.shape[1], -1)
-
-                # sequence generator expects the matrix emb x vocab, so...
-                output_proj = torch.full(
-                    (features.shape[0], features.shape[1], self.dict_len), 0.0
-                ).to(features.device)
-
-                output_proj = output_proj.scatter_(-1, _tokens, sim)
-
+                output_proj = features@self.index.T
                 if norm_const is not None:
                     output_proj += norm_const.squeeze()
-
-                del _tokens
-                del sim
 
             if metric == "ps":
                 bsz = features.shape[0]
