@@ -10,8 +10,8 @@ from fairseq.models.transformer import TransformerConfig
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_decoder_continuous import (
     ContinuousTransformerDecoder,
-    MixtureContinuousTransformerDecoder
-    ClusteredTransformerDecoder,
+    MixtureContinuousTransformerDecoder,
+    ClusteredTransformerDecoder
 )
 from cdgm_textgen.models.transformer.transformer_base import (
     TransformerModelBase

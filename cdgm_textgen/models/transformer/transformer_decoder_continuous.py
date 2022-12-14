@@ -236,9 +236,9 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         dim = self.output_embed_dim
 
         # centroids live on a sphere
-        C_ = torch.empty(self.num_mixture_components, dim)
+        C_ = torch.randn(self.num_mixture_components, dim)
         C_ = torch.nn.functional.normalize(C_, dim=-1)
-        self.centroids = torch.Parameter(C_)
+        self.centroids = torch.nn.Parameter(C_)
 
         # learned prior over components
         self.W_prior = torch.nn.Linear(dim, self.num_mixture_components)
@@ -295,9 +295,10 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         inner = (v_tilde * Z.unsqueeze(dim=-3)).sum(dim=-1, keepdim=True)
         v = v_tilde - inner * Z.unsqueeze(dim=-3)  # [batch_size, n_components, dim]
 
-        print("next two lines should be approximately zero")
-        print(v[:, 0, :] @ Z[0])
-        print(v[:, 2, :] @ Z[2])
+        # print("next lines should be approximately zero")
+        # print(v[:, :, 0, :] @ Z[0])
+        # print(v[:, :, 1, :] @ Z[1])
+        # print(v[:, :, 2, :] @ Z[2])
 
         # calculate the location of each predictive p(y|z) = PS(mu, kappa)
         # mu[i, k] = Exp_zk(v[i,k])
@@ -307,7 +308,7 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
 
         # predict kappas
         DH = H.unsqueeze(dim=-2) * self.D_kappa
-        kappa = (DH * DH).sum(dim=-1)
+        kappa = (DH * DH).sum(dim=-1)  # [bsz, n_clusters}
 
         # we could multiply mu * kappas to be consistent with Evgeniia's API.
         # but numerically I prefer to keep them separate.
