@@ -2,7 +2,7 @@ import json
 from argparse import Namespace
 from dataclasses import dataclass, field
 
-from fairseq.tasks import TranslationConfig
+from fairseq.tasks.translation import TranslationConfig
 from fairseq.tasks import TranslationTask, register_task
 
 
