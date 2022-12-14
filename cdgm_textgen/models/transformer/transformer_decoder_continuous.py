@@ -1,15 +1,17 @@
 import gc
 import logging
+import math
 from typing import Any, Dict, List, Optional, Tuple
 
+import torch
+from torch import Tensor
+import torch.nn.functional as F
+from torch.nn import Identity
+
+from fairseq import utils
 import faiss
 import power_spherical
-import torch
-import torch.nn.functional as F
-from fairseq import utils
 from fairseq.models.transformer import TransformerDecoderBase
-from torch import Tensor
-from torch.nn import Identity
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
@@ -218,5 +220,126 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 del idx
 
             scores = self.nearest_neighbor_search(out, metric=metric)
+
+            return scores
+
+
+class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
+    def __init__(self,
+                 cfg,
+                 dictionary,
+                 embed_tokens
+                 ):
+        super().__init__(cfg, dictionary, embed_tokens)
+        self.num_mixture_components = cfg.num_mixture_components
+
+        dim = self.output_embed_dim
+
+        # centroids live on a sphere
+        C_ = torch.empty(self.num_mixture_components, dim)
+        C_ = torch.nn.functional.normalize(C_, dim=-1)
+        self.centroids = torch.Parameter(C_)
+
+        # learned prior over components
+        self.W_prior = torch.nn.Linear(dim, self.num_mixture_components)
+
+        # for each component z and hidden state h our model gives a vector:
+        # v_tilde = Wv @ relu( V[z; h] )
+        self.Vz = torch.nn.Linear(dim, dim)
+        self.Vh = torch.nn.Linear(dim, dim, bias=False)
+        self.Wv = torch.nn.Linear(dim, dim)
+
+        # we predict Kappa using a diagonal bilinear form exp(h'diag(w^2)h)
+        D_kappa_ = torch.ones(self.num_mixture_components, dim)
+        self.D_kappa = torch.nn.Parameter(D_kappa_)
+
+
+    def forward(
+            self,
+            prev_output_tokens,
+            encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+            incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+            features_only: bool = True,
+            full_context_alignment: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+            src_lengths: Optional[Any] = None,
+            return_all_hiddens: bool = False,
+    ):
+        H, extra = self.extract_features(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_state,
+            full_context_alignment=full_context_alignment,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+        )
+
+        extra["prior_scores"] = self.W_prior(H)
+
+        # temporary alias
+        Z = self.centroids
+
+        # for each cluster and each hidden state, compute a vector v_tilde
+        VzZ = self.Vz(Z).unsqueeze(dim=-3)
+        VhH = self.Vh(H).unsqueeze(dim=-2)
+        hid = torch.relu(VzZ + VhH)  # [batch_size, n_components, dim]
+        v_tilde = self.Wv(hid)  # [batch_size, n_components, dim]
+
+        # then, project it to manifold tangent space:
+        # v[i,k] = proj_zk(v_tilde[i,k])
+        # For sphere, this is:
+        # v[i,k] = (Id - outer(zk, zk)) @ v_tilde[i,k]
+        #        = v_tilde[i,k] - dot(zk, v_tilde[i,k]) * zk
+
+        inner = (v_tilde * Z.unsqueeze(dim=-3)).sum(dim=-1, keepdim=True)
+        v = v_tilde - inner * Z.unsqueeze(dim=-3)  # [batch_size, n_components, dim]
+
+        print("next two lines should be approximately zero")
+        print(v[:, 0, :] @ Z[0])
+        print(v[:, 2, :] @ Z[2])
+
+        # calculate the location of each predictive p(y|z) = PS(mu, kappa)
+        # mu[i, k] = Exp_zk(v[i,k])
+        norms = v.norm(dim=-1, keepdim=True)  # [batch_size, n_components, 1]
+        mu = (torch.cos(norms) * Z.unsqueeze(dim=-3)
+              + torch.sinc(norms / math.pi) * v)
+
+        # predict kappas
+        DH = H.unsqueeze(dim=-2) * self.D_kappa
+        kappas = (DH * DH).sum(dim=-1)
+
+        # we could multiply mu * kappas to be consistent with Evgeniia's API.
+        # but numerically I prefer to keep them separate.
+
+        extra["kappas"] = kappas
+        return mu, extra
+
+    @torch.jit.export
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
+    ):
+        with torch.no_grad():
+            mu, extra = net_output
+
+            if self.num_mixture_components > 1:
+                prior_scores = extra["prior_scores"]
+                # prior = F.softmax(prior_scores, -1)
+                _, idx = prior_scores.max(dim=-1)
+
+                # for debug purposes
+                # from datetime import datetime
+                # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
+                idx = idx[..., None, None].expand(-1, -1, 1, mu.size(3))
+                mu = torch.gather(mu, dim=2, index=idx).squeeze(dim=2)
+
+                del idx
+
+            scores = self.nearest_neighbor_search(mu, metric=metric)
 
             return scores
