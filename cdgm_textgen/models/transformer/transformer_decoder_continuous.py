@@ -307,12 +307,12 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
 
         # predict kappas
         DH = H.unsqueeze(dim=-2) * self.D_kappa
-        kappas = (DH * DH).sum(dim=-1)
+        kappa = (DH * DH).sum(dim=-1)
 
         # we could multiply mu * kappas to be consistent with Evgeniia's API.
         # but numerically I prefer to keep them separate.
 
-        extra["kappas"] = kappas
+        extra["kappa"] = kappa
         return mu, extra
 
     @torch.jit.export
