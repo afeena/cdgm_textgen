@@ -8,6 +8,8 @@ from fairseq.tasks.translation import TranslationConfig
 from fairseq.tasks.translation import TranslationTask
 from fairseq import search
 
+EVAL_BLEU_ORDER = 4
+
 @dataclass
 class TranslationContinuousConfig(TranslationConfig):
     eval_nn_measure: str = field(
@@ -178,3 +180,16 @@ class TranslationCountinuousTask(TranslationTask):
                 no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
                 search_strategy=search.BeamSearch(self.target_dictionary)
             )
+    def valid_step(self, sample, model, criterion):
+        loss, sample_size, logging_output = super().valid_step(sample, model, criterion)
+        if self.cfg.eval_bleu:
+            bleu = self._inference_with_bleu(self.sequence_generator, sample, model)
+            logging_output["_bleu_sys_len"] = bleu.sys_len
+            logging_output["_bleu_ref_len"] = bleu.ref_len
+            # we split counts into separate entries so that they can be
+            # summed efficiently across workers using fast-stat-sync
+            assert len(bleu.counts) == EVAL_BLEU_ORDER
+            for i in range(EVAL_BLEU_ORDER):
+                logging_output["_bleu_counts_" + str(i)] = bleu.counts[i]
+                logging_output["_bleu_totals_" + str(i)] = bleu.totals[i]
+        return loss, sample_size, logging_output
