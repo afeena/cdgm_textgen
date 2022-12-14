@@ -3,7 +3,8 @@ from argparse import Namespace
 from dataclasses import dataclass, field
 
 from fairseq.tasks.translation import TranslationConfig
-from fairseq.tasks import TranslationTask, register_task
+from fairseq.tasks.translation import TranslationTask
+from fairseq.tasks impoer register_task
 
 
 @dataclass
