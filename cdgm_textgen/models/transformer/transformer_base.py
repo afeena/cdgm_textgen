@@ -7,8 +7,6 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
-from torch import Tensor
-
 from fairseq import utils
 from fairseq.models import FairseqEncoderDecoderModel, register_model
 from fairseq.models.transformer import (
@@ -16,6 +14,7 @@ from fairseq.models.transformer import (
     TransformerDecoderBase,
     TransformerEncoderBase,
 )
+from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 

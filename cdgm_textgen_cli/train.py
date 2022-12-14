@@ -28,5 +28,6 @@ train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.v
 def main(cfg: CDGMTextgenConfig) -> None:
     train.main(cfg)
 
+
 if __name__ == "__main__":
     train.cli_main()

@@ -9,12 +9,11 @@ from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
-from torch import Tensor
-
 from fairseq import search, utils
 from fairseq.data import data_utils
 from fairseq.models import FairseqIncrementalDecoder
 from fairseq.ngram_repeat_block import NGramRepeatBlock
+from torch import Tensor
 
 
 class SequenceGenerator(nn.Module):
@@ -290,9 +289,9 @@ class SequenceGenerator(nn.Module):
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
             torch.zeros(bsz * beam_size, max_len + 2)
-                .to(src_tokens)
-                .long()
-                .fill_(self.pad)
+            .to(src_tokens)
+            .long()
+            .fill_(self.pad)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
         attn: Optional[Tensor] = None
@@ -321,9 +320,9 @@ class SequenceGenerator(nn.Module):
         # offset arrays for converting between different indexing schemes
         bbsz_offsets = (
             (torch.arange(0, bsz) * beam_size)
-                .unsqueeze(1)
-                .type_as(tokens)
-                .to(src_tokens.device)
+            .unsqueeze(1)
+            .type_as(tokens)
+            .to(src_tokens.device)
         )
         cand_offsets = torch.arange(0, cand_size).type_as(tokens).to(src_tokens.device)
 
@@ -975,16 +974,16 @@ class SequenceGeneratorWithAlignment(SequenceGenerator):
         bsz = src_tokens.shape[0]
         src_tokens = (
             src_tokens[:, None, :]
-                .expand(-1, self.beam_size, -1)
-                .contiguous()
-                .view(bsz * self.beam_size, -1)
+            .expand(-1, self.beam_size, -1)
+            .contiguous()
+            .view(bsz * self.beam_size, -1)
         )
         src_lengths = sample["net_input"]["src_lengths"]
         src_lengths = (
             src_lengths[:, None]
-                .expand(-1, self.beam_size)
-                .contiguous()
-                .view(bsz * self.beam_size)
+            .expand(-1, self.beam_size)
+            .contiguous()
+            .view(bsz * self.beam_size)
         )
         prev_output_tokens = data_utils.collate_tokens(
             [beam["tokens"] for example in hypothesis for beam in example],

@@ -1,7 +1,8 @@
 # coding: utf8
 
-import torch
 import sys
+
+import torch
 
 
 def txt_to_pt(embd_path):

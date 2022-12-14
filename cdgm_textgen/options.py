@@ -8,13 +8,11 @@ from pathlib import Path
 from typing import Callable, List, Optional, Union
 
 import torch
-
 from fairseq import utils
 from fairseq.data.indexed_dataset import get_available_dataset_impl
 # this import is for backward compatibility
 from fairseq.utils import csv_str_list, eval_bool, eval_str_dict, eval_str_list  # noqa
 
-from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 from cdgm_textgen.dataclass.configs import (
     CheckpointConfig,
     CDGMCommonConfig as CommonConfig,
@@ -27,6 +25,7 @@ from cdgm_textgen.dataclass.configs import (
     OptimizationConfig,
     EMAConfig,
 )
+from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 
 
 def get_preprocessing_parser(default_task="translation"):

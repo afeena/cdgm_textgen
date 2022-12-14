@@ -1,6 +1,6 @@
+import numpy as np
 import torch
 from hyperspherical_vae.ops.ive import ive_fraction_approx2
-import numpy as np
 
 
 def _log_iv_approx(m, k):

@@ -1,19 +1,17 @@
 import gc
 import logging
+from typing import Any, Dict, List, Optional, Tuple
 
+import faiss
 import power_spherical
+import torch
+import torch.nn.functional as F
+from fairseq import utils
+from fairseq.models.transformer import TransformerDecoderBase
+from torch import Tensor
 from torch.nn import Identity
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
-from fairseq import utils
-import faiss
-import torch
-from torch import Tensor
-import torch.nn.functional as F
-from typing import Any, Dict, List, Optional, Tuple
-
-from fairseq.models.transformer import TransformerDecoderBase
-
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")

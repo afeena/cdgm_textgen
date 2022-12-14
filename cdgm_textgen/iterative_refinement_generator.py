@@ -328,8 +328,8 @@ class IterativeRefinementGenerator(object):
             finalized_maxlen = max(f.size(0) for f in finalized_tokens)
             final_output_tokens = (
                 finalized_tokens[0]
-                    .new_zeros(len(finalized_tokens), finalized_maxlen)
-                    .fill_(self.pad)
+                .new_zeros(len(finalized_tokens), finalized_maxlen)
+                .fill_(self.pad)
             )
             for i, f in enumerate(finalized_tokens):
                 final_output_tokens[i, : f.size(0)] = f
@@ -345,8 +345,8 @@ class IterativeRefinementGenerator(object):
             utils.new_arange(
                 final_output_tokens, beam_size, reranker_encoder_out.encoder_out.size(1)
             )
-                .t()
-                .reshape(-1)
+            .t()
+            .reshape(-1)
         )
         reranker_encoder_out = reranker.encoder.reorder_encoder_out(
             reranker_encoder_out, length_beam_order

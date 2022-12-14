@@ -1,12 +1,12 @@
+from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
 import power_spherical
 import torch
 import torch.nn.functional as F
-from fairseq.criterions import register_criterion, FairseqCriterion
+from fairseq.criterions import register_criterion
 
-from dataclasses import dataclass
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion, \
     ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
@@ -68,17 +68,17 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         q_out = q.log_prob(z_samples)
         loss = torch.sum(mixture_out_probs * (q_out - p_out.t()), dim=-1)
 
-       # with torch.no_grad():
-       #     from datetime import datetime
-       #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
-       #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-       #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
-       #     print("post save")
+        # with torch.no_grad():
+        #     from datetime import datetime
+        #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
+        #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+        #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
+        #     print("post save")
 
         if self.mixture_regularizer == "posterior":
             lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-            entropy_reg = (mixture_out_probs*lmodes_probs.t()).mean(dim=-1)
+            entropy_reg = (mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         elif self.mixture_regularizer == "prior":
             entropy_reg = (mixture_out_probs * F.log_softmax(mixture_out, dim=-1)).mean(dim=-1)

@@ -2,9 +2,8 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from dataclasses import _MISSING_TYPE, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Optional
-from omegaconf import MISSING
 
 from fairseq.dataclass.configs import (
     FairseqDataclass,
@@ -20,6 +19,7 @@ from fairseq.dataclass.configs import (
     CommonConfig,
     GenerationConfig
 )
+from omegaconf import MISSING
 
 from cdgm_textgen.dataclass.constants import GENERATOR_TYPES
 
@@ -44,6 +44,7 @@ class CDGMGenerationConfig(GenerationConfig):
         default=False,
         metadata={"help": "approximate knn with faiss"},
     )
+
 
 @dataclass
 class CDGMCommonConfig(CommonConfig):

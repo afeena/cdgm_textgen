@@ -1,12 +1,6 @@
 import argparse
-import collections
-
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import ast
+import collections
 import inspect
 import logging
 import os
@@ -20,7 +14,13 @@ from fairseq.dataclass import FairseqDataclass
 from hydra.core.global_hydra import GlobalHydra
 from hydra.experimental import compose, initialize
 from omegaconf import DictConfig, OmegaConf, open_dict, _utils
+
 from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
+
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 
 logger = logging.getLogger(__name__)
 
@@ -413,7 +413,6 @@ def convert_namespace_to_omegaconf(args: Namespace) -> DictConfig:
 
     # hack to be able to set Namespace in dict config. this should be removed when we update to newer
     # omegaconf version that supports object flags, or when we migrate all existing models
-    from omegaconf import _utils
 
     with omegaconf_no_object_check():
         if cfg.task is None and getattr(args, "task", None):

@@ -168,9 +168,9 @@ class NaiveBeamGenerator(nn.Module):
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
             torch.zeros(bsz * beam_size, max_len + 2)
-                .to(src_tokens)
-                .long()
-                .fill_(self.pad)
+            .to(src_tokens)
+            .long()
+            .fill_(self.pad)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
         for step in range(max_len + 1):

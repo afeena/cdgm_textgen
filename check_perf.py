@@ -10,13 +10,13 @@ import sys
 from argparse import Namespace
 
 import torch
-from fairseq import checkpoint_utils, distributed_utils, options, utils
-from fairseq.dataclass.utils import convert_namespace_to_omegaconf
-from fairseq.logging import metrics, progress_bar
-from fairseq.utils import reset_logging
-from omegaconf import DictConfig
 import torch.autograd.profiler as profiler
 import torch.nn.functional as F
+from fairseq import checkpoint_utils, distributed_utils, options, utils
+from fairseq.dataclass.utils import convert_namespace_to_omegaconf
+from fairseq.logging import progress_bar
+from fairseq.utils import reset_logging
+from omegaconf import DictConfig
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",

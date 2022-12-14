@@ -1,11 +1,10 @@
 import torch
-from power_spherical import PowerSpherical
-
 from fairseq.criterions.continuous_loss import \
     PowerSphericalRevKLTaylorApproxCriterion
+from power_spherical import PowerSpherical
+
 
 def main():
-
     # torch.set_default_dtype(torch.float64)
 
     b = 2
@@ -43,4 +42,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

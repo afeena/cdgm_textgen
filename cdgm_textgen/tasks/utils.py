@@ -1,7 +1,6 @@
 import torch
-
-from fairseq.dataclass import FairseqDataclass
 from fairseq import search
+from fairseq.dataclass import FairseqDataclass
 
 
 def build_model(self, cfg: FairseqDataclass, from_checkpoint=False):
@@ -35,7 +34,6 @@ def build_model_levenshtein(self, cfg, from_checkpoint=False):
 def build_generator(self, models, args, seq_gen_cls=None,
                     extra_gen_cls_kwargs=None,
                     prefix_allowed_tokens_fn=None):
-
     gen_type = getattr(args, "gen_type", None)
 
     if gen_type == "nat":

@@ -10,7 +10,6 @@ Translate raw text with a trained model. Batches data on-the-fly.
 import ast
 import fileinput
 import logging
-import math
 import os
 import sys
 import time
@@ -19,16 +18,14 @@ from collections import namedtuple
 
 import numpy as np
 import torch
-
 from fairseq import checkpoint_utils, distributed_utils, tasks, utils
-
 from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
 from fairseq_cli.generate import get_symbols_to_strip_from_output
 
-from cdgm_textgen import options
-from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
-from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 import cdgm_textgen.tasks.utils as cdgm_utils
+from cdgm_textgen import options
+from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
+from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
 tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
 tasks.fairseq_task.FairseqTask.build_generator = cdgm_utils.build_generator

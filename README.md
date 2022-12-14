@@ -1,7 +1,9 @@
 # DGMs for text generation
 
 ## Quick Start
-This repository contains the extension of [fairseq](https://github.com/facebookresearch/fairseq) for training continuous seq2seq models.
+
+This repository contains the extension of [fairseq](https://github.com/facebookresearch/fairseq) for training continuous
+seq2seq models.
 Please follow the installation instruction of `fairseq`.
 
 You do not need to install any additional libraries. Just clone the repository
@@ -23,21 +25,24 @@ python decode.py path_to_data_folder --task name_task --source-lang src_lang --t
 ```
 
 ## Supported Models:
-Setup the model name in hydra config as 
-`model._name=model_name`. 
+
+Setup the model name in hydra config as
+`model._name=model_name`.
 
 Avaliable continuous models:
+
 - Continuous Transformer Model `continuous_transformer`
 - Continuous Transformer Mixture model `continuous_transformer_mixture`
 - Continuous CMLM Transformer Model `cont_cmlm_transformer`
 
 ## Supported losses:
+
 - NLL with Von Mises-Fisher (vMF) Distribution
 - NLL with Power Spherical (PS) Distribution
 - KL divergence with PS distribution
 
-
 ## Citations
 
-[On Target Representation in Continuous-output Neural Machine Translation](https://aclanthology.org/2022.repl4nlp-1.24) (Tokarchuk & Niculae, RepL4NLP 2022)
+[On Target Representation in Continuous-output Neural Machine Translation](https://aclanthology.org/2022.repl4nlp-1.24) (
+Tokarchuk & Niculae, RepL4NLP 2022)
 

@@ -1,5 +1,4 @@
 # initialize hydra
-import sys
 
 from cdgm_textgen.dataclass.initialize import hydra_init
 

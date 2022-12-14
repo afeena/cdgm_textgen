@@ -1,19 +1,16 @@
 import math
+from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
+import power_spherical
 import torch
 import torch.nn.functional as F
-from torch.distributions import multivariate_normal
-
-from dataclasses import dataclass
 from fairseq import metrics, utils
 from fairseq.criterions import register_criterion, FairseqCriterion
 from fairseq.criterions.cross_entropy import CrossEntropyCriterion, CrossEntropyCriterionConfig
-
-import power_spherical
-
 from fairseq.dataclass import FairseqDataclass
+from torch.distributions import multivariate_normal
 
 
 @register_criterion("cosine_ar_criterion")

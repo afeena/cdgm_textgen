@@ -18,7 +18,6 @@ from numbers import Number
 from typing import Optional
 
 import torch
-
 from fairseq.logging.meters import AverageMeter, StopwatchMeter, TimeMeter
 
 logger = logging.getLogger(__name__)

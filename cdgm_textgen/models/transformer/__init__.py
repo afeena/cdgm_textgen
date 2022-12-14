@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 """isort:skip_file"""
 
-from .transformer_continuous import TransformerModelContinuous
 from .transformer_base import TransformerModelBase
+from .transformer_continuous import TransformerModelContinuous
 
 __all__ = [
     "TransformerModelContinuous",

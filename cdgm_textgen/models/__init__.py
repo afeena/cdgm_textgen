@@ -6,8 +6,8 @@
 
 import os
 
-from fairseq.dataclass import FairseqDataclass
 import fairseq.models
+from fairseq.dataclass import FairseqDataclass
 
 
 def build_model(cfg: FairseqDataclass, task, from_checkpoint=False):

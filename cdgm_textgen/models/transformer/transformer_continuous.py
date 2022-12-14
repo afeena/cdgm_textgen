@@ -1,15 +1,14 @@
-from typing import Dict, List, Optional, Tuple
 import logging
-
 from dataclasses import dataclass, field
-from torch import Tensor
+from typing import Dict, List, Optional, Tuple
 
 from fairseq.models.transformer import TransformerConfig
-from cdgm_textgen.models.transformer.transformer_decoder_continuous import ContinuousTransformerDecoder, \
-    MixtureContinuousTransformerDecoder
+from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
+from cdgm_textgen.models.transformer.transformer_decoder_continuous import ContinuousTransformerDecoder, \
+    MixtureContinuousTransformerDecoder
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transfore_continuous")
 
@@ -72,10 +71,10 @@ class TransformerModelContinuous(TransformerModelBase):
         return decoder_out
 
     def load_state_dict(
-        self,
-        state_dict,
-        strict=False,
-        model_cfg=None,
+            self,
+            state_dict,
+            strict=False,
+            model_cfg=None,
     ):
         """Copies parameters and buffers from *state_dict* into this module and
         its descendants.
@@ -84,11 +83,11 @@ class TransformerModelContinuous(TransformerModelBase):
         this additionally "upgrades" *state_dicts* from old checkpoints.
         """
         model_dict = self.state_dict()
-        #filter out keys
+        # filter out keys
         state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
         self.upgrade_state_dict(state_dict)
-        #here allow partial loading from other models
-        return super().load_state_dict(state_dict,  strict=False)
+        # here allow partial loading from other models
+        return super().load_state_dict(state_dict, strict=False)
 
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
@@ -98,9 +97,11 @@ class TransformerModelContinuous(TransformerModelBase):
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
-            metric:  Optional[str] = None,
+            metric: Optional[str] = None,
     ):
         return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
+
+
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     num_mixture_components: int = field(
@@ -112,6 +113,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         metadata={"help": "fropout for the mixture head"},
     )
 
+
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)
 class TransformerMixtureModelContinuous(TransformerModelContinuous):
 
@@ -121,7 +123,6 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             logger.error("Running continuous_transformer_mixture with 1 mixture component is not recommended! "
                          "Use continuous_transformer instead.")
             raise ValueError("num_mixture_components must be >1 for continuous_transformer_mixture")
-
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
