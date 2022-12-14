@@ -15,7 +15,7 @@ class TranslationContinuousConfig(TranslationConfig):
         },
     )
 
-@register_task("translation_cont", dataclass=TranslationConfig)
+@register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
     def build_model(self, cfg, from_checkpoint=False):
         model = super().build_model(cfg, from_checkpoint)
