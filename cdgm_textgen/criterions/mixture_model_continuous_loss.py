@@ -71,11 +71,11 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
         # get log Q(x_i) for i=1..M
         # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
-        log_q_out = torch.logsumexp(log_q_out_component+log_prior_probs, dim=1)
+        log_q_out = torch.logsumexp(log_q_out_component+log_prior_probs.transpose(0,1)[None,:,:], dim=1)
 
         p_out = p.log_prob(z_samples)
 
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - p_out), dim=-1)
+        loss = torch.sum(mixture_out_probs * (log_q_out.t() - p_out.t()), dim=-1)
 
         # with torch.no_grad():
         #     from datetime import datetime
