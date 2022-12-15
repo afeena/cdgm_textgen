@@ -236,9 +236,20 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         dim = self.output_embed_dim
 
         # centroids live on a sphere
+
         C_ = torch.randn(self.num_mixture_components, dim)
         C_ = torch.nn.functional.normalize(C_, dim=-1)
         self.centroids = torch.nn.Parameter(C_)
+
+        if cfg.init_components_file:
+            logger.info("Loading centroids...")
+            # logger.info("before:")
+            # logger.info(f"{self.centroids[:2]=}")
+            # logger.info(f"{torch.linalg.norm(self.centroids,dim=-1)=}")
+            self.centroids.data[:] = torch.load(cfg.init_components_file)
+            self.centroids.requires_grad = False
+            logger.info("Loaded centroid norms should be one:")
+            logger.info(f"{torch.linalg.norm(self.centroids,dim=-1)=}")
 
         # learned prior over components
         self.W_prior = torch.nn.Linear(dim, self.num_mixture_components)
@@ -275,16 +286,25 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
             alignment_heads=alignment_heads,
         )
 
-        extra["prior_scores"] = self.W_prior(H)
+        prior_scores = self.W_prior(H)
+        extra["prior_scores"] = prior_scores
+        # logger.info(f"{prior_scores.min()=}")
+        # logger.info(f"{prior_scores.max()=}")
 
         # temporary alias
         Z = self.centroids
+        if self.centroids.requires_grad:
+            Z = torch.nn.functional.normalize(Z, dim=-1)  # stopgap instead of riemannian
 
         # for each cluster and each hidden state, compute a vector v_tilde
         VzZ = self.Vz(Z).unsqueeze(dim=-3)
         VhH = self.Vh(H).unsqueeze(dim=-2)
         hid = torch.relu(VzZ + VhH)  # [batch_size, n_components, dim]
-        v_tilde = self.Wv(hid)  # [batch_size, n_components, dim]
+
+        # quick fix: multiply this by 0.01 seems fine. but it's better to restrict the norm of the tangent vectors.
+        v_tilde = 0.01 * self.Wv(hid)  # [batch_size, n_components, dim]
+        # logger.info(f"{v_tilde.min()=}")
+        # logger.info(f"{v_tilde.max()=}")
 
         # then, project it to manifold tangent space:
         # v[i,k] = proj_zk(v_tilde[i,k])
@@ -305,10 +325,15 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         norms = v.norm(dim=-1, keepdim=True)  # [batch_size, n_components, 1]
         mu = (torch.cos(norms) * Z.unsqueeze(dim=-3)
               + torch.sinc(norms / math.pi) * v)
+        # logger.info(f"{norms.min()=}")
+        # logger.info(f"{norms.max()=}")
 
         # predict kappas
         DH = H.unsqueeze(dim=-2) * self.D_kappa
         kappa = (DH * DH).sum(dim=-1)  # [bsz, n_clusters}
+        # logger.info(f"{kappa[0,0]=}")
+        # logger.info(f"{kappa.min()=}")
+        # logger.info(f"{kappa.max()=}")
 
         # we could multiply mu * kappas to be consistent with Evgeniia's API.
         # but numerically I prefer to keep them separate.
