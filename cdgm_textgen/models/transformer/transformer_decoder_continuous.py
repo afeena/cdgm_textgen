@@ -235,8 +235,10 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
 
         dim = self.output_embed_dim
 
-        # centroids live on a sphere
+        # learned prior over components
+        self.W_prior = torch.nn.Linear(dim, self.num_mixture_components)
 
+        # centroids live on a sphere
         C_ = torch.randn(self.num_mixture_components, dim)
         C_ = torch.nn.functional.normalize(C_, dim=-1)
         self.centroids = torch.nn.Parameter(C_)
@@ -250,15 +252,23 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
             self.centroids.requires_grad = False
             logger.info("Loaded centroid norms should be one:")
             logger.info(f"{torch.linalg.norm(self.centroids,dim=-1)=}")
-
-        # learned prior over components
-        self.W_prior = torch.nn.Linear(dim, self.num_mixture_components)
+            
+            logger.info("Also loading them into the prior over components")
+            self.W_prior.weight.data[:] = self.centroids.data
 
         # for each component z and hidden state h our model gives a vector:
         # v_tilde = Wv @ relu( V[z; h] )
         self.Vz = torch.nn.Linear(dim, dim)
         self.Vh = torch.nn.Linear(dim, dim, bias=False)
-        self.Wv = torch.nn.Linear(dim, dim)
+        self.Wv = torch.nn.Linear(dim, dim, bias=False)
+        # since Wv is a tangent space vector, the prior is to be quite small
+        self.Wv.weight.data *= 0.1
+        # logger.info(f"{self.Wv.weight.min()=}")
+        # logger.info(f"{self.Wv.weight.max()=}")
+        # logger.info(f"{self.Wv.weight[:5, :5]=}")
+        # logger.info(f"{self.Wv.weight.norm()=}")
+        # logger.info(f"{self.Wv.bias.norm()=}")
+        # exit()
 
         # we predict Kappa using a diagonal bilinear form exp(h'diag(w^2)h)
         D_kappa_ = torch.ones(self.num_mixture_components, dim)
@@ -302,7 +312,7 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         hid = torch.relu(VzZ + VhH)  # [batch_size, n_components, dim]
 
         # quick fix: multiply this by 0.01 seems fine. but it's better to restrict the norm of the tangent vectors.
-        v_tilde = 0.01 * self.Wv(hid)  # [batch_size, n_components, dim]
+        v_tilde = self.Wv(hid)  # [batch_size, n_components, dim]
         # logger.info(f"{v_tilde.min()=}")
         # logger.info(f"{v_tilde.max()=}")
 
@@ -323,10 +333,13 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         # calculate the location of each predictive p(y|z) = PS(mu, kappa)
         # mu[i, k] = Exp_zk(v[i,k])
         norms = v.norm(dim=-1, keepdim=True)  # [batch_size, n_components, 1]
+        norms = .5 * math.pi * torch.tanh(norms)  # don't wrap around sphere, just halfway
+
+        # norms should be between 0 and pi
         mu = (torch.cos(norms) * Z.unsqueeze(dim=-3)
               + torch.sinc(norms / math.pi) * v)
-        # logger.info(f"{norms.min()=}")
-        # logger.info(f"{norms.max()=}")
+        #logger.info(f"{norms.min()=}")
+        #logger.info(f"{norms.max()=}")
 
         # predict kappas
         DH = H.unsqueeze(dim=-2) * self.D_kappa
@@ -339,6 +352,7 @@ class ClusteredTransformerDecoder(ContinuousTransformerDecoder):
         # but numerically I prefer to keep them separate.
 
         extra["kappa"] = kappa
+        extra["norms_logged"] = norms.detach()
         return mu, extra
 
     @torch.jit.export

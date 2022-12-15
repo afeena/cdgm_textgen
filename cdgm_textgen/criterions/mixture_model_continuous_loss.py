@@ -127,7 +127,11 @@ class ClusteredCriterion(ARPowerSphericalCriterion):
         # sum over components
         loss = torch.logsumexp(log_prior + log_p_out, dim=-1)
         loss = -loss.mean() + (self.kappa_lambda * torch.pow(kappa, 2)).mean()
-        logging = {"kappa": kappa.mean().detach()}
+        logging = {
+            "kappa":  kappa.mean().detach(),
+            "norms_min": extra["norms_logged"].min(),
+            "norms_max": extra["norms_logged"].max(),
+        }
         return loss, logging
 
 
