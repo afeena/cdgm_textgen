@@ -28,6 +28,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
+        self.index = None
         self.output_projection = None
         self.dict_len = len(self.dictionary)
         if cfg.no_last_dec_layer_norm:
@@ -58,10 +59,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def build_index(self, metric=None):
         with torch.no_grad():
-            if metric=="l2":
+            if metric == "l2":
                 self.index = self.target_embed.weight.cuda().detach()
             else:
-                self.index = F.normalize(self.target_embed.weight, dim=-1).cuda().detach()
+                self.index = F.normalize(self.target_embed.weight.cuda().detach(), dim=-1)
 
     def forward(
             self,
@@ -113,10 +114,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             (features.shape[0], features.shape[1], self.dict_len), 0.0
         ).to(features.device)
 
-        output_proj =  output_proj.scatter_(-1, _tokens, sim)
+        output_proj = output_proj.scatter_(-1, _tokens, sim)
         del _tokens
         del sim
-        return  output_proj
+        return output_proj
 
     def nearest_neighbor_search(self, features, metric=None):
         with torch.no_grad():
@@ -128,7 +129,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                     m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
                     norm_const = _neglogcmk(m, kappa)
 
-                output_proj = features@self.index.T
+                output_proj = features @ self.index.T
                 if norm_const is not None:
                     output_proj += norm_const.squeeze()
 
