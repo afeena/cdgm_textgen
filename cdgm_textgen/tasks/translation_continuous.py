@@ -42,26 +42,18 @@ class TranslationCountinuousTask(TranslationTask):
     def build_generator(self, models, args, seq_gen_cls=None,
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
-
-            from cdgm_textgen.sequence_generator import SequenceGenerator
-
+            from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
             search_strategy = search.BeamSearch(self.target_dictionary)
+
 
             extra_gen_cls_kwargs = extra_gen_cls_kwargs or {}
 
-            return SequenceGenerator(
+            return ContinuousSequenceGenerator(
                 models,
                 self.target_dictionary,
-                beam_size=getattr(args, "beam", 5),
-                max_len_a=getattr(args, "max_len_a", 0),
-                max_len_b=getattr(args, "max_len_b", 200),
+                beam_size=getattr(args, "beam", 1),
                 min_len=getattr(args, "min_len", 1),
                 normalize_scores=(not getattr(args, "unnormalized", False)),
-                len_penalty=getattr(args, "lenpen", 1),
-                unk_penalty=getattr(args, "unkpen", 0),
-                temperature=getattr(args, "temperature", 1.0),
-                match_source_len=getattr(args, "match_source_len", False),
-                no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
                 search_strategy=search_strategy,
                 metric=getattr(args, "decoding_measure", "cosine"),
                 **extra_gen_cls_kwargs,
