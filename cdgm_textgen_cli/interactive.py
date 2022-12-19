@@ -27,12 +27,6 @@ from cdgm_textgen import options
 from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
-tasks.fairseq_task.FairseqTask.build_model = cdgm_utils.build_model
-tasks.fairseq_task.FairseqTask.build_generator = cdgm_utils.build_generator
-tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
-tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
-tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
-
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
