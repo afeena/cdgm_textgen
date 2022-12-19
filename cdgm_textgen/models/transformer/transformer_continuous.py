@@ -95,7 +95,7 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_similarity_scores(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            metric: Optional[str] = None,
+            metric: Optional[str] = "cosine",
     ):
         return self.decoder.get_similarity_scores(net_output, metric)
 

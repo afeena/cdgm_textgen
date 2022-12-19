@@ -176,7 +176,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
-            scores = self.model.get_similarity_scores(decoder_out)
+            scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
 
             topk = scores.topk(self.beam_size)
             curr_tokens[:, step] = topk.indices.item()
