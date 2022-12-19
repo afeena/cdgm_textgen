@@ -87,11 +87,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
-    def get_normalized_probs(
+    def get_similarity_scores(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            log_probs: bool,
-            sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = None,
     ):
         with torch.no_grad():

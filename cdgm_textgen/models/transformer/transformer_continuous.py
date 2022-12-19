@@ -92,14 +92,12 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
-    def get_normalized_probs(
+    def get_similarity_scores(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            log_probs: bool,
-            sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = None,
     ):
-        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
+        return self.decoder.get_similarity_scores(net_output, metric)
 
 
 @dataclass

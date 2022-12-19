@@ -3,17 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import math
 from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
-from fairseq import search, utils
+from fairseq import search
 from torch import Tensor
-import numpy as np
 
 from cdgm_textgen.models.transformer import TransformerModelContinuous
-from cdgm_textgen.sequence_generator import EnsembleModel
 
 
 class ContinuousSequenceGenerator(nn.Module):
@@ -24,6 +21,7 @@ class ContinuousSequenceGenerator(nn.Module):
         Todo: Hierarchical beam search
         Todo: MBR decoding.
     """
+
     def __init__(
             self,
             model,
@@ -76,7 +74,6 @@ class ContinuousSequenceGenerator(nn.Module):
         if getattr(self.model, "build_index", False):
             self.model.build_index(metric=self.metric)
 
-
     def cuda(self):
         self.model.cuda()
         return self
@@ -128,8 +125,8 @@ class ContinuousSequenceGenerator(nn.Module):
             **kwargs
     ):
         incremental_states = torch.jit.annotate(
-           Dict[str, Dict[str, Optional[Tensor]]], {})
-        
+            Dict[str, Dict[str, Optional[Tensor]]], {})
+
         net_input = sample["net_input"]
         if "src_tokens" in net_input:
             src_tokens = net_input["src_tokens"]
@@ -158,49 +155,39 @@ class ContinuousSequenceGenerator(nn.Module):
             .fill_(self.pad)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
-        
+
         beam = torch.jit.annotate(
-          Dict[str,Tensor], {"scores":scores,"tokens":tokens})
-#        beam.append({"scores":scores,"tokens":tokens})
+            Dict[str, Tensor], {"scores": scores, "tokens": tokens}
+        )
+        #        beam.append({"scores":scores,"tokens":tokens})
 
         # search
         for step in range(self.max_len):
 
             new_beam = []
 
-            curr_score=beam["scores"]
-            curr_tokens=beam["tokens"]
-            # check if sequence any sentence is finished
-            if step > 0:
-                expand_mask = curr_tokens.ne(self.pad) or curr_tokens.ne(self.eos)
-                print(expand_mask)
+            curr_scores = beam["scores"]
+            curr_tokens = beam["tokens"]
 
-                # not finished; expand
+            expand_mask = curr_tokens[:, step].ne(self.eos)
+            print(expand_mask)
+            decoder_out = self.model.decoder.forward(
+                curr_tokens[:, :step + 1],
+                encoder_out=encoder_out,
+                incremental_state=incremental_states
+            )
+            scores = self.model.get_similarity_scores(decoder_out)
 
-                ## this part is model-specific
-            decoder_out, extra = self.model.decoder.forward(
-                    curr_tokens[:,:step + 1],
-                    encoder_out=encoder_out,
-                    incremental_state=incremental_states
-                )
-            self.model.get_similarity_scores(decoder_out, extra)
+            topk = scores.topk(self.beam_size)
+            curr_tokens[:, step] = topk.indices.item()
 
-            lprobs = lprobs.squeeze(0)[-1]
-            lprobs = torch.nn.functional.log_softmax(lprobs, dim=0)
-                ## end model-specific
-
-            topk = lprobs.topk(self.beam_size)
-            curr_tokens[:,step] = topk.indices
-
-            new_candidates = {"scores": curr_score + topk.values[j].item(),
-                     "tokens": curr_token}
+            new_candidates = {
+                "scores": curr_scores + topk.values.item(),
+                "tokens": curr_tokens
+            }
 
             beam = new_candidates
             print(beam)
-
-            if not expanded_any:
-                print("All hypotheses in beam are completed, stopping early.")
-                break
 
             new_beam.sort(key=lambda pair: pair[0], reverse=True)
             new_beam = new_beam[:self.beam_size]
@@ -218,4 +205,3 @@ class ContinuousSequenceGenerator(nn.Module):
                     last = step
                 trim_seq = curr_seq[:last + 1]
                 print(f"{curr_score:>8.2f} | {m.decode(trim_seq):<70} | {trim_seq}")
-
