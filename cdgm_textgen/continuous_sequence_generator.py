@@ -161,47 +161,43 @@ class ContinuousSequenceGenerator(nn.Module):
         )
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
-        encoder_outs = self.model.reorder_encoder_out(encoder_outs, new_order)
+        encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
 
         # search
         for step in range(self.max_len):
 
             curr_scores = beam["scores"]
             curr_tokens = beam["tokens"]
-            expand_mask = curr_tokens.ne(self.eos) & curr_scores.ne(-math.inf)
-            
+            if step>0:
+                expand_mask = curr_tokens[:,step].ne(self.eos)
+                curr_tokens = curr_tokens[expand_mask]
+            if len(curr_tokens)==0:
+                break 
             decoder_out = self.model.decoder.forward(
                 curr_tokens[:, :step + 1],
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
             scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
-            print(scores.shape)
 
-            topk = scores.topk(self.beam_size, dim=-1)
-            curr_tokens[:, step] = topk.indices
+            topk = torch.topk(scores.squeeze(), self.beam_size, dim=-1)
+            new_candidate_scores = curr_scores[:,step].unsqueeze(-1).index_select(1,new_order)+topk.values
+            new_candidate_tokens = topk.indices
+            best_cand = new_candidate_scores.view(-1).topk(self.beam_size)
+            curr_scores[:, step+1] = best_cand.values
+            curr_tokens[:, step+1] = new_candidate_tokens.view(-1)[best_cand.indices]
 
-            new_candidates = {
-                "scores": curr_scores + topk.values,
-                "tokens": curr_tokens
+            beam = {
+               "scores": curr_scores,
+               "tokens": curr_tokens
             }
-
-            beam = new_candidates
             print(beam)
-
-            new_beam.sort(key=lambda pair: pair[0], reverse=True)
-            new_beam = new_beam[:self.beam_size]
-
-            beam = new_beam
-
-            print(f"Beam at step {step}")
-            for curr_score, curr_seq in beam:
-                curr_seq = curr_seq.tolist()
-                # find eos from right
-                curr_seq = curr_seq[1:]
-                try:
-                    last = curr_seq.index(self.eos)
-                except ValueError:
-                    last = step
-                trim_seq = curr_seq[:last + 1]
-                print(f"{curr_score:>8.2f} | {m.decode(trim_seq):<70} | {trim_seq}")
+        pos_scores = curr_scores[:, : step + 1].clone()
+        # convert from cumulative to per-position scores
+        pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
+        print(pos_scores)
+        return [[{"tokens":beam["tokens"][:,:step], "score":beam["scores"][:,step].item(),
+                        "attention": torch.empty(0),  # src_len x tgt_len
+                        "alignment": torch.empty(0),
+                        "positional_scores": pos_scores[0]}
+                ]]
