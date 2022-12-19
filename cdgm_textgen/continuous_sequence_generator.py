@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from fairseq import search
 from torch import Tensor
-
+import math
 from cdgm_textgen.models.transformer import TransformerModelContinuous
 
 
@@ -146,7 +146,7 @@ class ContinuousSequenceGenerator(nn.Module):
         bsz, src_len = src_tokens.size()[:2]
 
         scores = (
-            torch.zeros(bsz * self.beam_size, self.max_len + 1).to(src_tokens).float()
+            torch.zeros(bsz * self.beam_size, self.max_len + 2).to(src_tokens).float()
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
             torch.zeros(bsz * self.beam_size, self.max_len + 2)
@@ -159,30 +159,30 @@ class ContinuousSequenceGenerator(nn.Module):
         beam = torch.jit.annotate(
             Dict[str, Tensor], {"scores": scores, "tokens": tokens}
         )
-        #        beam.append({"scores":scores,"tokens":tokens})
+        new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
+        new_order = new_order.to(src_tokens.device).long()
+        encoder_outs = self.model.reorder_encoder_out(encoder_outs, new_order)
 
         # search
         for step in range(self.max_len):
 
-            new_beam = []
-
             curr_scores = beam["scores"]
             curr_tokens = beam["tokens"]
-
-            expand_mask = curr_tokens[:, step].ne(self.eos)
-            print(expand_mask)
+            expand_mask = curr_tokens.ne(self.eos) & curr_scores.ne(-math.inf)
+            
             decoder_out = self.model.decoder.forward(
                 curr_tokens[:, :step + 1],
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
             scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+            print(scores.shape)
 
-            topk = scores.topk(self.beam_size)
-            curr_tokens[:, step] = topk.indices.item()
+            topk = scores.topk(self.beam_size, dim=-1)
+            curr_tokens[:, step] = topk.indices
 
             new_candidates = {
-                "scores": curr_scores + topk.values.item(),
+                "scores": curr_scores + topk.values,
                 "tokens": curr_tokens
             }
 
