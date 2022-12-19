@@ -43,7 +43,7 @@ class ContinuousSequenceGenerator(nn.Module):
             beam_size (int, optional): beam width (default: 1)
         """
         super().__init__()
-        self.model = model
+        self.model = model[0]
 
         assert isinstance(self.model, TransformerModelContinuous), \
             f"model._name has to be an instance of TransformerModelContinuous, got {type(self.model)}"
@@ -57,7 +57,6 @@ class ContinuousSequenceGenerator(nn.Module):
         self.beam_size = beam_size
         # the max beam size is the dictionary size - 1, since we never select pad
         self.beam_size = min(beam_size, self.vocab_size - 1)
-        self.model.set_decoder_beam_size(self.beam_size)
 
         self.min_len = min_len
         self.max_len = self.model.max_decoder_positions()
@@ -74,7 +73,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 hasattr(self.search, "needs_src_lengths") and self.search.needs_src_lengths
         )
         self.metric = metric
-        if any(getattr(m, "build_index", False) for m in self.model.models):
+        if getattr(self.model, "build_index", False):
             self.model.build_index(metric=self.metric)
 
 
@@ -126,14 +125,11 @@ class ContinuousSequenceGenerator(nn.Module):
             sample: Dict[str, Dict[str, Tensor]],
             prefix_tokens: Optional[Tensor] = None,
             bos_token: Optional[int] = None,
+            **kwargs
     ):
         incremental_states = torch.jit.annotate(
-            List[Dict[str, Dict[str, Optional[Tensor]]]],
-            [
-                torch.jit.annotate(Dict[str, Dict[str, Optional[Tensor]]], {})
-                for i in range(self.model.models_size)
-            ],
-        )
+           Dict[str, Dict[str, Optional[Tensor]]], {})
+        
         net_input = sample["net_input"]
         if "src_tokens" in net_input:
             src_tokens = net_input["src_tokens"]
@@ -147,7 +143,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 "expected src_tokens in net input. input keys: "
                 + str(net_input.keys())
             )
-        encoder_out = self.model.encoder.forward(net_input, src_lengths)
+        encoder_out = self.model.encoder.forward(net_input["src_tokens"], src_lengths)
 
         # initialize buffers
         bsz, src_len = src_tokens.size()[:2]
@@ -162,45 +158,45 @@ class ContinuousSequenceGenerator(nn.Module):
             .fill_(self.pad)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
-        beam = [(scores, tokens)]
+        
+        beam = torch.jit.annotate(
+          Dict[str,Tensor], {"scores":scores,"tokens":tokens})
+#        beam.append({"scores":scores,"tokens":tokens})
 
         # search
         for step in range(self.max_len):
 
             new_beam = []
 
-            expanded_any = False
-            for curr_score, curr_tokens in beam:
-
-                # check if sequence any sentence is finished
-                if step > 0 and curr_tokens[:,step] in (self.eos, self.pad):
-                    new_beam.append((curr_score, curr_seq))
-                    continue
-
-                expanded_any = True
+            curr_score=beam["scores"]
+            curr_tokens=beam["tokens"]
+            # check if sequence any sentence is finished
+            if step > 0:
+                expand_mask = curr_tokens.ne(self.pad) or curr_tokens.ne(self.eos)
+                print(expand_mask)
 
                 # not finished; expand
 
                 ## this part is model-specific
-                lprobs, _ = self.model.decoder.forward(
-                    curr_seq[:step + 1].unsqueeze(0),
+            decoder_out, extra = self.model.decoder.forward(
+                    curr_tokens[:,:step + 1],
                     encoder_out=encoder_out,
                     incremental_state=incremental_states
                 )
+            self.model.get_similarity_scores(decoder_out, extra)
 
-                lprobs = lprobs.squeeze(0)[-1]
-                lprobs = torch.nn.functional.log_softmax(lprobs, dim=0)
+            lprobs = lprobs.squeeze(0)[-1]
+            lprobs = torch.nn.functional.log_softmax(lprobs, dim=0)
                 ## end model-specific
 
-                topk = lprobs.topk(self.beam_size)
+            topk = lprobs.topk(self.beam_size)
+            curr_tokens[:,step] = topk.indices
 
-                new_candidates = [
-                    (curr_score + topk.values[j].item(),
-                     self._append_tok(curr_seq, step, topk.indices[j]))
-                    for j in range(self.beam_size)
-                ]
+            new_candidates = {"scores": curr_score + topk.values[j].item(),
+                     "tokens": curr_token}
 
-                new_beam.extend(new_candidates)
+            beam = new_candidates
+            print(beam)
 
             if not expanded_any:
                 print("All hypotheses in beam are completed, stopping early.")
