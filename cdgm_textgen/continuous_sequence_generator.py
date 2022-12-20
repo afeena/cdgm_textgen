@@ -74,6 +74,26 @@ class ContinuousSequenceGenerator(nn.Module):
         if getattr(self.model, "build_index", False):
             self.model.build_index(metric=self.metric)
 
+    def get_final_hyps(self, scores, tokens, bsz, hyp_lengths):
+        tokens = tokens.view(bsz, self.beam_size, -1)
+        scores = scores.view(bsz, self.beam_size, -1)
+
+        final_hyps = []
+        for i in range(0, bsz + 1):
+            last_step = max(hyp_lengths)
+            best_hyp_scores, best_hyp_idx = scores[i,:,last_step].max()
+            pos_scores = scores[i,:hyp_lengths[i+best_hyp_idx]]
+            pos_scores[:, hyp_lengths[i+best_hyp_idx]] = best_hyp_scores.item()
+            # convert from cumulative to per-position scores
+            pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
+            final_hyps.append({"tokens": tokens[i,best_hyp_idx,:],
+             "score": scores[i][best_hyp_idx].item(),
+             "attention": torch.empty(0),  # src_len x tgt_len
+             "alignment": torch.empty(0),
+             "positional_scores": pos_scores})
+
+        return [final_hyps]
+
     def cuda(self):
         self.model.cuda()
         return self
@@ -160,17 +180,19 @@ class ContinuousSequenceGenerator(nn.Module):
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
         offset = torch.arange(start=0, end=bsz, step=self.beam_size).to(src_tokens.device).long()
-        finished = torch.tensor([False for i in range(bsz*self.beam_size)]).to(src_tokens.device).long()
-        last_step = -1
+        finished = torch.tensor([False for i in range(bsz * self.beam_size)]).to(src_tokens.device).long()
+        finished_lengths = torch.zeros(bsz * self.beam_size).to(src_tokens.device).long()
 
         for step in range(self.max_len):
             curr_scores = scores
             curr_tokens = tokens
             if step > 0:
                 # here get mask of finished setneces
-                finished = finished.logical_or(curr_tokens[:, step].eq(self.eos))
+                finished_on_the_step = curr_tokens[:, step].eq(self.eos)
+                finished_lengths[finished_on_the_step] = step
+                finished = finished.logical_or(finished_on_the_step)
+
                 if torch.all(finished):
-                    last_step=step
                     break
 
             decoder_out = self.model.decoder.forward(
@@ -184,18 +206,13 @@ class ContinuousSequenceGenerator(nn.Module):
             new_candidate_scores = curr_scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk.values
             new_candidate_tokens = topk.indices
             best_cand = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
-            #set new scores
+            # set new scores
             curr_scores[:, step + 1] = best_cand.values.view(-1)
             curr_tokens[:, step + 1] = new_candidate_tokens.view(-1)[best_cand.indices.view(-1) + offset]
-            #copy scores from prev step for finished hyps
-            curr_scores[:, step+1][finished] = curr_scores[:, step][finished]
+            # copy scores from prev step for finished hyps
+            curr_scores[:, step + 1][finished] = curr_scores[:, step][finished]
 
             scores = curr_scores
             tokens = curr_tokens
 
-        return [[{"tokens": tokens[i:i+self.beam_size, 1:last_step],
-                  "score": scores[i:i+self.beam_size, last_step - 1].item(),
-                  "attention": torch.empty(0),  # src_len x tgt_len
-                  "alignment": torch.empty(0),
-                  "positional_scores": torch.empty(0)}
-                 ] for i in range(0,bsz*self.beam_size+1,self.beam_size)]
+        return self.get_final_hyps(scores, tokens, bsz, finished_lengths)
