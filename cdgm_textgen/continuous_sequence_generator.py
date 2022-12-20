@@ -74,9 +74,11 @@ class ContinuousSequenceGenerator(nn.Module):
         if getattr(self.model, "build_index", False):
             self.model.build_index(metric=self.metric)
 
-    def get_final_hyps(self, scores, tokens, bsz, hyp_lengths):
-        tokens = tokens.view(bsz, self.beam_size, -1)
-        scores = scores.view(bsz, self.beam_size, -1)
+    def get_final_hyps(self, scores, tokens, bsz):
+        hyp_lengths = tokens.neq(self.pad) & tokens.neq(self.eos)
+
+        tokens = tokens.view(bsz, -1)
+        scores = scores.view(bsz, -1)
 
         final_hyps = []
         for i in range(0, bsz + 1):
@@ -134,9 +136,6 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    def _append_tok(self, tensor, step, ix):
-        return tensor.index_fill(0, torch.tensor(step + 1), ix)
-
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -181,38 +180,31 @@ class ContinuousSequenceGenerator(nn.Module):
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
         offset = torch.arange(start=0, end=bsz, step=self.beam_size).to(src_tokens.device).long()
         finished = torch.tensor([False for i in range(bsz * self.beam_size)]).to(src_tokens.device).long()
-        finished_lengths = torch.zeros(bsz * self.beam_size).to(src_tokens.device).long()
 
         for step in range(self.max_len):
-            curr_scores = scores
-            curr_tokens = tokens
             if step > 0:
                 # here get mask of finished setneces
-                finished_on_the_step = curr_tokens[:, step].eq(self.eos)
-                finished_lengths[finished_on_the_step] = step
+                finished_on_the_step = tokens[:, step].eq(self.eos)
                 finished = finished.logical_or(finished_on_the_step)
 
                 if torch.all(finished):
                     break
 
             decoder_out = self.model.decoder.forward(
-                curr_tokens[:, :step + 1],
+                tokens[:, :step + 1],
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
             scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
 
             topk = torch.topk(scores.squeeze(), self.beam_size, dim=-1)
-            new_candidate_scores = curr_scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk.values
+            new_candidate_scores = scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk.values
             new_candidate_tokens = topk.indices
-            best_cand = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
+            best_cand_vals, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
             # set new scores
-            curr_scores[:, step + 1] = best_cand.values.view(-1)
-            curr_tokens[:, step + 1] = new_candidate_tokens.view(-1)[best_cand.indices.view(-1) + offset]
-            # copy scores from prev step for finished hyps
-            curr_scores[:, step + 1][finished] = curr_scores[:, step][finished]
+            scores[:, step + 1][~finished] = best_cand_vals.view(-1)[~finished]
+            tokens[:, step + 1][~finished] = new_candidate_tokens.view(-1)[best_cand_idx.view(-1) + offset][~finished]
 
-            scores = curr_scores
-            tokens = curr_tokens
 
-        return self.get_final_hyps(scores, tokens, bsz, finished_lengths)
+
+        return self.get_final_hyps(scores, tokens)
