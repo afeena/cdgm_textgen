@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from fairseq import search
 from torch import Tensor
-import math
+
 from cdgm_textgen.models.transformer import TransformerModelContinuous
 
 
@@ -156,49 +156,49 @@ class ContinuousSequenceGenerator(nn.Module):
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
 
-        beam = torch.jit.annotate(
-            Dict[str, Tensor], {"scores": scores, "tokens": tokens}
-        )
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
         offset = torch.arange(start=0, end=bsz, step=self.beam_size).to(src_tokens.device).long()
+        finished = torch.tensor([False for i in range(bsz)])
+        last_step = -1
 
         for step in range(self.max_len):
+            curr_scores = scores
+            curr_tokens = tokens
+            if step > 0:
+                # here get mask of finished setneces
+                finished = finished.logical_or(curr_tokens[:,step].eq(self.eos))
+                if torch.all(finished):
+                    last_step=step
+                    break
 
-            curr_scores = beam["scores"]
-            curr_tokens = beam["tokens"]
-            if step>0:
-                expand_mask = curr_tokens[:,step].ne(self.eos)
-                curr_tokens = curr_tokens[expand_mask]
-                if len(curr_tokens)==0:
-                    break 
             decoder_out = self.model.decoder.forward(
                 curr_tokens[:, :step + 1],
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
             scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
-            print(scores.shape)
 
             topk = torch.topk(scores.squeeze(), self.beam_size, dim=-1)
-            new_candidate_scores = curr_scores[:,step].unsqueeze(-1).repeat(1,self.beam_size) +topk.values
+            new_candidate_scores = curr_scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk.values
             new_candidate_tokens = topk.indices
-            best_cand = new_candidate_scores.view(bsz,-1).topk(self.beam_size, dim=-1)
-            curr_scores[:, step+1] = best_cand.values.view(-1)
-            curr_tokens[:, step+1] = new_candidate_tokens.view(-1)[best_cand.indices.view(-1)+offset]
+            best_cand = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
+            #set new scores
+            curr_scores[:, step + 1] = best_cand.values.view(-1)
+            curr_tokens[:, step + 1] = new_candidate_tokens.view(-1)[best_cand.indices.view(-1) + offset]
+            #copy scores and tokens from prev step for finished hyps
+            curr_scores[:, step+1][finished] = curr_scores[:,step][finished]
+            curr_tokens[:, step + 1][finished] = curr_tokens[:, step][finished]
 
-            beam = {
-               "scores": curr_scores,
-               "tokens": curr_tokens
-            }
-            print(beam)
-        pos_scores = curr_scores[:, : step + 1].clone()
-        # convert from cumulative to per-position scores
-        pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
-        print(pos_scores)
-        return [[{"tokens":beam["tokens"][:,1:step], "score":beam["scores"][:,step-1].item(),
-                        "attention": torch.empty(0),  # src_len x tgt_len
-                        "alignment": torch.empty(0),
-                        "positional_scores": pos_scores[0][1:]}
-                ] for i in range(bsz)]
+            scores = curr_scores
+            tokens = curr_tokens
+
+
+
+        return [[{"tokens": tokens[i:i+self.beam_size, 1:last_step],
+                  "score": scores[i:i+self.beam_size, last_step - 1],
+                  "attention": torch.empty(0),  # src_len x tgt_len
+                  "alignment": torch.empty(0),
+                  "positional_scores": torch.empty(0)}
+                 ] for i in range(0,bsz+1,self.beam_size)]
