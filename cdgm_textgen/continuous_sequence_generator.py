@@ -194,8 +194,6 @@ class ContinuousSequenceGenerator(nn.Module):
             scores = curr_scores
             tokens = curr_tokens
 
-
-
         return [[{"tokens": tokens[i:i+self.beam_size, 1:last_step],
                   "score": scores[i:i+self.beam_size, last_step - 1],
                   "attention": torch.empty(0),  # src_len x tgt_len
