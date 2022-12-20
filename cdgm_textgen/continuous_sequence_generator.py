@@ -75,21 +75,23 @@ class ContinuousSequenceGenerator(nn.Module):
             self.model.build_index(metric=self.metric)
 
     def get_final_hyps(self, scores, tokens, bsz):
-        hyp_lengths = tokens.neq(self.pad) & tokens.neq(self.eos)
+        hyp_lengths = torch.sum(tokens.ne(self.pad) & tokens.ne(self.eos), dim=-1)
 
         tokens = tokens.view(bsz, -1)
         scores = scores.view(bsz, -1)
+        hyp_lengths = hyp_lengths.view(bsz, -1)
 
         final_hyps = []
-        for i in range(0, bsz + 1):
-            last_step = max(hyp_lengths)
-            best_hyp_scores, best_hyp_idx = scores[i,:,last_step].max()
-            pos_scores = scores[i,:hyp_lengths[i+best_hyp_idx]]
-            pos_scores[:, hyp_lengths[i+best_hyp_idx]] = best_hyp_scores.item()
+        for i in range(bsz):
+            print(scores[i].view(self.beam_size,-1))
+            last_step = max(hyp_lengths[i])
+            best_hyp_scores, best_hyp_idx = scores[i].view(self.beam_size,-1)[:,last_step].max(dim=-1)
+            pos_scores = scores[i].view(self.beam_size,-1)[best_hyp_idx,:hyp_lengths[i][best_hyp_idx]]
+            pos_scores[hyp_lengths[i][best_hyp_idx]] = best_hyp_scores.item()
             # convert from cumulative to per-position scores
-            pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
+            pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
             final_hyps.append({"tokens": tokens[i,best_hyp_idx,:],
-             "score": scores[i][best_hyp_idx].item(),
+             "score": best_hyp_scores.item(),
              "attention": torch.empty(0),  # src_len x tgt_len
              "alignment": torch.empty(0),
              "positional_scores": pos_scores})
@@ -184,8 +186,7 @@ class ContinuousSequenceGenerator(nn.Module):
         for step in range(self.max_len):
             if step > 0:
                 # here get mask of finished setneces
-                finished_on_the_step = tokens[:, step].eq(self.eos)
-                finished = finished.logical_or(finished_on_the_step)
+                finished = (finished | tokens[:, step].eq(self.eos)).bool()
 
                 if torch.all(finished):
                     break
@@ -195,16 +196,17 @@ class ContinuousSequenceGenerator(nn.Module):
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
-            scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+            sim_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+            print(sim_scores.shape)
 
-            topk = torch.topk(scores.squeeze(), self.beam_size, dim=-1)
-            new_candidate_scores = scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk.values
-            new_candidate_tokens = topk.indices
+            topk_token_score, topk_token_idx = torch.topk(sim_scores.squeeze(), self.beam_size, dim=-1)
+            #for each of the hyp in the avtive beam choose self.beam possible extensions
+            new_candidate_scores = scores[:, step].unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
             best_cand_vals, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
             # set new scores
-            scores[:, step + 1][~finished] = best_cand_vals.view(-1)[~finished]
-            tokens[:, step + 1][~finished] = new_candidate_tokens.view(-1)[best_cand_idx.view(-1) + offset][~finished]
+            scores[:, step + 1] = new_candidate_scores.view(-1)[best_cand_idx.view(-1) + offset]
+            tokens[:, step + 1] = topk_token_idx.view(-1)[best_cand_idx.view(-1) + offset]
 
 
 
-        return self.get_final_hyps(scores, tokens)
+        return self.get_final_hyps(scores, tokens, bsz)
