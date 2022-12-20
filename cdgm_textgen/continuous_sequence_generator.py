@@ -169,6 +169,7 @@ class ContinuousSequenceGenerator(nn.Module):
             if step > 0:
                 # here get mask of finished setneces
                 finished = finished.logical_or(curr_tokens[:,step].eq(self.eos))
+                print(finished)
                 if torch.all(finished):
                     last_step=step
                     break
