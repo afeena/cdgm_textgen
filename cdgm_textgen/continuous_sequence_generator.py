@@ -169,7 +169,6 @@ class ContinuousSequenceGenerator(nn.Module):
             if step > 0:
                 # here get mask of finished setneces
                 finished = finished.logical_or(curr_tokens[:, step].eq(self.eos))
-                print(finished)
                 if torch.all(finished):
                     last_step=step
                     break
@@ -195,7 +194,7 @@ class ContinuousSequenceGenerator(nn.Module):
             tokens = curr_tokens
 
         return [[{"tokens": tokens[i:i+self.beam_size, 1:last_step],
-                  "score": scores[i:i+self.beam_size, last_step - 1],
+                  "score": scores[i:i+self.beam_size, last_step - 1].item(),
                   "attention": torch.empty(0),  # src_len x tgt_len
                   "alignment": torch.empty(0),
                   "positional_scores": torch.empty(0)}
