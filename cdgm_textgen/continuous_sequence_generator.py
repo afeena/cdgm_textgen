@@ -160,7 +160,7 @@ class ContinuousSequenceGenerator(nn.Module):
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
         offset = torch.arange(start=0, end=bsz, step=self.beam_size).to(src_tokens.device).long()
-        finished = torch.tensor([False for i in range(bsz*self.beam_size)])
+        finished = torch.tensor([False for i in range(bsz*self.beam_size)]).to(src_tokens.device).long()
         last_step = -1
 
         for step in range(self.max_len):
