@@ -168,7 +168,7 @@ class ContinuousSequenceGenerator(nn.Module):
             curr_tokens = tokens
             if step > 0:
                 # here get mask of finished setneces
-                finished = finished.logical_or(curr_tokens[:,step].eq(self.eos))
+                finished = finished.logical_or(curr_tokens[:, step].eq(self.eos))
                 print(finished)
                 if torch.all(finished):
                     last_step=step
@@ -188,9 +188,8 @@ class ContinuousSequenceGenerator(nn.Module):
             #set new scores
             curr_scores[:, step + 1] = best_cand.values.view(-1)
             curr_tokens[:, step + 1] = new_candidate_tokens.view(-1)[best_cand.indices.view(-1) + offset]
-            #copy scores and tokens from prev step for finished hyps
-            curr_scores[:, step+1][finished] = curr_scores[:,step][finished]
-            curr_tokens[:, step + 1][finished] = curr_tokens[:, step][finished]
+            #copy scores from prev step for finished hyps
+            curr_scores[:, step+1][finished] = curr_scores[:, step][finished]
 
             scores = curr_scores
             tokens = curr_tokens
