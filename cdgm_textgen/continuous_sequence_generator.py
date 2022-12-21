@@ -166,7 +166,8 @@ class ContinuousSequenceGenerator(nn.Module):
                 ]
 
         for step in range(1, self.max_len+1):
-            prev_scores = beam[step-1]["scores"]
+            print(beam[step-1])
+            prev_scores = beam[step-1]["score"]
             prev_tokens = beam[step-1]["tokens"]
 
             decoder_out = self.model.decoder.forward(
@@ -175,19 +176,21 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_states
             )
             sim_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
-            print(sim_scores.shape)
 
             topk_token_score, topk_token_idx = torch.topk(sim_scores.squeeze(), self.beam_size, dim=-1)
             # for each of the hyp in the avtive beam choose self.beam possible extensions
             new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
-            best_cand_vals, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
+            _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
             # set new scores
-            curr_scores = prev_scores.hstack((new_candidate_scores.view(-1)[best_cand_idx.view(-1) + offset]))
-            curr_tokens = prev_tokens.hstack((topk_token_idx.view(-1)[best_cand_idx.view(-1) + offset]))
+            best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx.view(-1) + offset]
+            best_cand_idx = topk_token_idx.view(-1)[best_cand_idx.view(-1) + offset]
+            print(best_cand_scores.shape, best_cand_idx.shape)
+            curr_scores = torch.hstack((beam[step-1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
+            curr_tokens = torch.hstack((prev_tokens, best_cand_idx.unsqueeze(-1)))
 
             if step > 0:
                 # pad previously finished hyps
-                curr_scores[:, step][finished] = prev_scores[:,-1][finished]
+                curr_scores[:, step][finished] = 0
                 curr_tokens[:, step][finished] = self.pad
                 #get finished hyps on current step
                 finished = (finished | curr_tokens[:, step].eq(self.eos)).bool()
