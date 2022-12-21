@@ -202,7 +202,7 @@ class ContinuousSequenceGenerator(nn.Module):
                         )
 
         final_hyps = []
-        top_hyp_scores, top_hyp_idx = ["score"].view(bsz, -1).max(-1)
+        top_hyp_scores, top_hyp_idx = beam[-1]["score"].view(bsz, -1).max(-1)
 
         for i in range(bsz):
             toks = beam[-1]["tokens"][top_hyp_idx[i] + offset[i + self.beam_size]]
