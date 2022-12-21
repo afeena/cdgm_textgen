@@ -166,7 +166,6 @@ class ContinuousSequenceGenerator(nn.Module):
                 ]
 
         for step in range(1, self.max_len+1):
-            print(beam[step-1])
             prev_scores = beam[step-1]["score"]
             prev_tokens = beam[step-1]["tokens"]
 
@@ -184,13 +183,13 @@ class ContinuousSequenceGenerator(nn.Module):
             # set new scores
             best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx.view(-1) + offset]
             best_cand_idx = topk_token_idx.view(-1)[best_cand_idx.view(-1) + offset]
-            print(best_cand_scores.shape, best_cand_idx.shape)
+
             curr_scores = torch.hstack((beam[step-1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
             curr_tokens = torch.hstack((prev_tokens, best_cand_idx.unsqueeze(-1)))
 
             if step > 0:
                 # pad previously finished hyps
-                curr_scores[:, step][finished] = 0
+                curr_scores[:, step][finished] = prev_scores[finished]
                 curr_tokens[:, step][finished] = self.pad
                 #get finished hyps on current step
                 finished = (finished | curr_tokens[:, step].eq(self.eos)).bool()
@@ -203,4 +202,14 @@ class ContinuousSequenceGenerator(nn.Module):
                  "positional_scores": curr_scores}
             )
 
-        return [beam[-1]]
+        final_hyps = beam[-1]
+        top_hyp_scores, top_hyp_idx = final_hyps["score"].view(bsz,-1).max(-1)
+
+
+        return [[{
+            {"tokens": final_hyps["tokens"][top_hyp_idx[i]+offset[i+self.beam_size]],
+             "score": final_hyps["score"][top_hyp_idx[i]+offset[i+self.beam_size]],
+             "attention": torch.empty(0),  # src_len x tgt_len
+             "alignment": torch.empty(0),
+             "positional_scores": final_hyps["positional_scores"][top_hyp_idx[i]+offset[i+self.beam_size]]}
+        } for i in range(bsz)]]
