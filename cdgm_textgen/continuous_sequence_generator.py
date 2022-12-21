@@ -2,7 +2,6 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import math
 from typing import Dict, List, Optional
 
 import torch
@@ -143,10 +142,10 @@ class ContinuousSequenceGenerator(nn.Module):
         bsz, src_len = src_tokens.size()[:2]
 
         scores = (
-            torch.zeros(bsz * self.beam_size,1).to(src_tokens).float()
+            torch.zeros(bsz * self.beam_size, 1).to(src_tokens).float()
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
-            torch.zeros(bsz * self.beam_size,1)
+            torch.zeros(bsz * self.beam_size, 1)
             .to(src_tokens)
             .long()
             .fill_(self.eos if bos_token is None else bos_token)
@@ -159,15 +158,15 @@ class ContinuousSequenceGenerator(nn.Module):
         finished = torch.tensor([False for i in range(bsz * self.beam_size)]).to(src_tokens.device).long()
 
         beam = [{"tokens": tokens,
-                 "score": scores[:,-1],
+                 "score": scores[:, -1],
                  "attention": torch.empty(0),  # src_len x tgt_len
                  "alignment": torch.empty(0),
                  "positional_scores": scores}
                 ]
 
-        for step in range(1, self.max_len+1):
-            prev_scores = beam[step-1]["score"]
-            prev_tokens = beam[step-1]["tokens"]
+        for step in range(1, self.max_len + 1):
+            prev_scores = beam[step - 1]["score"]
+            prev_tokens = beam[step - 1]["tokens"]
 
             decoder_out = self.model.decoder.forward(
                 prev_tokens,
@@ -184,32 +183,38 @@ class ContinuousSequenceGenerator(nn.Module):
             best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx.view(-1) + offset]
             best_cand_idx = topk_token_idx.view(-1)[best_cand_idx.view(-1) + offset]
 
-            curr_scores = torch.hstack((beam[step-1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
+            curr_scores = torch.hstack((beam[step - 1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
             curr_tokens = torch.hstack((prev_tokens, best_cand_idx.unsqueeze(-1)))
 
             if step > 0:
                 # pad previously finished hyps
                 curr_scores[:, step][finished] = prev_scores[finished]
                 curr_tokens[:, step][finished] = self.pad
-                #get finished hyps on current step
+                # get finished hyps on current step
                 finished = (finished | curr_tokens[:, step].eq(self.eos)).bool()
                 if torch.all(finished):
                     break
             beam.append({"tokens": curr_tokens,
-                 "score": curr_scores[:,-1],
-                 "attention": torch.empty(0),  # src_len x tgt_len
-                 "alignment": torch.empty(0),
-                 "positional_scores": curr_scores}
-            )
+                         "score": curr_scores[:, -1],
+                         "attention": torch.empty(0),  # src_len x tgt_len
+                         "alignment": torch.empty(0),
+                         "positional_scores": curr_scores}
+                        )
 
-        final_hyps = beam[-1]
-        top_hyp_scores, top_hyp_idx = final_hyps["score"].view(bsz,-1).max(-1)
+        final_hyps = []
+        top_hyp_scores, top_hyp_idx = ["score"].view(bsz, -1).max(-1)
 
+        for i in range(bsz):
+            toks = beam[-1]["tokens"][top_hyp_idx[i] + offset[i + self.beam_size]]
+            length = sum(toks[1:].ne(self.pad).float())
+            score = beam[-1]["score"][top_hyp_idx[i] + offset[i + self.beam_size]].item()
+            pos_scores = beam[-1]["positional_scores"][top_hyp_idx[i] + offset[i + self.beam_size]]
+            pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
 
-        return [[{
-            {"tokens": final_hyps["tokens"][top_hyp_idx[i]+offset[i+self.beam_size]],
-             "score": final_hyps["score"][top_hyp_idx[i]+offset[i+self.beam_size]],
-             "attention": torch.empty(0),  # src_len x tgt_len
-             "alignment": torch.empty(0),
-             "positional_scores": final_hyps["positional_scores"][top_hyp_idx[i]+offset[i+self.beam_size]]}
-        } for i in range(bsz)]]
+            final_hyps.append({"tokens": toks[1:length],
+                                "score": score,
+                                "attention": torch.empty(0),  # src_len x tgt_len
+                                "alignment": torch.empty(0),
+                                "positional_scores": pos_scores[1:length]}
+                              )
+        return [final_hyps]
