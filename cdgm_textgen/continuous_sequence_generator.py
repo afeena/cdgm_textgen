@@ -154,7 +154,8 @@ class ContinuousSequenceGenerator(nn.Module):
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
-        offset = torch.arange(start=0, end=bsz, step=self.beam_size).to(src_tokens.device).long()
+        offset = torch.arange(start=0, end=bsz*self.beam_size, step=self.beam_size).view(-1, 1).repeat(1, self.beam_size).view(-1)
+        offset = offset.to(src_tokens.device).long()
         finished = torch.tensor([False for i in range(bsz * self.beam_size)]).to(src_tokens.device).long()
 
         beam = [{"tokens": tokens,
@@ -206,15 +207,15 @@ class ContinuousSequenceGenerator(nn.Module):
 
         for i in range(bsz):
             toks = beam[-1]["tokens"][top_hyp_idx[i] + offset[i + self.beam_size]]
-            length = sum(toks[1:].ne(self.pad).float())
+            length = sum(toks.ne(self.pad).int())
             score = beam[-1]["score"][top_hyp_idx[i] + offset[i + self.beam_size]].item()
             pos_scores = beam[-1]["positional_scores"][top_hyp_idx[i] + offset[i + self.beam_size]]
-            pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
+            pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
 
-            final_hyps.append({"tokens": toks[1:length],
+            final_hyps.append([{"tokens": toks[1:length],
                                 "score": score,
                                 "attention": torch.empty(0),  # src_len x tgt_len
                                 "alignment": torch.empty(0),
-                                "positional_scores": pos_scores[1:length]}
+                                "positional_scores": pos_scores[1:length]}]
                               )
-        return [final_hyps]
+        return final_hyps
