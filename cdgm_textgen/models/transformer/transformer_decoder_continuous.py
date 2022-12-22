@@ -142,9 +142,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
                 output_proj = log_probs.view(bsz, -1, self.dict_len)
 
-            gc.collect()
-            torch.cuda.empty_cache()
-
         return output_proj
 
 
