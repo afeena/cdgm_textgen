@@ -60,15 +60,13 @@ class ContinuousSequenceGenerator(nn.Module):
 
         self.normalize_scores = normalize_scores
 
-        self.search = (
-            search.BeamSearch(tgt_dict) if search_strategy is None else search_strategy
-        )
-        # We only need to set src_lengths in LengthConstrainedBeamSearch.
-        # As a module attribute, setting it would break in multithread
-        # settings when the model is shared.
-        self.should_set_src_lengths = (
-                hasattr(self.search, "needs_src_lengths") and self.search.needs_src_lengths
-        )
+        if search_strategy == "beam":
+            self.search = self._beam_search_step
+        elif search_strategy=="mbr":
+            self.search = self._mbr_sampling_step
+        elif search_strategy == "hierarchical_beam":
+            self.search = self._hierarchical_beam_search_step
+
         self.metric = metric
         if getattr(self.model, "build_index", False):
             self.model.build_index(metric=self.metric)
@@ -125,6 +123,28 @@ class ContinuousSequenceGenerator(nn.Module):
 
         return best_cand_scores, best_cand_tokens
 
+    def _mbr_sampling_step(self, scores, prev_scores, bsz, offset):
+        import sacrebleu
+        #suppose we chose self.beam_size best for each mixture
+        topk_token_score, topk_token_idx = torch.topk(scores, self.beam_size, dim=-1)
+        topk_token_score = torch.flatten(topk_token_score, start_dim=2)
+        topk_token_idx = torch.flatten(topk_token_idx, start_dim=2)
+        #we have self.beam_size x num_mixtures samples
+
+        #use mbr sampling asprob is PS prob in https://arxiv.org/pdf/2108.04718.pdf
+        #but make it for each partial hyp
+        #utility is cosine sim between hyps
+        #p(y|x) is PS prob
+        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
+        _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
+        best_cand_idx = best_cand_idx.view(-1) + offset
+        # set new scores
+        best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx]
+        best_cand_tokens = topk_token_idx.view(-1)[best_cand_idx]
+
+        self.tgt_dict.string(best_cand_tokens, bpe_symbol="sentencepiece")
+
+        return best_cand_scores, best_cand_tokens
 
     def _generate(
             self,
@@ -187,9 +207,9 @@ class ContinuousSequenceGenerator(nn.Module):
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
-            sim_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+            model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
 
-            best_cand_scores, best_cand_tokens = self._beam_search_step(sim_scores, prev_scores, bsz, offset)
+            best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam[step - 1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
             curr_tokens = torch.hstack((prev_tokens, best_cand_tokens.unsqueeze(-1)))
