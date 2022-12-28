@@ -42,13 +42,13 @@ class TranslationCountinuousTask(TranslationTask):
     def build_generator(self, models, args, seq_gen_cls=None,
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
-            from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
+            from cdgm_textgen.sequence_generator import SequenceGenerator
             search_strategy = search.BeamSearch(self.target_dictionary)
 
 
             extra_gen_cls_kwargs = extra_gen_cls_kwargs or {}
 
-            return ContinuousSequenceGenerator(
+            return SequenceGenerator(
                 models,
                 self.target_dictionary,
                 beam_size=getattr(args, "beam", 1),
