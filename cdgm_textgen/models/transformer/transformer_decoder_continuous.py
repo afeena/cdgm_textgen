@@ -117,6 +117,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         del sim
         return output_proj
 
+    @torch.jit.export
     def nearest_neighbor_search(self, features, metric=None):
         with torch.no_grad():
             if metric in ["cosine", "l2"]:
@@ -131,7 +132,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 if norm_const is not None:
                     output_proj += norm_const.squeeze()
 
-            if metric == "ps":
+            else:
                 bsz = features.shape[0]
                 features = features.view(-1, self.output_embed_dim)
                 kappa = torch.norm(features, dim=-1).unsqueeze(1)
@@ -142,7 +143,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
                 output_proj = log_probs.view(bsz, -1, self.dict_len)
 
-        return output_proj
+            return output_proj
 
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
@@ -193,28 +194,28 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return self.mixture_head_ff_1(decoder_output)
 
     @torch.jit.export
+    def get_max_mixture(self, model_out, mixtures_out):
+        with torch.no_grad():
+            dist = F.softmax(mixtures_out, -1)
+            _, idx = dist.max(dim=-1)
+
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
+            idx = idx[..., None, None].expand(-1, -1, 1, model_out.size(3))
+            out = torch.gather(model_out, dim=2, index=idx).squeeze(dim=2)
+
+            del idx
+            return tuple(out)
+
     def get_similarity_scores(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             metric: Optional[str] = None,
     ):
-        with torch.no_grad():
-            out = net_output[0]
-            mixtures_out = net_output[1]["mixtures_out"]
-
-            if self.num_mixture_components > 1:
-                dist = F.softmax(mixtures_out, -1)
-                _, idx = dist.max(dim=-1)
-
-                # for debug purposes
-                # from datetime import datetime
-                # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
-
-                idx = idx[..., None, None].expand(-1, -1, 1, out.size(3))
-                out = torch.gather(out, dim=2, index=idx).squeeze(dim=2)
-
-                del idx
-
-            scores = self.nearest_neighbor_search(out, metric=metric)
-
-            return scores
+        out = self.get_max_mixture(
+            net_output[0],
+            net_output[1]["mixture_out"]
+        )
+        super().get_similarity_scores(out)

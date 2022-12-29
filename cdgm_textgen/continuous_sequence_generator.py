@@ -112,8 +112,9 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    def _beam_search_step(self, scores, prev_scores, bsz, offset):
-        topk_token_score, topk_token_idx = torch.topk(scores.squeeze(), self.beam_size, dim=-1)
+    def _beam_search_step(self, decoder_out, prev_scores, bsz, offset):
+        model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+        topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
         _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
@@ -125,7 +126,7 @@ class ContinuousSequenceGenerator(nn.Module):
         return best_cand_scores, best_cand_tokens
 
     def _mbr_sampling_step(self, scores, prev_scores, bsz, offset):
-        import sacrebleu
+        model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
         #suppose we chose self.beam_size best for each mixture
         topk_token_score, topk_token_idx = torch.topk(scores, self.beam_size, dim=-1)
         topk_token_score = torch.flatten(topk_token_score, start_dim=2)
@@ -208,9 +209,8 @@ class ContinuousSequenceGenerator(nn.Module):
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
-            model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
 
-            best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
+            best_cand_scores, best_cand_tokens = self.search(decoder_out, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam[step - 1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
             curr_tokens = torch.hstack((prev_tokens, best_cand_tokens.unsqueeze(-1)))
