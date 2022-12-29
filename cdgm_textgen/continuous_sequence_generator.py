@@ -41,6 +41,7 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         super().__init__()
         self.model = model[0]
+        self.model.eval()
 
         assert isinstance(self.model, TransformerModelContinuous), \
             f"model._name has to be an instance of TransformerModelContinuous, got {type(self.model)}"
