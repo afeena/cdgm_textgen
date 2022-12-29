@@ -194,7 +194,7 @@ class ContinuousSequenceGenerator(nn.Module):
 
         return None
 
-    def _get_model_score(self, decoder_out):
+    def get_model_score(self, decoder_out):
         if hasattr(self.model, "num_mixture_components"):
             decoder_out = self.model.decoder.get_max_mixture(decoder_out)
         model_scores = None
