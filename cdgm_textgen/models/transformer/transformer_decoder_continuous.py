@@ -43,7 +43,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 utils.load_embedding(embed_dict, dictionary, self.target_embed)
             self.target_embed.weight.requires_grad = False
             self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                       dim=-1)
+                                                       dim=-1).cuda()
 
     def forward(
             self,
