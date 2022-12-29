@@ -316,12 +316,12 @@ class ContinuousSequenceGenerator(nn.Module):
     def forward_decoder( self,
             tokens,
             encoder_out: Dict[str, List[Tensor]],
-            incremental_states: Dict[str, Dict[str, Optional[Tensor]]],
+            incremental_state: Dict[str, Dict[str, Optional[Tensor]]],
             temperature: float = 1.0,
             metric: Optional[str] = None,):
         decoder_out = self.model.decoder.forward(
             tokens,
             encoder_out=encoder_out,
-            incremental_state=incremental_states,
+            incremental_state=incremental_state,
         )
         return decoder_out
