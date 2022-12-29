@@ -144,10 +144,10 @@ class ContinuousSequenceGenerator(nn.Module):
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
             features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
+            m = torch.tensor([self.model.decoderself.target_embed_normalized.shape[-1]], device=features.device)
             norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ self.index.T
+            output_proj = features @ self.model.decoderself.target_embed_normalized.T
             if norm_const is not None:
                 output_proj += norm_const.squeeze()
 
