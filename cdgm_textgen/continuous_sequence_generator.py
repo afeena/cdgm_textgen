@@ -58,7 +58,7 @@ class ContinuousSequenceGenerator(nn.Module):
         self.beam_size = beam_size
         # the max beam size is the dictionary size - 1, since we never select pad
         self.beam_size = min(beam_size, self.vocab_size - 1)
-        self.model.set_beam_size(beam_size)
+        self.model.decoder.set_beam_size(beam_size)
 
         self.min_len = min_len
         self.max_len = self.model.max_decoder_positions()
