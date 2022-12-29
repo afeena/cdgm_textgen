@@ -4,12 +4,14 @@
 # LICENSE file in the root directory of this source tree.
 from typing import Dict, List, Optional
 
+import power_spherical
 import torch
 import torch.nn as nn
-from fairseq import search
+import torch.nn.functional as F
 from torch import Tensor
 
 from cdgm_textgen.models.transformer import TransformerModelContinuous
+from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 
 class ContinuousSequenceGenerator(nn.Module):
@@ -28,7 +30,7 @@ class ContinuousSequenceGenerator(nn.Module):
             beam_size=1,
             min_len=1,
             normalize_scores=True,
-            search_strategy=None,
+            search_strategy="beam",
             eos=None,
             metric="cosine",
     ):
@@ -43,6 +45,7 @@ class ContinuousSequenceGenerator(nn.Module):
         self.model = model[0]
         self.model.eval()
 
+
         assert isinstance(self.model, TransformerModelContinuous), \
             f"model._name has to be an instance of TransformerModelContinuous, got {type(self.model)}"
 
@@ -50,27 +53,26 @@ class ContinuousSequenceGenerator(nn.Module):
         self.pad = tgt_dict.pad()
         self.unk = tgt_dict.unk()
         self.eos = tgt_dict.eos() if eos is None else eos
-
         self.vocab_size = len(tgt_dict)
+
         self.beam_size = beam_size
         # the max beam size is the dictionary size - 1, since we never select pad
         self.beam_size = min(beam_size, self.vocab_size - 1)
+        self.model.set_beam_size(beam_size)
 
         self.min_len = min_len
         self.max_len = self.model.max_decoder_positions()
 
         self.normalize_scores = normalize_scores
 
-        if search_strategy == "beam":
-            self.search = self._beam_search_step
-        elif search_strategy=="mbr":
+        if search_strategy == "mbr":
             self.search = self._mbr_sampling_step
         elif search_strategy == "hierarchical_beam":
             self.search = self._hierarchical_beam_search_step
+        else:
+            self.search = self._beam_search_step
 
         self.metric = metric
-        if getattr(self.model, "build_index", False):
-            self.model.build_index(metric=self.metric)
 
     def cuda(self):
         self.model.cuda()
@@ -112,8 +114,46 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    def _beam_search_step(self, decoder_out, prev_scores, bsz, offset):
-        model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
+    def get_max_mixture(self, model_out, mixtures_out):
+        dist = F.softmax(mixtures_out, -1)
+        _, idx = dist.max(dim=-1)
+
+        # for debug purposes
+        # from datetime import datetime
+        # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
+        idx = idx[..., None, None].expand(-1, -1, 1, model_out.size(3))
+        out = torch.gather(model_out, dim=2, index=idx).squeeze(dim=2)
+
+        del idx
+        return tuple(out)
+
+    def _ps_likelihood_scores(self, features):
+        bsz = features.shape[0]
+        features = features.view(-1, self.output_embed_dim)
+        kappa = torch.norm(features, dim=-1).unsqueeze(1)
+        features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+
+        q_dist = power_spherical.PowerSpherical(features, kappa)
+        log_probs = q_dist.log_prob(self.index)
+
+        output_proj = log_probs.view(bsz, -1, self.dict_len)
+        return output_proj
+
+    def _cosine_nearest_neighbor_search(self, features):
+        with torch.no_grad():
+            kappa = torch.tensor([1.], device=features.device)
+            features = F.normalize(features, p=2.0, dim=-1)
+            m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
+            norm_const = _neglogcmk(m, kappa)
+
+            output_proj = features @ self.index.T
+            if norm_const is not None:
+                output_proj += norm_const.squeeze()
+
+            return output_proj
+
+    def _beam_search_step(self, model_scores, prev_scores, bsz, offset):
         topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
@@ -125,28 +165,44 @@ class ContinuousSequenceGenerator(nn.Module):
 
         return best_cand_scores, best_cand_tokens
 
-    def _mbr_sampling_step(self, scores, prev_scores, bsz, offset):
-        model_scores = self.model.get_similarity_scores(decoder_out, metric=self.metric)
-        #suppose we chose self.beam_size best for each mixture
-        topk_token_score, topk_token_idx = torch.topk(scores, self.beam_size, dim=-1)
-        topk_token_score = torch.flatten(topk_token_score, start_dim=2)
-        topk_token_idx = torch.flatten(topk_token_idx, start_dim=2)
-        #we have self.beam_size x num_mixtures samples
+    def _mbr_sampling_step(self, model_scores, prev_scores, bsz, offset, num_samples=15):
+        assert self.metric == "ps", ValueError(f"cannot use MBR sampling with metric {self.metric}")
+        assert self.beam_size == 1, ValueError(f"beam > 1 is not possible with MBR")
 
-        #use mbr sampling asprob is PS prob in https://arxiv.org/pdf/2108.04718.pdf
-        #but make it for each partial hyp
-        #utility is cosine sim between hyps
-        #p(y|x) is PS prob
-        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
-        _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
-        best_cand_idx = best_cand_idx.view(-1) + offset
-        # set new scores
-        best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx]
-        best_cand_tokens = topk_token_idx.view(-1)[best_cand_idx]
+        bsz = model_scores.shape[0]
 
-        self.tgt_dict.string(best_cand_tokens, bpe_symbol="sentencepiece")
+        # sample from all mixtures
+        # model_scores BxTx(M)xV
+        #draw samples from all mixtures
+        if hasattr(self.model, "num_mixture_components"):
+            num_mxt = self.model.num_mixture_components
+            #if there are M mixtures, each mixture produce (1/M)*num_samples
+        else:
+            num_mxt=1
 
-        return best_cand_scores, best_cand_tokens
+        model_scores=model_scores.view(-1, self.vocab_size)
+        cand_samples = torch.multinomial(model_scores, num_samples=num_samples//num_mxt, replacement=True)
+        #sample candidates BxTxnum_samples
+        cand_samples = cand_samples.view(bsz, -1, num_samples)
+
+
+        #now calculate pairwise cosine similarity for candidate hyp
+        # use mbr sampling similar to https://arxiv.org/pdf/2108.04718.pdf
+        # make it for each partial hyp
+        # utility is cosine sim between hyps
+        # p(y|x) is PS prob
+
+        return None
+
+    def _get_model_score(self, decoder_out):
+        if hasattr(self.model, "num_mixture_components"):
+            decoder_out = self.model.decoder.get_max_mixture(decoder_out)
+        model_scores = None
+        if self.metric == "cosine":
+            model_scores = self._cosine_nearest_neighbor_search(decoder_out[0])
+        elif self.metric == "ps":
+            model_scores = self._ps_likelihood_scores(decoder_out[0])
+        return model_scores
 
     def _generate(
             self,
@@ -171,7 +227,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 "expected src_tokens in net input. input keys: "
                 + str(net_input.keys())
             )
-        encoder_out = self.model.encoder.forward(net_input["src_tokens"], src_lengths)
+        encoder_out = self.forward_encoder(net_input)
 
         # initialize buffers
         bsz, src_len = src_tokens.size()[:2]
@@ -189,7 +245,9 @@ class ContinuousSequenceGenerator(nn.Module):
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
-        offset = torch.arange(start=0, end=bsz*self.beam_size, step=self.beam_size).view(-1, 1).repeat(1, self.beam_size).view(-1)
+        offset = torch.arange(start=0, end=bsz * self.beam_size, step=self.beam_size).view(-1, 1).repeat(1,
+                                                                                                         self.beam_size).view(
+            -1)
         offset = offset.to(src_tokens.device).long()
         finished = torch.tensor([False for i in range(bsz * self.beam_size)]).to(src_tokens.device).long()
 
@@ -204,13 +262,14 @@ class ContinuousSequenceGenerator(nn.Module):
             prev_scores = beam[step - 1]["score"]
             prev_tokens = beam[step - 1]["tokens"]
 
-            decoder_out = self.model.decoder.forward(
+            decoder_out = self.forward_decoder(
                 prev_tokens,
                 encoder_out=encoder_out,
                 incremental_state=incremental_states
             )
 
-            best_cand_scores, best_cand_tokens = self.search(decoder_out, prev_scores, bsz, offset)
+            model_scores = self.get_model_score(decoder_out)
+            best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam[step - 1]["positional_scores"], best_cand_scores.unsqueeze(-1)))
             curr_tokens = torch.hstack((prev_tokens, best_cand_tokens.unsqueeze(-1)))
@@ -231,8 +290,6 @@ class ContinuousSequenceGenerator(nn.Module):
                          "positional_scores": curr_scores}
                         )
 
-
-
         final_hyps = []
         top_hyp_scores, top_hyp_idx = beam[-1]["score"].view(bsz, -1).max(-1)
 
@@ -250,3 +307,21 @@ class ContinuousSequenceGenerator(nn.Module):
                                 "positional_scores": pos_scores[1:length]}]
                               )
         return final_hyps
+
+    @torch.jit.export
+    def forward_encoder(self, net_input: Dict[str, Tensor]):
+        return self.model.encoder.forward_torchscript(net_input)
+
+    @torch.jit.export
+    def forward_decoder( self,
+            tokens,
+            encoder_out: Dict[str, List[Tensor]],
+            incremental_states: Dict[str, Dict[str, Optional[Tensor]]],
+            temperature: float = 1.0,
+            metric: Optional[str] = None,):
+        decoder_out = self.model.decoder.forward(
+            tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_states,
+        )
+        return decoder_out
