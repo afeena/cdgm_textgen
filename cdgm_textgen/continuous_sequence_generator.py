@@ -280,7 +280,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             model_scores = self.model.decoder.get_mixture_output(model_scores,
                                                                  decoder_out[1]["mixtures_out"],
                                                                  reduce=self.reduce_startegy)
-
+        return model_scores
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
     def _generate(
