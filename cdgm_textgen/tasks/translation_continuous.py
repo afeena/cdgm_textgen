@@ -2,15 +2,12 @@ import json
 from argparse import Namespace
 from dataclasses import dataclass, field
 
-import torch
 from fairseq.data import encoders
 from fairseq.tasks import register_task
 from fairseq.tasks.translation import TranslationConfig
 from fairseq.tasks.translation import TranslationTask
-from fairseq import search
 
 EVAL_BLEU_ORDER = 4
-
 
 
 @dataclass
@@ -21,6 +18,7 @@ class TranslationContinuousConfig(TranslationConfig):
             "help": "what measure to use in evaluation for NN search"
         },
     )
+
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
@@ -42,17 +40,14 @@ class TranslationCountinuousTask(TranslationTask):
     def build_generator(self, models, args, seq_gen_cls=None,
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
-            from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
+        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
 
-
-
-            return ContinuousSequenceGenerator(
-                models,
-                self.target_dictionary,
-                beam_size=getattr(args, "beam", 1),
-                min_len=getattr(args, "min_len", 1),
-                normalize_scores=(not getattr(args, "unnormalized", False)),
-                search_strategy=search_strategy,
-                metric=getattr(args, "decoding_measure", "cosine"),
-                **extra_gen_cls_kwargs,
-            )
+        return ContinuousSequenceGenerator(
+            models,
+            self.target_dictionary,
+            beam_size=getattr(args, "beam", 1),
+            min_len=getattr(args, "min_len", 1),
+            search_strategy=getattr(args, "search_strategy", 1),
+            metric=getattr(args, "decoding_measure", "cosine"),
+            **extra_gen_cls_kwargs,
+        )

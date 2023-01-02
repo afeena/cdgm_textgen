@@ -29,6 +29,7 @@ def build_model_levenshtein(self, cfg, from_checkpoint=False):
         model.decoder.setup_search_matrix()
     return model
 
+
 def valid_step(self, sample, model, criterion):
     EVAL_BLEU_ORDER = 4
     model.eval()

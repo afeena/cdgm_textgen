@@ -273,14 +273,13 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         self.reduce_strategy = reduce_strategy
         self.search = self._mixture_beam_search_step
 
-
     def _mixture_beam_search_step(self, model_scores: Tensor,
-                          prev_scores: Tensor,
-                          bsz: int,
-                          offset: Optional[Tensor] = None,
-                          **kwargs):
+                                  prev_scores: Tensor,
+                                  bsz: int,
+                                  offset: Optional[Tensor] = None,
+                                  **kwargs):
 
-        num_top_in_mixt = self.beam_size//self.model.num_mixture_components
+        num_top_in_mixt = self.beam_size // self.model.num_mixture_components
         topk_token_scores, topk_token_idxs = torch.topk(model_scores.squeeze(), num_top_in_mixt, dim=-1)
         topk_token_scores = topk_token_scores.view(bsz, -1, self.beam_size)
         topk_token_idxs = topk_token_idxs.view(bsz, -1, self.beam_size)
@@ -294,6 +293,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         best_cand_tokens = topk_token_idxs.view(-1)[best_cand_idx]
 
         return best_cand_scores, best_cand_tokens
+
     @torch.no_grad()
     def get_model_score(self, decoder_out):
         model_scores = super().get_model_score(decoder_out)
@@ -302,6 +302,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                                                                  decoder_out[1]["mixtures_out"],
                                                                  reduce=self.reduce_startegy)
         return model_scores
+
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
     def _generate(
