@@ -43,10 +43,8 @@ class TranslationCountinuousTask(TranslationTask):
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
             from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
-            search_strategy = search.BeamSearch(self.target_dictionary)
 
 
-            extra_gen_cls_kwargs = extra_gen_cls_kwargs or {}
 
             return ContinuousSequenceGenerator(
                 models,
@@ -58,20 +56,3 @@ class TranslationCountinuousTask(TranslationTask):
                 metric=getattr(args, "decoding_measure", "cosine"),
                 **extra_gen_cls_kwargs,
             )
-
-    def valid_step(self, sample, model, criterion):
-        model.eval()
-        with torch.no_grad():
-            loss, sample_size, logging_output = criterion(model, sample)
-
-            if self.cfg.eval_bleu:
-                bleu = self._inference_with_bleu(self.sequence_generator, sample, model)
-                logging_output["_bleu_sys_len"] = bleu.sys_len
-                logging_output["_bleu_ref_len"] = bleu.ref_len
-                # we split counts into separate entries so that they can be
-                # summed efficiently across workers using fast-stat-sync
-                assert len(bleu.counts) == EVAL_BLEU_ORDER
-                for i in range(EVAL_BLEU_ORDER):
-                    logging_output["_bleu_counts_" + str(i)] = bleu.counts[i]
-                    logging_output["_bleu_totals_" + str(i)] = bleu.totals[i]
-            return loss, sample_size, logging_output

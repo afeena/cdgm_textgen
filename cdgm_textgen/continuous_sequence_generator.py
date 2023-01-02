@@ -24,7 +24,6 @@ class ContinuousSequenceGenerator(nn.Module):
             tgt_dict,
             beam_size=1,
             min_len=1,
-            normalize_scores=True,
             search_strategy="beam",
             eos=None,
             metric="cosine",
@@ -56,12 +55,7 @@ class ContinuousSequenceGenerator(nn.Module):
         self.min_len = min_len
         self.max_len = self.model.max_decoder_positions()
 
-        self.normalize_scores = normalize_scores
-
-        if search_strategy == "hierarchical_beam":
-            self.search = self._hierarchical_beam_search_step
-        else:
-            self.search = self._beam_search_step
+        self.search = self._beam_search_step
 
         self.metric = metric
 
