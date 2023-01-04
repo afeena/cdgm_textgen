@@ -2,7 +2,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
+import torch
 from fairseq.models.transformer import TransformerConfig
+from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
@@ -88,6 +90,19 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
+    def forward_decoder_scores(self, decoder_out: Tensor, metric: str) -> Tensor:
+        assert metric is not None
+        scores = torch.zeros(0)
+
+        if metric == "cosine":
+            scores = self.decoder.get_cosine_similarity_scores(decoder_out)
+        if metric == "ps":
+            scores = self.decoder.get_ps_likelihood_scores(decoder_out)
+        if metric == "confidence":
+            scores = self.decoder.get_confidence_scores(decoder_out)
+
+        return scores
+
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
@@ -97,7 +112,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     )
     mixture_dropout: float = field(
         default=0,
-        metadata={"help": "fropout for the mixture head"},
+        metadata={"help": "dropout for the mixture head"},
     )
 
 
@@ -119,3 +134,16 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             embed_tokens
         )
         return decoder
+
+    def forward_decoder_scores(self, decoder_out: Tensor, metric: str) -> Tensor:
+        assert metric is not None
+        scores = torch.zeros(0)
+
+        if metric == "cosine":
+            scores = self.decoder.get_cosine_similarity_scores(decoder_out)
+        if metric == "ps":
+            scores = self.decoder.get_ps_likelihood_scores(decoder_out)
+        if metric == "confidence":
+            scores = self.decoder.get_confidence_scores(decoder_out)
+
+        return scores

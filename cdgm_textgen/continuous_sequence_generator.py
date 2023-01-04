@@ -117,15 +117,6 @@ class ContinuousSequenceGenerator(nn.Module):
 
         return best_cand_scores, best_cand_tokens
 
-    @torch.no_grad()
-    def get_model_score(self, decoder_out):
-        model_scores = None
-        if self.metric == "cosine":
-            model_scores = self.model.decoder.get_cosine_similarity_scores(decoder_out[0])
-        elif self.metric == "ps":
-            model_scores = self.model.decoder.get_ps_likelihood_scores(decoder_out[0])
-        return model_scores
-
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -186,7 +177,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_states
             )
 
-            model_scores = self.get_model_score(decoder_out)
+            model_scores = self.model.forwrd_decoder_scores(decoder_out[0], self.metric)
             best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam["positional_scores"], best_cand_scores.unsqueeze(-1)))
