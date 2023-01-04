@@ -97,7 +97,7 @@ class TransformerModelContinuous(TransformerModelBase):
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = None,
+            metric: Optional[str] = "cosine",
     ):
         return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
 
