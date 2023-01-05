@@ -104,7 +104,7 @@ class TransformerModelContinuous(TransformerModelBase):
 
         return scores
 
-    #legacy
+    # legacy
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -113,6 +113,7 @@ class TransformerModelContinuous(TransformerModelBase):
             metric: Optional[str] = "cosine",
     ):
         return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
+
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):

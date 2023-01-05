@@ -102,9 +102,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     ):
         with torch.no_grad():
             scores = torch.empty()
-            if metric=="cosine":
+            if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
-            if metric=="ps":
+            if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
 
         return scores
@@ -204,9 +204,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     ):
         with torch.no_grad():
             scores = torch.empty(0)
-            if metric=="cosine":
+            if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
-            if metric=="ps":
+            if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
 
-        return  self.get_max_mixture(scores, net_output[1]["mixtures_out"])
+        return self.get_max_mixture(scores, net_output[1]["mixtures_out"])
