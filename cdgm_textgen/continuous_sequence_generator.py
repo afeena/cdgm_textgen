@@ -24,8 +24,8 @@ class ContinuousSequenceGenerator(nn.Module):
             tgt_dict,
             beam_size=1,
             min_len=1,
-            search_strategy="beam",
             eos=None,
+            search_strategy = "beam",
             metric="cosine",
     ):
         """Generates translations of a given source sentence.
@@ -55,7 +55,8 @@ class ContinuousSequenceGenerator(nn.Module):
         self.min_len = min_len
         self.max_len = self.model.max_decoder_positions()
 
-        self.search = self._beam_search_step
+        if search_strategy == "beam":
+            self.search = self._beam_search_step
 
         self.metric = metric
 
@@ -117,6 +118,9 @@ class ContinuousSequenceGenerator(nn.Module):
 
         return best_cand_scores, best_cand_tokens
 
+    def get_model_scores(self, decoder_out):
+        return self.model.forwrd_decoder_scores(decoder_out, self.metric)
+
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -177,7 +181,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_states
             )
 
-            model_scores = self.model.forwrd_decoder_scores(decoder_out, self.metric)
+            model_scores = self.get_model_scores(decoder_out)
             best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam["positional_scores"], best_cand_scores.unsqueeze(-1)))
@@ -233,6 +237,48 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_state,
             )
         return decoder_out
+
+class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
+    def __init__(
+            self,
+            model,
+            tgt_dict,
+            beam_size=1,
+            min_len=1,
+            eos=None,
+            search_strategy="beam",
+            metric="ps",
+            reduce_strategy="max"
+    ):
+        super().__init__(model,
+            tgt_dict,
+            beam_size=beam_size,
+            min_len=min_len,
+            eos=eos,
+            metric=metric)
+
+        self.reduce_strategy = reduce_strategy
+        if search_strategy=="hierarchical_beam":
+            assert reduce_strategy is None
+            self.search = self._hierarchical_beam_search_step
+
+    def _hierarchical_beam_search_step(self, model_scores: Tensor,
+                                       prev_scores: Tensor,
+                                       bsz: int,
+                                       offset: Optional[Tensor] = None,
+                                       **kwargs):
+        topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
+        # for each of the hyp in the acvtive beam choose self.beam possible extensions
+        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_score
+        _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
+        best_cand_idx = best_cand_idx.view(-1) + offset
+        # set new scores
+        best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx]
+        best_cand_tokens = topk_token_idx.view(-1)[best_cand_idx]
+
+        return best_cand_scores, best_cand_tokens
+    def get_model_scores(self, decoder_out):
+        return self.model.forwrd_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
