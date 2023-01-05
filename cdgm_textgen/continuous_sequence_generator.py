@@ -25,7 +25,7 @@ class ContinuousSequenceGenerator(nn.Module):
             beam_size=1,
             min_len=1,
             eos=None,
-            search_strategy = "beam",
+            search_strategy="beam",
             metric="cosine",
     ):
         """Generates translations of a given source sentence.
@@ -238,6 +238,7 @@ class ContinuousSequenceGenerator(nn.Module):
             )
         return decoder_out
 
+
 class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
     def __init__(
             self,
@@ -251,14 +252,14 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             reduce_strategy="max"
     ):
         super().__init__(model,
-            tgt_dict,
-            beam_size=beam_size,
-            min_len=min_len,
-            eos=eos,
-            metric=metric)
+                         tgt_dict,
+                         beam_size=beam_size,
+                         min_len=min_len,
+                         eos=eos,
+                         metric=metric)
 
         self.reduce_strategy = reduce_strategy
-        if search_strategy=="hierarchical_beam":
+        if search_strategy == "hierarchical_beam":
             assert reduce_strategy is None
             self.search = self._hierarchical_beam_search_step
 
@@ -277,6 +278,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         best_cand_tokens = topk_token_idx.view(-1)[best_cand_idx]
 
         return best_cand_scores, best_cand_tokens
+
     def get_model_scores(self, decoder_out):
         return self.model.forwrd_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
 
