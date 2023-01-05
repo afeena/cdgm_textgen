@@ -101,7 +101,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            scores = torch.empty()
+            scores = torch.zeros(0)
             if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
