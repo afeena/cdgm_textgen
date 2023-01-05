@@ -177,7 +177,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_states
             )
 
-            model_scores = self.model.forwrd_decoder_scores(decoder_out[0], self.metric)
+            model_scores = self.model.forwrd_decoder_scores(decoder_out, self.metric)
             best_cand_scores, best_cand_tokens = self.search(model_scores, prev_scores, bsz, offset)
 
             curr_scores = torch.hstack((beam["positional_scores"], best_cand_scores.unsqueeze(-1)))
@@ -233,66 +233,6 @@ class ContinuousSequenceGenerator(nn.Module):
                 incremental_state=incremental_state,
             )
         return decoder_out
-
-
-class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
-    def __init__(
-            self,
-            model,
-            tgt_dict,
-            beam_size=1,
-            min_len=1,
-            normalize_scores=True,
-            search_strategy="mixture_beam",
-            eos=None,
-            metric="cosine",
-            reduce_strategy="max"
-    ):
-        assert hasattr(self.model,
-                       "num_mixture_components") is True, f"{type(self)} can be used only with mixture model"
-        if not beam_size >= model.num_mixture_components and beam_size % self.model.num_mixture_components != 0:
-            beam_size = model.num_mixture_components
-        super().__init__(model,
-                         tgt_dict,
-                         beam_size=beam_size,
-                         min_len=min_len,
-                         normalize_scores=normalize_scores,
-                         search_strategy=search_strategy,
-                         eos=eos,
-                         metric=metric)
-
-        self.reduce_strategy = reduce_strategy
-        self.search = self._mixture_beam_search_step
-
-    def _mixture_beam_search_step(self, model_scores: Tensor,
-                                  prev_scores: Tensor,
-                                  bsz: int,
-                                  offset: Optional[Tensor] = None,
-                                  **kwargs):
-
-        num_top_in_mixt = self.beam_size // self.model.num_mixture_components
-        topk_token_scores, topk_token_idxs = torch.topk(model_scores.squeeze(), num_top_in_mixt, dim=-1)
-        topk_token_scores = topk_token_scores.view(bsz, -1, self.beam_size)
-        topk_token_idxs = topk_token_idxs.view(bsz, -1, self.beam_size)
-
-        # for each of the hyp in the acvtive beam choose self.beam possible extensions
-        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, self.beam_size) + topk_token_scores
-        _, best_cand_idx = new_candidate_scores.view(bsz, -1).topk(self.beam_size, dim=-1)
-        best_cand_idx = best_cand_idx.view(-1) + offset
-        # set new scores
-        best_cand_scores = new_candidate_scores.view(-1)[best_cand_idx]
-        best_cand_tokens = topk_token_idxs.view(-1)[best_cand_idx]
-
-        return best_cand_scores, best_cand_tokens
-
-    @torch.no_grad()
-    def get_model_score(self, decoder_out):
-        model_scores = super().get_model_score(decoder_out)
-        if self.reduce_strategy is not None:
-            model_scores = self.model.decoder.get_mixture_output(model_scores,
-                                                                 decoder_out[1]["mixtures_out"],
-                                                                 reduce=self.reduce_startegy)
-        return model_scores
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):

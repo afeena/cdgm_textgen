@@ -67,7 +67,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
-    def get_ps_likelihood_scores(self, features: Tensor):
+    def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
             features = features.view(-1, self.output_embed_dim)
@@ -80,14 +80,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
 
-    def get_cosine_similarity_scores(self, features: Tensor):
+    def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
             features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.model.decoder.target_embed_normalized.shape[-1]], device=features.device)
+            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
             norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ self.model.decoder.target_embed_normalized.T
+            output_proj = features @ self.target_embed_normalized.T
             if norm_const is not None:
                 output_proj += norm_const.squeeze()
 

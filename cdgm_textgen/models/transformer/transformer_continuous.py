@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Tuple, Dict
 
 import torch
 from fairseq.models.transformer import TransformerConfig
@@ -90,16 +90,17 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
-    def forward_decoder_scores(self, decoder_out: Tensor, metric: str) -> Tensor:
+    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
         scores = torch.zeros(0)
+        model_out = decoder_out[0]
 
         if metric == "cosine":
-            scores = self.decoder.get_cosine_similarity_scores(decoder_out)
+            scores = self.decoder.get_cosine_similarity_scores(model_out)
         if metric == "ps":
-            scores = self.decoder.get_ps_likelihood_scores(decoder_out)
+            scores = self.decoder.get_ps_likelihood_scores(model_out)
         if metric == "confidence":
-            scores = self.decoder.get_confidence_scores(decoder_out)
+            scores = self.decoder.get_confidence_scores(model_out)
 
         return scores
 
@@ -135,15 +136,18 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         )
         return decoder
 
-    def forward_decoder_scores(self, decoder_out: Tensor, metric: str) -> Tensor:
+    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
+                               metric: str,
+                               reduce: Optional[str] = "max") -> Tensor:
         assert metric is not None
-        scores = torch.zeros(0)
 
-        if metric == "cosine":
-            scores = self.decoder.get_cosine_similarity_scores(decoder_out)
-        if metric == "ps":
-            scores = self.decoder.get_ps_likelihood_scores(decoder_out)
-        if metric == "confidence":
-            scores = self.decoder.get_confidence_scores(decoder_out)
+        model_out = decoder_out[0]
+        mixtures_out = decoder_out[1]["mixtures_out"]
+
+        scores = self.decoder.get_ps_likelihood_scores(model_out)
+        if reduce=="max":
+            return self.decoder.get_max_mixture(scores, mixtures_out)
+        elif reduce=="sum":
+            return self.decoder.get_weighted_sum_mixture(scores, mixtures_out)
 
         return scores
