@@ -40,13 +40,20 @@ class TranslationCountinuousTask(TranslationTask):
     def build_generator(self, models, args, seq_gen_cls=None,
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
-        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
 
-        return ContinuousSequenceGenerator(
+        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator, MixtureContinuousSequenceGenerator
+        if hasattr(models[0], "num_mixture_components"):
+            seq_gen_cls = MixtureContinuousSequenceGenerator
+            extra_gen_cls_kwargs ={"reduce_strategy": getattr(args, "reduce_strategy", "max")}
+        else:
+            seq_gen_cls = ContinuousSequenceGenerator
+
+        return seq_gen_cls(
             models,
             self.target_dictionary,
             beam_size=getattr(args, "beam", 1),
             min_len=getattr(args, "min_len", 1),
             search_strategy=getattr(args, "search_strategy", "beam"),
             metric=getattr(args, "decoding_measure", "cosine"),
+            **extra_gen_cls_kwargs
         )
