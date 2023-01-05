@@ -22,7 +22,7 @@ class TranslationContinuousConfig(TranslationConfig):
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
-    def build_model(self, cfg, from_checkpoint=False):
+    def build_model(self, cfg: TranslationContinuousConfig, from_checkpoint=False):
         model = super().build_model(cfg, from_checkpoint)
         if self.cfg.eval_bleu:
             detok_args = json.loads(self.cfg.eval_bleu_detok_args)
@@ -47,7 +47,6 @@ class TranslationCountinuousTask(TranslationTask):
             self.target_dictionary,
             beam_size=getattr(args, "beam", 1),
             min_len=getattr(args, "min_len", 1),
-            search_strategy=getattr(args, "search_strategy", 1),
+            search_strategy=getattr(args, "search_strategy", "beam"),
             metric=getattr(args, "decoding_measure", "cosine"),
-            **extra_gen_cls_kwargs,
         )
