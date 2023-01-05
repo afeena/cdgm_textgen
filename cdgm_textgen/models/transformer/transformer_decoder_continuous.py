@@ -94,6 +94,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             return output_proj
 
 
+
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
                  cfg,
