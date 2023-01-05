@@ -146,7 +146,7 @@ class ContinuousSequenceGenerator(nn.Module):
         encoder_out = self.forward_encoder(net_input)
 
         # initialize buffers
-        bsz, src_len = src_tokens.size()[:2]
+        bsz = src_tokens.shape[0]
 
         scores = (
             torch.zeros(bsz * self.beam_size, 1).to(src_tokens).float()
