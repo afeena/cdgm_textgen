@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, List
 
 import torch
 from fairseq.models.transformer import TransformerConfig
@@ -104,6 +104,15 @@ class TransformerModelContinuous(TransformerModelBase):
 
         return scores
 
+    #legacy
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = "cosine",
+    ):
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):

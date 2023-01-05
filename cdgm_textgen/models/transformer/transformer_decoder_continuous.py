@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import power_spherical
 import torch
@@ -93,6 +93,22 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
+    ):
+        with torch.no_grad():
+            scores = torch.empty()
+            if metric=="cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric=="ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
+
+        return scores
+
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
@@ -178,3 +194,19 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         out = torch.sum(out, dim=2)
 
         return out
+
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
+    ):
+        with torch.no_grad():
+            scores = torch.empty()
+            if metric=="cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric=="ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
+
+        return  self.get_max_mixture(scores, net_output[1]["mixtures_out"])
