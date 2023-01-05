@@ -119,7 +119,7 @@ class ContinuousSequenceGenerator(nn.Module):
         return best_cand_scores, best_cand_tokens
 
     def get_model_scores(self, decoder_out):
-        return self.model.forwrd_decoder_scores(decoder_out, self.metric)
+        return self.model.forward_decoder_scores(decoder_out, self.metric)
 
     def _generate(
             self,
