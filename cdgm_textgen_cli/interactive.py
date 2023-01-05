@@ -16,15 +16,20 @@ import time
 from argparse import Namespace
 from collections import namedtuple
 
+import fairseq.tasks.translation
 import numpy as np
 import torch
 from fairseq import checkpoint_utils, distributed_utils, tasks, utils
 from fairseq.token_generation_constraints import pack_constraints, unpack_constraints
 from fairseq_cli.generate import get_symbols_to_strip_from_output
 
+import cdgm_textgen.tasks.utils
+import cdgm_textgen.tasks.utils as cdgm_utils
 from cdgm_textgen import options
 from cdgm_textgen.dataclass.configs import CDGMTextgenConfig as FairseqConfig
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
+
+fairseq.tasks.translation.TranslationTask.build_generator = cdgm_textgen.tasks.utils.build_generator
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
