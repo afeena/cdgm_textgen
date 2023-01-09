@@ -162,8 +162,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixture_probs = F.softmax(mixtures_out, -1)
         if reduce == "max":
             _, max_idx = mixture_probs.max(dim=-1)
-            idx = max_idx[..., None, None].expand(-1, -1, 1, model_scores.shape[-1])
-            out = torch.gather(model_scores, dim=2, index=idx).squeeze(dim=2)
+            idx = max_idx[..., None].expand(-1, -1, model_scores.shape[-1])
+            out = torch.gather(model_scores, dim=1, index=idx).squeeze()
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
