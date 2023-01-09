@@ -122,7 +122,7 @@ class ContinuousSequenceGenerator(nn.Module):
             # at the next steps we have to choose the best candidates 
             new_candidate_scores[finished.unsqueeze(0)] = float('-inf')
             new_candidate_scores = new_candidate_scores.view(bsz, -1)
-            print(new_candidate_scores, topk_token_idx)
+
             # remove finished hyps from consideration
             best_cand_scores, best_cand_idx = torch.topk(
                 new_candidate_scores, self.beam_size, dim=-1
