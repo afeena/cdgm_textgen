@@ -111,6 +111,9 @@ class ContinuousSequenceGenerator(nn.Module):
                           **kwargs):
         topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
+        if len(topk_token_score.size())==1:
+            topk_token_score = topk_token_score.unsqueeze(0)
+            topk_token_idx = topk_token_idx.unsqueeze(0)
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + topk_token_score
         if step == 1:
             # at the first step all hypotheses are equally likely, so use
