@@ -109,7 +109,7 @@ class ContinuousSequenceGenerator(nn.Module):
                           step: int,
                           finished: Tensor,
                           **kwargs):
-        topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
+        topk_token_score, topk_token_idx = torch.topk(model_scores, self.beam_size, dim=-1)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + topk_token_score
         if step == 1:
