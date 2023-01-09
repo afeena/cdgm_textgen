@@ -288,7 +288,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             self.search = self._hierarchical_beam_search_step
 
     def get_model_scores(self, decoder_out):
-        return self.model.forwrd_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
+        return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
