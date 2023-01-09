@@ -172,7 +172,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             return out
         
         if reduce == "sum":
-            mixture_probs = mixture_probs.squeeze()[..., None].expand(-1, -1, model_scores.shape[-1])
+            mixture_probs = mixture_probs.squeeze(dim=1)[..., None].expand(-1, -1, model_scores.shape[-1])
             out = mixture_probs * model_scores
             out = torch.sum(out, dim=1)
 
