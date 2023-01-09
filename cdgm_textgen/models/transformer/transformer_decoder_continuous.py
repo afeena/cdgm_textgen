@@ -192,5 +192,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
+            mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
+            _, max_idx = mixture_probs.max(dim=-1)
+            idx = max_idx[..., None, None].expand(-1, -1, 1, scores.shape[-1])
+            out = torch.gather(scores, dim=2, index=idx).squeeze(dim=2)
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
-        return self.get_max_mixture(scores, net_output[1]["mixtures_out"])
+            del idx
+            return out
