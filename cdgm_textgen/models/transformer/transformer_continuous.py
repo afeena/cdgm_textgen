@@ -154,5 +154,5 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         model_out = decoder_out[0]
         mixtures_out = decoder_out[1]["mixtures_out"]
 
-        scores = self.decoder.get_max_mixture_output(model_out, mixtures_out)
+        scores = self.decoder.get_mixture_output(model_out, mixtures_out)
         return scores
