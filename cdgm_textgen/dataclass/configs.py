@@ -35,7 +35,14 @@ class CDGMGenerationConfig(GenerationConfig):
         default="cosine",
         metadata={"help": "measure to use for embedding search"},
     )
-
+    reduce_strategy: str = field(
+        default="max",
+        metadata={"help": "measure to use for embedding search"},
+    )
+    search_strategy: str = field(
+        default="beam",
+        metadata={"help": "measure to use for embedding search"},
+    )
     decoding_masking: str = field(
         default="distance",
         metadata={"help": "criteria to use for unmasking"},
