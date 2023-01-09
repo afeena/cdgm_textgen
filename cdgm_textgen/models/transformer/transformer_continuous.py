@@ -154,10 +154,5 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         model_out = decoder_out[0]
         mixtures_out = decoder_out[1]["mixtures_out"]
 
-        scores = self.decoder.get_ps_likelihood_scores(model_out)
-        if reduce == "max":
-            return self.decoder.get_max_mixture(scores, mixtures_out)
-        elif reduce == "sum":
-            return self.decoder.get_weighted_sum_mixture(scores, mixtures_out)
-
+        scores = self.decoder.get_max_mixture_output(model_out, mixtures_out)
         return scores
