@@ -35,7 +35,7 @@ class CDGMGenerationConfig(GenerationConfig):
         default="cosine",
         metadata={"help": "measure to use for embedding search"},
     )
-    reduce_strategy: str = field(
+    reduce_strategy: Optional[str] = field(
         default=None,
         metadata={"help": "measure to use for embedding search"},
     )
