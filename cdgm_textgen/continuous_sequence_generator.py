@@ -102,7 +102,8 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    def beam_search_step(self, model_scores: Tensor,
+    def beam_search_step(self,
+                         model_scores: Tensor,
                          prev_scores: Tensor,
                          bsz,
                          step: int,
