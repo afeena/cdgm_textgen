@@ -157,7 +157,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def forward_mixture(self, decoder_output):
         return self.mixture_head_ff_1(decoder_output)
 
-    def get_mixture_output(self, decoder_out, mixtures_out, reduce="sum"):
+    def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         model_scores = self.get_ps_likelihood_scores(decoder_out)
         mixture_probs = F.softmax(mixtures_out, -1)
         if reduce == "max":

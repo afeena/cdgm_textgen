@@ -36,7 +36,7 @@ class CDGMGenerationConfig(GenerationConfig):
         metadata={"help": "measure to use for embedding search"},
     )
     reduce_strategy: str = field(
-        default="max",
+        default=None,
         metadata={"help": "measure to use for embedding search"},
     )
     search_strategy: str = field(

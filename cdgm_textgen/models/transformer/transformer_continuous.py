@@ -148,7 +148,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
                                metric: str,
-                               reduce: Optional[str] = "max") -> Tensor:
+                               reduce: Optional[str] = None) -> Tensor:
         assert metric is not None
 
         model_out = decoder_out[0]

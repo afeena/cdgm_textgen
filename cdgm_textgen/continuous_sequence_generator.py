@@ -271,7 +271,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             eos=None,
             search_strategy="beam",
             metric="ps",
-            reduce_strategy="max"
+            reduce_strategy=None
     ):
         super().__init__(model,
                          tgt_dict,
