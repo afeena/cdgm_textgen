@@ -2,7 +2,6 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import math
 from typing import Dict, List, Optional
 
 import torch
@@ -57,7 +56,7 @@ class ContinuousSequenceGenerator(nn.Module):
         self.max_len = self.model.max_decoder_positions()
 
         if search_strategy == "beam":
-            self.search = self._beam_search_step
+            self.search = self.beam_search_step
 
         self.metric = metric
 
@@ -103,15 +102,15 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    def _beam_search_step(self, model_scores: Tensor,
-                          prev_scores: Tensor,
-                          bsz,
-                          step: int,
-                          finished: Tensor,
-                          **kwargs):
+    def beam_search_step(self, model_scores: Tensor,
+                         prev_scores: Tensor,
+                         bsz,
+                         step: int,
+                         finished: Tensor,
+                         **kwargs):
         topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
-        if len(topk_token_score.size())==1:
+        if len(topk_token_score.size()) == 1:
             topk_token_score = topk_token_score.unsqueeze(0)
             topk_token_idx = topk_token_idx.unsqueeze(0)
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + topk_token_score
@@ -120,7 +119,7 @@ class ContinuousSequenceGenerator(nn.Module):
             # only the first beam
             best_cand_scores = topk_token_score[::self.beam_size, :].contiguous()
             best_cand_tokens = topk_token_idx[::self.beam_size, :].contiguous()
-            best_cand_idx = torch.zeros(bsz*self.beam_size, dtype=torch.long, device=topk_token_idx.device)
+            best_cand_idx = torch.zeros(bsz * self.beam_size, dtype=torch.long, device=topk_token_idx.device)
         else:
             # at the next steps we have to choose the best candidates 
             new_candidate_scores[finished.unsqueeze(0)] = float('-inf')
@@ -130,11 +129,11 @@ class ContinuousSequenceGenerator(nn.Module):
             best_cand_scores, best_cand_idx = torch.topk(
                 new_candidate_scores, self.beam_size, dim=-1
             )
-            best_cand_scores = best_cand_scores    # (bsz * beam_size)
+            best_cand_scores = best_cand_scores  # (bsz * beam_size)
             best_cand_tokens = topk_token_idx.view(bsz, -1).gather(1, best_cand_idx)
 
-        return best_cand_scores.view(-1), best_cand_tokens.view(-1), torch.div(best_cand_idx, self.beam_size, rounding_mode='trunc').view(-1)
-
+        return best_cand_scores.view(-1), best_cand_tokens.view(-1), torch.div(best_cand_idx, self.beam_size,
+                                                                               rounding_mode='trunc').view(-1)
 
     def get_model_scores(self, decoder_out):
         return self.model.forward_decoder_scores(decoder_out, self.metric)
@@ -182,7 +181,6 @@ class ContinuousSequenceGenerator(nn.Module):
         finished = torch.zeros(bsz * self.beam_size).bool().to(src_tokens)
         offset = torch.arange(bsz).repeat(self.beam_size).to(src_tokens) * self.beam_size
 
-
         for step in range(1, self.max_len + 1):
             prev_scores = scores[:, step - 1].clone()
             prev_tokens = tokens[:, : step].clone()
@@ -200,13 +198,10 @@ class ContinuousSequenceGenerator(nn.Module):
             # update buffers
             active_hyp_idx = (~finished).nonzero().view(-1)
             finished_idx = finished.nonzero().long().view(-1)
-            retain_hyps_idx = torch.empty(bsz*self.beam_size).to(cand_scores).long()
+            retain_hyps_idx = torch.empty(bsz * self.beam_size).to(cand_scores).long()
             retain_hyps_idx[finished_idx] = finished_idx
             num_remain = self.beam_size - torch.sum(finished)
             retain_hyps_idx[active_hyp_idx] = candidate_idx[:num_remain]
-              
-               
-            
 
             step_tensor = torch.full((active_hyp_idx.size(0),), step).to(src_tokens).long()[..., None].t()
             idx = (active_hyp_idx, step_tensor)
@@ -286,9 +281,24 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                          metric=metric)
 
         self.reduce_strategy = reduce_strategy
-        if search_strategy == "hierarchical_beam":
+        if search_strategy == "mixture_beam":
             assert reduce_strategy is None
-            self.search = self._hierarchical_beam_search_step
+            self.search = self.mixture_beam_search_step
+
+    def mixture_beam_search_step(self, model_scores: Tensor,
+                                      prev_scores: Tensor,
+                                      bsz,
+                                      step: int,
+                                      finished: Tensor, ):
+        """
+        Model scores are of shape (bsz, 1, mixture, vocab_size)
+        Reshape to (bsz, 1, mixture*vocab_size) and get tokens ids by t mod vocab_size
+        """
+        model_scores = model_scores.view(bsz, 1, -1)
+        cand_scores, cand_tokens, candidate_idx = self.beam_search_step(model_scores, prev_scores, bsz, step, finished)
+
+        cand_tokens = torch.div(cand_tokens, self.vocab_size, rounding_mode='trunc')
+        return cand_scores, cand_tokens, candidate_idx
 
     def get_model_scores(self, decoder_out):
         return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
