@@ -178,6 +178,33 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             return out
 
+        if reduce == "sample":
+            mixture_probs = mixture_probs.squeeze(dim=1)
+            idx = torch.multinomial(mixture_probs, 1)
+            idx = idx[..., None].expand(-1, -1, model_scores.shape[-1])
+            out = torch.gather(model_scores, dim=1, index=idx).squeeze(-1)
+            del idx
+            return out
+    def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
+        """
+        sample mixture index first, then sample from respective PS distribution
+        """
+        with torch.no_grad():
+            bsz = decoder_out.shape[0]
+            features = decoder_out.view(-1, self.output_embed_dim)
+            mixture_probs = F.softmax(mixtures_out, -1)
+            idx = torch.multinomial(mixture_probs, 1)
+            features_idx = torch.gather(features, dim=1, index=idx).squeeze(-1)
+
+            kappa = torch.norm(features_idx, dim=-1).unsqueeze(1)
+            features_idx = F.normalize(features_idx, p=2.0, dim=-1).unsqueeze(1)
+
+            q_dist = power_spherical.PowerSpherical(features_idx, kappa)
+            sample = q_dist.sample()
+
+            return sample, idx
+
+
     #legacy. used only with fairseq generator
     def get_normalized_probs(
             self,
