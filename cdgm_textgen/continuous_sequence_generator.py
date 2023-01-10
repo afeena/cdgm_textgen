@@ -279,7 +279,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                          beam_size=beam_size,
                          min_len=min_len,
                          eos=eos,
-                         metric=metric)
+                         metric="ps")
 
         self.reduce_strategy = reduce_strategy
         if search_strategy == "mixture_beam":
