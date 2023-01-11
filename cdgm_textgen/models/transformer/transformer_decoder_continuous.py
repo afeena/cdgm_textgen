@@ -180,13 +180,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             return out
 
-        if reduce == "sample":
-            mixture_probs = mixture_probs.squeeze(dim=1)
-            idx = torch.multinomial(mixture_probs, 1)
-            idx = idx[..., None].expand(-1, -1, model_scores.shape[-1])
-            out = torch.gather(model_scores, dim=1, index=idx).squeeze(-1)
-            del idx
-            return out
     def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
         """
         sample mixture index first, then sample from respective PS distribution

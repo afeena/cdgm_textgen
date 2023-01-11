@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import logging
 from typing import Dict, List, Optional
 
 import torch
@@ -282,6 +283,9 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                          metric="ps")
 
         self.reduce_strategy = reduce_strategy
+        if self.metric != "ps":
+            logging.warning("PS decoding measure is recommended to use with a mixture model")
+
         if search_strategy == "mixture_beam":
             assert reduce_strategy is None
             self.search = self.mixture_beam_search_step
