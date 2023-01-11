@@ -160,6 +160,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         model_scores = self.get_ps_likelihood_scores(decoder_out)
         mixture_probs = F.softmax(mixtures_out, -1)
+        #for debug purposes
+        #from datetime import datetime
+        #torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
         if reduce is None:
             return model_scores
 
