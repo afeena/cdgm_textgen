@@ -291,15 +291,15 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             self.search = self.mixture_beam_search_step
 
     def mixture_beam_search_step(self, model_scores: Tensor,
-                                      prev_scores: Tensor,
-                                      bsz,
-                                      step: int,
-                                      finished: Tensor, ):
+                                 prev_scores: Tensor,
+                                 bsz,
+                                 step: int,
+                                 finished: Tensor, ):
         """
         Model scores are of shape (bsz, mixture, vocab_size)
         Reshape to (bsz, mixture*vocab_size) and get tokens ids by t mod vocab_size
         """
-        model_scores = model_scores.view(bsz*self.beam_size, -1)
+        model_scores = model_scores.view(bsz * self.beam_size, -1)
         cand_scores, cand_tokens, candidate_idx = self.beam_search_step(model_scores, prev_scores, bsz, step, finished)
         cand_tokens = torch.fmod(cand_tokens, self.vocab_size)
         return cand_scores, cand_tokens, candidate_idx

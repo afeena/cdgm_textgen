@@ -41,7 +41,8 @@ class TranslationCountinuousTask(TranslationTask):
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
 
-        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator, MixtureContinuousSequenceGenerator
+        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator, \
+            MixtureContinuousSequenceGenerator
         if hasattr(models[0].decoder, "num_mixture_components"):
             seq_gen_cls = MixtureContinuousSequenceGenerator
             extra_gen_cls_kwargs = {"reduce_strategy": getattr(args, "reduce_strategy", None)}
