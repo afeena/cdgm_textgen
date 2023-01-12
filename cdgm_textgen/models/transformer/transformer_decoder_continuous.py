@@ -164,7 +164,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         #from datetime import datetime
         #torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
         if reduce is None:
-            return model_scores
+            return mixture_probs*model_scores
 
         if reduce == "max":
             _, max_idx = mixture_probs.max(dim=-1)
