@@ -1,7 +1,8 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple, Dict, List
 
+import torch
 from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 
@@ -36,9 +37,6 @@ class TransformerModelContinuous(TransformerModelBase):
             embed_tokens,
         )
         return decoder
-
-    def build_index(self, metric=None):
-        self.decoder.build_index(metric)
 
     def forward(
             self,
@@ -92,6 +90,21 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output):
         return self.decoder.target_embed(sample["target"])
 
+    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
+        assert metric is not None
+        scores = torch.zeros(0)
+        model_out = decoder_out[0]
+
+        if metric == "cosine":
+            scores = self.decoder.get_cosine_similarity_scores(model_out)
+        if metric == "ps":
+            scores = self.decoder.get_ps_likelihood_scores(model_out)
+        # if metric == "confidence":
+        #     scores = self.decoder.get_confidence_scores(model_out)
+
+        return scores
+
+    # legacy
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -110,7 +123,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     )
     mixture_dropout: float = field(
         default=0,
-        metadata={"help": "fropout for the mixture head"},
+        metadata={"help": "dropout for the mixture head"},
     )
 
 
@@ -132,3 +145,14 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             embed_tokens
         )
         return decoder
+
+    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
+                               metric: str,
+                               reduce: Optional[str] = None) -> Tensor:
+        assert metric is not None
+
+        model_out = decoder_out[0]
+        mixtures_out = decoder_out[1]["mixtures_out"]
+
+        scores = self.decoder.get_mixture_output(model_out, mixtures_out, reduce)
+        return scores

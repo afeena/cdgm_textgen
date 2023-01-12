@@ -87,8 +87,8 @@ class ARPowerSphericalCriterion(CosineARCriterion):
         d_x = power_spherical.PowerSpherical(out, kappa)
 
         loss = -d_x.log_prob(target)
-        reg_term = self.kappa_lambda*(torch.pow(kappa,2).mean(dim=-1))
-        loss = loss.mean(dim=-1)+reg_term.mean(dim=-1)
+        reg_term = self.kappa_lambda * (torch.pow(kappa, 2).mean(dim=-1))
+        loss = loss.mean(dim=-1) + reg_term.mean(dim=-1)
 
         logging = {"kappa": kappa.detach().mean(dim=-1)}
 

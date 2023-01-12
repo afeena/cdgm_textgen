@@ -2,15 +2,12 @@ import json
 from argparse import Namespace
 from dataclasses import dataclass, field
 
-import torch
 from fairseq.data import encoders
 from fairseq.tasks import register_task
 from fairseq.tasks.translation import TranslationConfig
 from fairseq.tasks.translation import TranslationTask
-from fairseq import search
 
 EVAL_BLEU_ORDER = 4
-
 
 
 @dataclass
@@ -22,9 +19,10 @@ class TranslationContinuousConfig(TranslationConfig):
         },
     )
 
+
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
-    def build_model(self, cfg, from_checkpoint=False):
+    def build_model(self, cfg: TranslationContinuousConfig, from_checkpoint=False):
         model = super().build_model(cfg, from_checkpoint)
         if self.cfg.eval_bleu:
             detok_args = json.loads(self.cfg.eval_bleu_detok_args)
@@ -43,43 +41,21 @@ class TranslationCountinuousTask(TranslationTask):
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
 
-            from cdgm_textgen.sequence_generator import SequenceGenerator
+        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator, \
+            MixtureContinuousSequenceGenerator
+        if hasattr(models[0].decoder, "num_mixture_components"):
+            seq_gen_cls = MixtureContinuousSequenceGenerator
+            extra_gen_cls_kwargs = {"reduce_strategy": getattr(args, "reduce_strategy", None)}
+        else:
+            seq_gen_cls = ContinuousSequenceGenerator
+            extra_gen_cls_kwargs = {}
 
-            search_strategy = search.BeamSearch(self.target_dictionary)
-
-            extra_gen_cls_kwargs = extra_gen_cls_kwargs or {}
-
-            return SequenceGenerator(
-                models,
-                self.target_dictionary,
-                beam_size=getattr(args, "beam", 5),
-                max_len_a=getattr(args, "max_len_a", 0),
-                max_len_b=getattr(args, "max_len_b", 200),
-                min_len=getattr(args, "min_len", 1),
-                normalize_scores=(not getattr(args, "unnormalized", False)),
-                len_penalty=getattr(args, "lenpen", 1),
-                unk_penalty=getattr(args, "unkpen", 0),
-                temperature=getattr(args, "temperature", 1.0),
-                match_source_len=getattr(args, "match_source_len", False),
-                no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
-                search_strategy=search_strategy,
-                metric=getattr(args, "decoding_measure", "cosine"),
-                **extra_gen_cls_kwargs,
-            )
-
-    def valid_step(self, sample, model, criterion):
-        model.eval()
-        with torch.no_grad():
-            loss, sample_size, logging_output = criterion(model, sample)
-
-            if self.cfg.eval_bleu:
-                bleu = self._inference_with_bleu(self.sequence_generator, sample, model)
-                logging_output["_bleu_sys_len"] = bleu.sys_len
-                logging_output["_bleu_ref_len"] = bleu.ref_len
-                # we split counts into separate entries so that they can be
-                # summed efficiently across workers using fast-stat-sync
-                assert len(bleu.counts) == EVAL_BLEU_ORDER
-                for i in range(EVAL_BLEU_ORDER):
-                    logging_output["_bleu_counts_" + str(i)] = bleu.counts[i]
-                    logging_output["_bleu_totals_" + str(i)] = bleu.totals[i]
-            return loss, sample_size, logging_output
+        return seq_gen_cls(
+            models,
+            self.target_dictionary,
+            beam_size=getattr(args, "beam", 1),
+            min_len=getattr(args, "min_len", 1),
+            search_strategy=getattr(args, "search_strategy", "beam"),
+            metric=getattr(args, "decoding_measure", "cosine"),
+            **extra_gen_cls_kwargs
+        )

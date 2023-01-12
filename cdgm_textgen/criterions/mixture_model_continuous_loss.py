@@ -2,15 +2,12 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
-import power_spherical
-from power_spherical import PowerSpherical
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion
 
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
-    ARPowerSphericalRevKLCriterion, \
-    ARPowerSphericalCriterion, ARPowerSphericalCriterionConfig
+    ARPowerSphericalRevKLCriterion
 
 
 @dataclass
@@ -64,14 +61,14 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         mixture_out_probs = F.softmax(mixture_out, dim=-1)  # prior
         log_prior_probs = F.log_softmax(mixture_out, dim=-1)
 
-        #samples are in format Mx(B*T)xD
-        #get sample x_i for each mixture component i where i=1...M
+        # samples are in format Mx(B*T)xD
+        # get sample x_i for each mixture component i where i=1...M
         z_samples = q.rsample()
         # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
         log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
         # get log Q(x_i) for i=1..M
         # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
-        log_q_out = torch.logsumexp(log_q_out_component+log_prior_probs.transpose(0,1)[None,:,:], dim=1)
+        log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
 
         p_out = p.log_prob(z_samples)
 
@@ -85,14 +82,14 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         #     print("post save")
 
         if self.mixture_regularizer == "posterior":
-            lmodes_probs = F.log_softmax(mixture_out, dim=-1) + log_q_out
+            lmodes_probs = log_prior_probs + log_q_out.t()
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-            entropy_reg = (mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
+            entropy_reg = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         elif self.mixture_regularizer == "prior":
-            entropy_reg = (mixture_out_probs * F.log_softmax(mixture_out, dim=-1)).mean(dim=-1)
+            entropy_reg = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy_reg).mean(dim=-1)
         else:
             loss = loss.mean(dim=-1)
 
-        return loss, {"kappa": kappa.detach().mean(-1)}
+        return loss, {"kappa": kappa.detach().mean()}

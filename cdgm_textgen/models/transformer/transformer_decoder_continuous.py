@@ -1,4 +1,3 @@
-import gc
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -28,7 +27,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
-        self.index = None
         self.output_projection = None
         self.dict_len = len(self.dictionary)
         if cfg.no_last_dec_layer_norm:
@@ -37,15 +35,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         # build target (reference) emb
         padding_idx = dictionary.pad()
 
-        with torch.no_grad():
-            self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
-            if cfg.target_embed_path:
-                logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-                embed_dict = utils.parse_embedding(cfg.target_embed_path)
-                utils.load_embedding(embed_dict, dictionary, self.target_embed)
-            self.target_embed.weight.requires_grad = False
-            self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                       dim=-1).cuda()
+        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
+        if cfg.target_embed_path:
+            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+            embed_dict = utils.parse_embedding(cfg.target_embed_path)
+            utils.load_embedding(embed_dict, dictionary, self.target_embed)
+        self.target_embed.weight.requires_grad = False
+        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
+                                                   dim=-1).cuda()
 
     def forward(
             self,
@@ -70,6 +67,32 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
+        with torch.no_grad():
+            bsz = features.shape[0]
+            features = features.view(-1, self.output_embed_dim)
+            kappa = torch.norm(features, dim=-1).unsqueeze(1)
+            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+
+            q_dist = power_spherical.PowerSpherical(features, kappa)
+            log_probs = q_dist.log_prob(self.target_embed_normalized)
+
+            output_proj = log_probs.view(bsz, -1, self.dict_len)
+            return output_proj
+
+    def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
+        with torch.no_grad():
+            kappa = torch.tensor([1.], device=features.device)
+            features = F.normalize(features, p=2.0, dim=-1)
+            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
+            norm_const = _neglogcmk(m, kappa)
+
+            output_proj = features @ self.target_embed_normalized.T
+            if norm_const is not None:
+                output_proj += norm_const.squeeze()
+
+            return output_proj
+
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -78,37 +101,13 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            scores = self.nearest_neighbor_search(net_output[0], metric=metric)
+            scores = torch.zeros(0)
+            if metric == "cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric == "ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
 
         return scores
-
-
-    def nearest_neighbor_search(self, features, metric=None):
-        with torch.no_grad():
-            if metric in ["cosine", "l2"]:
-                norm_const = None
-                if metric == "cosine":
-                    kappa = torch.tensor([1.], device=features.device)
-                    features = F.normalize(features, p=2.0, dim=-1)
-                    m = torch.tensor([self.target_embed.weight.shape[-1]], device=features.device)
-                    norm_const = _neglogcmk(m, kappa)
-
-                output_proj = features @ self.target_embed_normalized.T
-                if norm_const is not None:
-                    output_proj += norm_const.squeeze()
-
-            if metric == "ps":
-                bsz = features.shape[0]
-                features = features.view(-1, self.output_embed_dim)
-                kappa = torch.norm(features, dim=-1).unsqueeze(1)
-                features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
-
-                q_dist = power_spherical.PowerSpherical(features, kappa)
-                log_probs = q_dist.log_prob(self.target_embed_normalized)
-
-                output_proj = log_probs.view(bsz, -1, self.dict_len)
-
-        return output_proj
 
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
@@ -158,7 +157,53 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def forward_mixture(self, decoder_output):
         return self.mixture_head_ff_1(decoder_output)
 
-    @torch.jit.export
+    def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
+        model_scores = self.get_ps_likelihood_scores(decoder_out)
+        mixture_probs = F.softmax(mixtures_out, -1)
+        #for debug purposes
+        #from datetime import datetime
+        #torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
+        if reduce is None:
+            return model_scores
+
+        if reduce == "max":
+            _, max_idx = mixture_probs.max(dim=-1)
+            idx = max_idx[..., None].expand(-1, -1, model_scores.shape[-1])
+            out = torch.gather(model_scores, dim=1, index=idx).squeeze(-1)
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+            del idx
+            return out
+        
+        if reduce == "sum":
+            mixture_probs = mixture_probs.squeeze(dim=1)[..., None].expand(-1, -1, model_scores.shape[-1])
+            out = mixture_probs * model_scores
+            out = torch.sum(out, dim=1)
+
+            return out
+
+    def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
+        """
+        sample mixture index first, then sample from respective PS distribution
+        """
+        with torch.no_grad():
+            bsz = decoder_out.shape[0]
+            features = decoder_out.view(-1, self.output_embed_dim)
+            mixture_probs = F.softmax(mixtures_out, -1)
+            idx = torch.multinomial(mixture_probs, 1)
+            features_idx = torch.gather(features, dim=1, index=idx).squeeze(-1)
+
+            kappa = torch.norm(features_idx, dim=-1).unsqueeze(1)
+            features_idx = F.normalize(features_idx, p=2.0, dim=-1).unsqueeze(1)
+
+            q_dist = power_spherical.PowerSpherical(features_idx, kappa)
+            sample = q_dist.sample()
+
+            return sample, idx
+
+
+    #legacy. used only with fairseq generator
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -167,22 +212,18 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            out = net_output[0]
-            mixtures_out = net_output[1]["mixtures_out"]
+            scores = torch.zeros(0)
+            if metric == "cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric == "ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
+            mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
+            _, max_idx = mixture_probs.max(dim=-1)
+            idx = max_idx[..., None, None].expand(-1, -1, 1, scores.shape[-1])
+            out = torch.gather(scores, dim=2, index=idx).squeeze(dim=2)
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
-            if self.num_mixture_components > 1:
-                dist = F.softmax(mixtures_out, -1)
-                _, idx = dist.max(dim=-1)
-
-                # for debug purposes
-                # from datetime import datetime
-                # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
-
-                idx = idx[..., None, None].expand(-1, -1, 1, out.size(3))
-                out = torch.gather(out, dim=2, index=idx).squeeze(dim=2)
-
-                del idx
-
-            scores = self.nearest_neighbor_search(out, metric=metric)
-
-            return scores
+            del idx
+            return out
