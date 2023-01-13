@@ -275,7 +275,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             metric="ps",
             reduce_strategy=None
     ):
-        if beam_size > model[0].decoder.num_mixtures:
+        if beam_size > model[0].decoder.num_mixture_components:
             raise ValueError("Beam size cannot be larger than the number of mixtures")
         super().__init__(model,
                          tgt_dict,
