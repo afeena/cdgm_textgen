@@ -302,19 +302,21 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         Reshape to (bsz, mixture*vocab_size) and get tokens ids by t mod vocab_size
         """
 
-        mixture_scores, mixture_tokens = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
+        mixture_scores, mixture_tokens = torch.max(model_scores.squeeze(), dim=-1)
 
+        topk_token_score, topk_token_pos = torch.topk(mixture_scores, self.beam_size, dim=-1)
+        topk_token_idx = mixture_tokens.gather(-1, topk_token_pos)
         # for each of the hyp in the acvtive beam choose self.beam possible extensions
-        if len(mixture_scores.size()) == 1:
-            topk_token_score = mixture_scores.unsqueeze(0)
-            topk_token_idx = mixture_scores.unsqueeze(0)
-        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + mixture_scores
+        if len(topk_token_score.size()) == 1:
+            topk_token_score = topk_token_score.unsqueeze(0)
+            topk_token_idx = topk_token_idx.unsqueeze(0)
+        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + topk_token_score
         if step == 1:
             # at the first step all hypotheses are equally likely, so use
             # only the first beam
-            best_cand_scores = mixture_scores[::self.beam_size, :].contiguous()
-            best_cand_tokens = mixture_tokens[::self.beam_size, :].contiguous()
-            best_cand_mixt = torch.zeros(bsz * self.beam_size, dtype=torch.long, device=mixture_tokens.device)
+            best_cand_scores = topk_token_score[::self.beam_size, :].contiguous()
+            best_cand_tokens = topk_token_idx[::self.beam_size, :].contiguous()
+            best_cand_idx = torch.zeros(bsz * self.beam_size, dtype=torch.long, device=topk_token_idx.device)
         else:
             # at the next steps we have to choose the best candidates
             new_candidate_scores[finished.unsqueeze(0)] = float('-inf')
@@ -325,14 +327,10 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                 new_candidate_scores, self.beam_size, dim=-1
             )
             best_cand_scores = best_cand_scores  # (bsz * beam_size)
-            best_cand_tokens = mixture_tokens.view(bsz, -1).gather(1, best_cand_idx)
-            best_cand_mixt = torch.div(best_cand_idx, self.beam_size, rounding_mode='trunc').view(-1)
+            best_cand_tokens = topk_token_idx.view(bsz, -1).gather(1, best_cand_idx)
 
-        cand_scores = best_cand_scores.view(-1)
-        cand_tokens = torch.fmod(best_cand_tokens.view(-1), self.vocab_size)
-
-
-        return cand_scores, cand_tokens, best_cand_mixt
+        return best_cand_scores.view(-1), best_cand_tokens.view(-1), torch.div(best_cand_idx, self.beam_size,
+                                                                               rounding_mode='trunc').view(-1)
 
     def get_model_scores(self, decoder_out):
         return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
