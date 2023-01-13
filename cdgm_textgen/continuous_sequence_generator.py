@@ -232,7 +232,7 @@ class ContinuousSequenceGenerator(nn.Module):
         for i in range(bsz):
             toks = tokens[top_hyp_idx[i] + i * self.beam_size]
             length = sum(toks.ne(self.pad).int())
-            score = last_scores[top_hyp_idx[i] + i * self.beam_size].item()
+            score = last_scores[top_hyp_idx[i] + i * self.beam_size].item()/length
             pos_scores = scores[top_hyp_idx[i] + i * self.beam_size]
             pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
 
@@ -337,13 +337,105 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
+    def __init__(self,
+                 model,
+                 tgt_dict,
+                 beam_size=1,
+                 min_len=1,
+                 eos=None,
+                 search_strategy="sample",
+                 metric="ps",
+                 n_samples=1
+                 ):
+        super().__init__(model, tgt_dict,
+                         beam_size=beam_size,
+                         min_len=min_len,
+                         eos=eos,
+                         metric=metric,
+                         search_strategy="beam", )
+        assert self.metric == "ps", f"cannot use MBR sampling with metric {self.metric}"
+        assert self.beam_size == 1, "beam > 1 is not possible with MBR"
+        self.search = self._mbr_sampling_step
+        self.n_samples = n_samples
+
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
             bos_token: Optional[int] = None,
             **kwargs
     ):
-        pass
+        incremental_states = torch.jit.annotate(
+            Dict[str, Dict[str, Optional[Tensor]]], {})
+
+        net_input = sample["net_input"]
+        if "src_tokens" in net_input:
+            src_tokens = net_input["src_tokens"]
+            # length of the source text being the character length except EndOfSentence and pad
+            src_lengths = (
+                (src_tokens.ne(self.eos) & src_tokens.ne(self.pad)).long().sum(dim=1)
+            )
+
+        else:
+            raise Exception(
+                "expected src_tokens in net input. input keys: "
+                + str(net_input.keys())
+            )
+        encoder_out = self.forward_encoder(net_input)
+
+        # initialize buffers
+        bsz = src_tokens.shape[0]
+        vectors = (
+            torch.zeros(bsz * self.n_samples, src_lengths*2 + 1,self.model.decoder.output_embed_dim).to(src_tokens).float()
+        )  # +1 for eos; pad is never chosen for scoring
+        tokens = (
+            torch.zeros(bsz * self.beam_size, src_lengths*2+1)
+            .to(src_tokens)
+            .long()
+            .fill_(self.pad)
+        )  # +2 for eos and pad
+        tokens[:, 0] = self.eos if bos_token is None else bos_token
+        vectors[:, 0] = self.model.decoder.target_embed(tokens[:,0])
+
+        new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
+        new_order = new_order.to(src_tokens.device).long()
+        encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
+
+        for step in range(1, src_lengths*2+1):
+            prev_tokens = tokens[:, : step].clone()
+
+            decoder_out = self.forward_decoder(
+                prev_tokens,
+                encoder_out=encoder_out,
+                incremental_state=incremental_states
+            )
+
+            samples, samples_probs = self.model.forward_samples(decoder_out, vectors, step, self.n_samples)
+
+
+
+
+
+        final_hyps = []
+
+        # get last scores for each hyp for each sent in batch
+        lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
+        last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
+        top_hyp_scores, top_hyp_idx = last_scores.view(bsz, -1).max(-1)
+
+        for i in range(bsz):
+            toks = tokens[top_hyp_idx[i] + i * self.beam_size]
+            length = sum(toks.ne(self.pad).int())
+            score = last_scores[top_hyp_idx[i] + i * self.beam_size].item()
+            pos_scores = scores[top_hyp_idx[i] + i * self.beam_size]
+            pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
+
+            final_hyps.append([{"tokens": toks[1:length],
+                                "score": score,
+                                "attention": torch.empty(0),  # src_len x tgt_len
+                                "alignment": torch.empty(0),
+                                "positional_scores": pos_scores[1:length]}]
+                              )
+        return final_hyps
 
     def _mbr_sampling_step(self,
                            model_scores: Tensor,
@@ -352,27 +444,5 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                            num_samples: Optional[int] = 15,
                            decoder_out: Tensor = None,
                            **kwargs):
-        assert self.metric == "ps", f"cannot use MBR sampling with metric {self.metric}"
-        assert self.beam_size == 1, "beam > 1 is not possible with MBR"
 
-        # sample from the model
-
-        # if there are M mixtures, each mixture produce (1/M)*num_samples
-        # so we have num_samples total for each token
-        if hasattr(self.model, "num_mixture_components"):
-            num_mxt = self.model.num_mixture_components
-        else:
-            num_mxt = 1
-
-        model_scores = model_scores.view(-1, self.vocab_size)
-        cand_samples = torch.multinomial(model_scores, num_samples=num_samples // num_mxt, replacement=True)
-        # sample candidates BxTxnum_samples
-        cand_samples = cand_samples.view(bsz, -1, num_samples)
-
-        # now calculate pairwise cosine similarity for candidate hyp
-        # use mbr sampling similar to https://arxiv.org/pdf/2108.04718.pdf
-        # make it for each partial hyp
-        # utility is cosine sim between hyps
-        # p(y|x) is PS prob
-
-        return None
+        continuous_sample, log_probs_samples, idxs = self.model.sample_from_model(model_scores, num_samples=num_samples)
