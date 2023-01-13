@@ -275,6 +275,8 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             metric="ps",
             reduce_strategy=None
     ):
+        if beam_size > model[0].decoder.num_mixtures:
+            raise ValueError("Beam size cannot be larger than the number of mixtures")
         super().__init__(model,
                          tgt_dict,
                          beam_size=beam_size,
@@ -299,10 +301,38 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         Model scores are of shape (bsz, mixture, vocab_size)
         Reshape to (bsz, mixture*vocab_size) and get tokens ids by t mod vocab_size
         """
-        model_scores = model_scores.view(bsz * self.beam_size, -1)
-        cand_scores, cand_tokens, candidate_idx = self.beam_search_step(model_scores, prev_scores, bsz, step, finished)
-        cand_tokens = torch.fmod(cand_tokens, self.vocab_size)
-        return cand_scores, cand_tokens, candidate_idx
+
+        mixture_scores, mixture_tokens = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
+
+        # for each of the hyp in the acvtive beam choose self.beam possible extensions
+        if len(mixture_scores.size()) == 1:
+            topk_token_score = mixture_scores.unsqueeze(0)
+            topk_token_idx = mixture_scores.unsqueeze(0)
+        new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + mixture_scores
+        if step == 1:
+            # at the first step all hypotheses are equally likely, so use
+            # only the first beam
+            best_cand_scores = mixture_scores[::self.beam_size, :].contiguous()
+            best_cand_tokens = mixture_tokens[::self.beam_size, :].contiguous()
+            best_cand_mixt = torch.zeros(bsz * self.beam_size, dtype=torch.long, device=mixture_tokens.device)
+        else:
+            # at the next steps we have to choose the best candidates
+            new_candidate_scores[finished.unsqueeze(0)] = float('-inf')
+            new_candidate_scores = new_candidate_scores.view(bsz, -1)
+
+            # remove finished hyps from consideration
+            best_cand_scores, best_cand_idx = torch.topk(
+                new_candidate_scores, self.beam_size, dim=-1
+            )
+            best_cand_scores = best_cand_scores  # (bsz * beam_size)
+            best_cand_tokens = mixture_tokens.view(bsz, -1).gather(1, best_cand_idx)
+            best_cand_mixt = torch.div(best_cand_idx, self.beam_size, rounding_mode='trunc').view(-1)
+
+        cand_scores = best_cand_scores.view(-1)
+        cand_tokens = torch.fmod(best_cand_tokens.view(-1), self.vocab_size)
+
+
+        return cand_scores, cand_tokens, best_cand_mixt
 
     def get_model_scores(self, decoder_out):
         return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
