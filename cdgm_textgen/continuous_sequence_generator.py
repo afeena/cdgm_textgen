@@ -226,7 +226,8 @@ class ContinuousSequenceGenerator(nn.Module):
 
         # get last scores for each hyp for each sent in batch
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
-        last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))/lengths
+        last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
+        last_scores/=(lengths.float()+1e-8)
         top_hyp_scores, top_hyp_idx = last_scores.view(bsz, -1).max(-1)
 
         for i in range(bsz):
