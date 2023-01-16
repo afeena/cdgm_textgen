@@ -227,7 +227,7 @@ class ContinuousSequenceGenerator(nn.Module):
         # get last scores for each hyp for each sent in batch
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
         last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
-        last_scores/=(lengths.float()+1e-8)
+        last_scores /= (lengths.float() + 1e-8)
         top_hyp_scores, top_hyp_idx = last_scores.view(bsz, -1).max(-1)
 
         for i in range(bsz):
@@ -386,22 +386,23 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         # initialize buffers
         bsz = src_tokens.shape[0]
         vectors = (
-            torch.zeros(bsz * self.n_samples, src_lengths*2 + 1,self.model.decoder.output_embed_dim).to(src_tokens).float()
+            torch.zeros(bsz * self.n_samples, src_lengths * 2 + 1, self.model.decoder.output_embed_dim).to(
+                src_tokens).float()
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
-            torch.zeros(bsz * self.beam_size, src_lengths*2+1)
+            torch.zeros(bsz * self.beam_size, src_lengths * 2 + 1)
             .to(src_tokens)
             .long()
             .fill_(self.pad)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
-        vectors[:, 0] = self.model.decoder.target_embed(tokens[:,0])
+        vectors[:, 0] = self.model.decoder.target_embed(tokens[:, 0])
 
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
 
-        for step in range(1, src_lengths*2+1):
+        for step in range(1, src_lengths * 2 + 1):
             prev_tokens = tokens[:, : step].clone()
 
             decoder_out = self.forward_decoder(
@@ -411,10 +412,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             )
 
             samples, samples_probs = self.model.forward_samples(decoder_out, vectors, step, self.n_samples)
-
-
-
-
 
         final_hyps = []
 
