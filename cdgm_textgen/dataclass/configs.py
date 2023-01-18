@@ -43,6 +43,10 @@ class CDGMGenerationConfig(GenerationConfig):
         default="beam",
         metadata={"help": "measure to use for embedding search"},
     )
+    mixture_temperature: float = field(
+        default=1.0,
+        metadata={"help": "temperature for mixture prior"},
+    )
     decoding_masking: str = field(
         default="distance",
         metadata={"help": "criteria to use for unmasking"},
