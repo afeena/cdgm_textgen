@@ -104,7 +104,8 @@ class TransformerModelContinuous(TransformerModelBase):
 
         return scores
 
-    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1, mixture_out: Optional[Tensor]=None) -> Tensor:
+    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
+                        mixture_out: Optional[Tensor] = None) -> Tensor:
         return self.decoder.sample_output(decoder_out, n_samples)
 
     # legacy
@@ -152,14 +153,15 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
                                metric: str,
                                reduce: Optional[str] = None,
-                               mixture_temperature:Optional[float]=1.0) -> Tensor:
+                               mixture_temperature: Optional[float] = 1.0) -> Tensor:
         assert metric is not None
 
         model_out = decoder_out[0]
-        mixtures_out = decoder_out[1]["mixtures_out"]/mixture_temperature
+        mixtures_out = decoder_out[1]["mixtures_out"] / mixture_temperature
 
         scores = self.decoder.get_mixture_output(model_out, mixtures_out, reduce)
         return scores
 
-    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1, mixture_out: Optional[Tensor] = None) -> Tensor:
+    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
+                        mixture_out: Optional[Tensor] = None) -> Tensor:
         return self.decoder.sample_mixture_and_output(decoder_out, n_samples, mixture_out)

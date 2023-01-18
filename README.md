@@ -33,13 +33,25 @@ Avaliable continuous models:
 
 - Continuous Transformer Model `continuous_transformer`
 - Continuous Transformer Mixture model `continuous_transformer_mixture`
-- Continuous CMLM Transformer Model `cont_cmlm_transformer`
+- Continuous CMLM Transformer Model `cont_cmlm_transformer` (deprecated, old model)
 
 ## Supported losses:
 
 - NLL with Von Mises-Fisher (vMF) Distribution
 - NLL with Power Spherical (PS) Distribution
 - KL divergence with PS distribution
+- KL divergence between mixture of PS and PS distribution
+
+## Continuous Generator
+
+`task._name = translation_cont` allows for generation with cosine similarity and ps likelihood.
+`ContinuousSequenceGenerator` class implements
+
+- beam search
+- beam search for mixture models with several option for mixture selection `reduce_strategy`:
+    - `sum`: get likelihood as a sum over all mixture components
+    - `max`: choose mixture with the highest probability
+    - `None`, compatible with `mixture_beam` only
 
 ## Citations
 

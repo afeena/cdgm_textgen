@@ -9,8 +9,6 @@ Ghazvininejad, Marjan, et al.
 "Constant-time machine translation with conditional masked language models."
 arXiv preprint arXiv:1904.09324 (2019).
 """
-import faiss
-import faiss.contrib.torch_utils
 import omegaconf
 import torch
 import torch.nn.functional as F
@@ -207,7 +205,6 @@ class ContNATransformerDecoder(NATransformerDecoder):
         self.target_embed = None
         self.nn_search_matrix = None
         self.kappa = args.kappa
-        self.faiss_index = None
         if self.kappa == "tau":
             self.tau_fc = torch.nn.Linear(self.embed_dim, 1)
 
@@ -216,11 +213,6 @@ class ContNATransformerDecoder(NATransformerDecoder):
         self.nn_search_matrix = F.normalize(self.target_embed.weight.detach().clone(),
                                             dim=-1
                                             )
-
-    def setup_faiss_index(self):
-        res = faiss.StandardGpuResources()
-        self.faiss_index = faiss.GpuIndexFlat(res, self.target_embed.shae[-1], faiss.METRIC_INNER_PRODUCT)
-        self.faiss_index.add(F.normalize(self.target_embed, dim=-1))
 
     def forward_kappa(self, outputs):
         if self.kappa == 'norm':
@@ -270,13 +262,8 @@ class ContNATransformerDecoder(NATransformerDecoder):
         with torch.no_grad():
             if measure == "cosine":
                 features = F.normalize(features, p=2.0, dim=-1)
-                if not approximate_knn:
-                    self.nn_search_matrix = self.nn_search_matrix.to(features.device)
-                    distances = 1.0 - features.matmul(self.nn_search_matrix.t())
-                    return distances.min(-1)
-                else:
-                    # faiss works with 2d arrays only, so we need to transform 3d->2d and back
-                    sim, _tokens = self.faiss_index.search(torch.flatten(features, start_dim=0, end_dim=1), 1)
-                    return (1 - sim).view(features.shape[0], -1), _tokens.view(features.shape[0], -1)
+                self.nn_search_matrix = self.nn_search_matrix.to(features.device)
+                distances = 1.0 - features.matmul(self.nn_search_matrix.t())
+                return distances.min(-1)
             else:
                 raise NotImplementedError

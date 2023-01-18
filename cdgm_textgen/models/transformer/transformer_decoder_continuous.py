@@ -133,8 +133,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # project output to have emb_dim*num_mixture_components
         self.output_ff_with_mix_components = [torch.nn.Linear(self.embed_dim,
-                                                             self.output_embed_dim,
-                                                             bias=False) for i in range(self.num_mixture_components)]
+                                                              self.output_embed_dim,
+                                                              bias=False) for i in range(self.num_mixture_components)]
         # define mixture head to predict the cluster
         self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
                                                  self.num_mixture_components, bias=False)
@@ -162,7 +162,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         extra["mixtures_out"] = self.forward_mixture(x)
 
-        #map the output to the mixture components
+        # map the output to the mixture components
         fmodel, params, buffers = combine_state_for_ensemble(self.output_ff_with_mix_components)
         x = vmap(fmodel, (0, 0, None))(params, buffers, x)
 
@@ -172,15 +172,14 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixtures_out = self.mixture_head_ff_1(decoder_output)
         return mixtures_out
 
-
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         model_scores = self.get_ps_likelihood_scores(decoder_out)
         mixture_probs = F.softmax(mixtures_out, -1)
-        #for debug purposes
-        #from datetime import datetime
-        #torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
+        # for debug purposes
+        # from datetime import datetime
+        # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
         mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-        model_scores = model_scores*mixture_probs
+        model_scores = model_scores * mixture_probs
 
         if reduce == "max":
             _, max_idx = mixture_probs.max(dim=1)
@@ -217,7 +216,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             q_dist = power_spherical.PowerSpherical(features_idx, kappa)
             sample = q_dist.sample(n_samples)
             log_probs_samples = q_dist.log_prob(sample)
-
 
             return sample, log_probs_samples
 

@@ -53,7 +53,7 @@ class CDGMGenerationConfig(GenerationConfig):
     )
     approximate_knn: bool = field(
         default=False,
-        metadata={"help": "approximate knn with faiss"},
+        metadata={"help": "approximate knn with faiss (deprecated)"},
     )
 
 

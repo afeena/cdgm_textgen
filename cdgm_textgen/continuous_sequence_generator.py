@@ -291,9 +291,9 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             logging.warning("PS decoding measure is recommended to use with a mixture model")
 
         if search_strategy == "mixture_beam":
-            assert reduce_strategy is None or reduce_strategy=="None"
+            assert reduce_strategy is None or reduce_strategy == "None"
             self.search = self.mixture_beam_search_step
-        self.mixture_temperature=mixture_temperature
+        self.mixture_temperature = mixture_temperature
 
     def mixture_beam_search_step(self, model_scores: Tensor,
                                  prev_scores: Tensor,
@@ -336,7 +336,8 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                                                                                rounding_mode='trunc').view(-1)
 
     def get_model_scores(self, decoder_out):
-        return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy, self.mixture_temperature)
+        return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy,
+                                                 self.mixture_temperature)
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
@@ -395,7 +396,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                 bos_token=bos_token,
                 **kwargs,
             )
-            #get continuous samples
+            # get continuous samples
             current_step_vecs, current_step_probs = self.model.forward_samples(decoder_out)
             curr_step_tokens = None
 
@@ -405,7 +406,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             self.update_buffers(curr_step_tokens, current_step_probs, current_step_vecs, step)
 
         # get last scores for each hyp for each sent in batch
-
 
         # for i in range(bsz):
         #     toks = tokens[top_hyp_idx[i] + i * self.beam_size]

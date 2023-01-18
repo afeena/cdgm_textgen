@@ -54,14 +54,14 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         target = target[mask]
 
         # x is in the format of MxBxTxD --> apply mask starting from dim=1
-        out = out[:,mask]
+        out = out[:, mask]
 
         kappa = torch.norm(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
 
         mixture_out = mixture_out[mask]
-        mixture_out_probs = F.softmax(mixture_out/self.mixture_temperature, dim=-1)  # prior
-        log_prior_probs = F.log_softmax(mixture_out/self.mixture_temperature, dim=-1)
+        mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
+        log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)
 
         # samples are in format Mx(B*T)xD
         # get sample x_i for each mixture component i where i=1...M

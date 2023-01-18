@@ -24,10 +24,7 @@ def build_model(self, cfg: FairseqDataclass, from_checkpoint=False):
 
 def build_model_levenshtein(self, cfg, from_checkpoint=False):
     model = super().build_model(cfg, from_checkpoint=from_checkpoint)
-    if getattr(cfg, "approximate_knn", False) and hasattr(model.decoder, "faiss_index"):
-        model.decoder.build_faiss_index()
-    elif hasattr(model.decoder, "nn_search_matrix"):
-        model.decoder.setup_search_matrix()
+    model.decoder.setup_search_matrix()
     return model
 
 
