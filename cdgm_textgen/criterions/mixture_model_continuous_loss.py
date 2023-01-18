@@ -20,6 +20,7 @@ class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
         default=0.1,
         metadata={"help": "weight of mixture reg"},
     )
+    mixture_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for mixture prior"})
 
 
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=MixturePSKLCriterionConfig)
@@ -28,13 +29,15 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                  kldirection,
                  target_kappa_scale,
                  mixture_regularizer,
-                 mixture_regularizer_weight):
+                 mixture_regularizer_weight,
+                 mixture_temperature):
         super().__init__(task,
                          n_samples,
                          kldirection,
                          target_kappa_scale)
         self.mixture_regularizer = mixture_regularizer
         self.mixture_regularizer_weight = 0 if mixture_regularizer is None else mixture_regularizer_weight
+        self.mixture_temperature = mixture_temperature
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -57,8 +60,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         p, q = self.set_dist(out, target, kappa)
 
         mixture_out = mixture_out[mask]
-        mixture_out_probs = F.softmax(mixture_out, dim=-1)  # prior
-        log_prior_probs = F.log_softmax(mixture_out, dim=-1)
+        mixture_out_probs = F.softmax(mixture_out/self.mixture_temperature, dim=-1)  # prior
+        log_prior_probs = F.log_softmax(mixture_out/self.mixture_temperature, dim=-1)
 
         # samples are in format Mx(B*T)xD
         # get sample x_i for each mixture component i where i=1...M

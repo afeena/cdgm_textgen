@@ -274,7 +274,8 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             eos=None,
             search_strategy="beam",
             metric="ps",
-            reduce_strategy=None
+            reduce_strategy=None,
+            mixture_temperature=1.0
     ):
         if beam_size > model[0].decoder.num_mixture_components:
             raise ValueError("Beam size cannot be larger than the number of mixtures")
@@ -292,6 +293,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         if search_strategy == "mixture_beam":
             assert reduce_strategy is None or reduce_strategy=="None"
             self.search = self.mixture_beam_search_step
+        self.mixture_temperature=mixture_temperature
 
     def mixture_beam_search_step(self, model_scores: Tensor,
                                  prev_scores: Tensor,
@@ -334,7 +336,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                                                                                rounding_mode='trunc').view(-1)
 
     def get_model_scores(self, decoder_out):
-        return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy)
+        return self.model.forward_decoder_scores(decoder_out, self.metric, self.reduce_strategy, self.mixture_temperature)
 
 
 class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):

@@ -151,11 +151,12 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
                                metric: str,
-                               reduce: Optional[str] = None) -> Tensor:
+                               reduce: Optional[str] = None,
+                               mixture_temperature:Optional[float]=1.0) -> Tensor:
         assert metric is not None
 
         model_out = decoder_out[0]
-        mixtures_out = decoder_out[1]["mixtures_out"]
+        mixtures_out = decoder_out[1]["mixtures_out"]/mixture_temperature
 
         scores = self.decoder.get_mixture_output(model_out, mixtures_out, reduce)
         return scores
