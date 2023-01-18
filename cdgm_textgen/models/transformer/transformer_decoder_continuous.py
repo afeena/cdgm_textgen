@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from fairseq import utils
 from fairseq.models.transformer import TransformerDecoderBase
+from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 from torch.nn import Identity
 
@@ -93,6 +94,16 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
+    def sample_output(self, decoder_out, n_samples=1):
+        kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
+        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
+
+        q_dist = power_spherical.PowerSpherical(features_idx, kappa)
+        sample = q_dist.sample(n_samples)
+        log_probs_samples = q_dist.log_prob(sample)
+
+        return sample, log_probs_samples
+
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -118,11 +129,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                  ):
         super().__init__(cfg, dictionary, embed_tokens)
         self.num_mixture_components = cfg.num_mixture_components
+        self.project_out_dim = None
 
         # project output to have emb_dim*num_mixture_components
-        self.ouput_ff_with_mix_components = torch.nn.Linear(self.output_embed_dim,
-                                                            self.output_embed_dim * self.num_mixture_components,
-                                                            bias=False)
+        self.output_ff_with_mix_components = [torch.nn.Linear(self.embed_dim,
+                                                             self.output_embed_dim,
+                                                             bias=False) for i in range(self.num_mixture_components)]
         # define mixture head to predict the cluster
         self.mixture_head_ff_1 = torch.nn.Linear(self.output_embed_dim,
                                                  self.num_mixture_components, bias=False)
@@ -150,12 +162,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         extra["mixtures_out"] = self.forward_mixture(x)
 
-        x = self.ouput_ff_with_mix_components(x)
+        #map the output to the mixture components
+        fmodel, params, buffers = combine_state_for_ensemble(self.output_ff_with_mix_components)
+        x = vmap(fmodel, (0, 0, None))(params, buffers, x)
 
-        return x.view(x.shape[0], -1, self.num_mixture_components, self.output_embed_dim), extra
+        return x, extra
 
     def forward_mixture(self, decoder_output):
-        return self.mixture_head_ff_1(decoder_output)
+        mixtures_out = self.mixture_head_ff_1(decoder_output)
+        return mixtures_out
+
 
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         model_scores = self.get_ps_likelihood_scores(decoder_out)
@@ -192,19 +208,19 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             bsz = decoder_out.shape[0]
             features = decoder_out.view(-1, self.output_embed_dim)
             mixture_probs = F.softmax(mixtures_out, -1)
-            idx = torch.multinomial(mixture_probs, 1)
+            idx = torch.multinomial(mixture_probs, n_samples, replacement=True)
             features_idx = torch.gather(features, dim=1, index=idx).squeeze(-1)
 
             kappa = torch.norm(features_idx, dim=-1).unsqueeze(1)
             features_idx = F.normalize(features_idx, p=2.0, dim=-1).unsqueeze(1)
 
             q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-            sample = q_dist.sample()
+            sample = q_dist.sample(n_samples)
+            log_probs_samples = q_dist.log_prob(sample)
 
-            return sample, idx
+            return sample, log_probs_samples
 
-
-    #legacy. used only with fairseq generator
+    # legacy. used only with fairseq generator
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
