@@ -383,64 +383,40 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             )
         encoder_out = self.forward_encoder(net_input)
 
-        # initialize buffers
-        bsz = src_tokens.shape[0]
-        vectors = (
-            torch.zeros(bsz * self.n_samples, src_lengths * 2 + 1, self.model.decoder.output_embed_dim).to(
-                src_tokens).float()
-        )  # +1 for eos; pad is never chosen for scoring
-        tokens = (
-            torch.zeros(bsz * self.beam_size, src_lengths * 2 + 1)
-            .to(src_tokens)
-            .long()
-            .fill_(self.pad)
-        )  # +2 for eos and pad
-        tokens[:, 0] = self.eos if bos_token is None else bos_token
-        vectors[:, 0] = self.model.decoder.target_embed(tokens[:, 0])
-
-        new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
-        new_order = new_order.to(src_tokens.device).long()
-        encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
+        # initialize buffers:
 
         for step in range(1, src_lengths * 2 + 1):
-            prev_tokens = tokens[:, : step].clone()
-
+            # get model scores
             decoder_out = self.forward_decoder(
-                prev_tokens,
-                encoder_out=encoder_out,
-                incremental_state=incremental_states
+                encoder_out,
+                incremental_states,
+                bos_token=bos_token,
+                **kwargs,
             )
+            #get continuous samples
+            current_step_vecs, current_step_probs = self.model.forward_samples(decoder_out)
+            curr_step_tokens = None
 
-            samples, samples_probs = self.model.forward_samples(decoder_out, vectors, step, self.n_samples)
+            model_scores = self.get_model_scores(decoder_out)
 
-        final_hyps = []
+            # update buffers
+            self.update_buffers(curr_step_tokens, current_step_probs, current_step_vecs, step)
 
         # get last scores for each hyp for each sent in batch
-        lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
-        last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
-        top_hyp_scores, top_hyp_idx = last_scores.view(bsz, -1).max(-1)
 
-        for i in range(bsz):
-            toks = tokens[top_hyp_idx[i] + i * self.beam_size]
-            length = sum(toks.ne(self.pad).int())
-            score = last_scores[top_hyp_idx[i] + i * self.beam_size].item()
-            pos_scores = scores[top_hyp_idx[i] + i * self.beam_size]
-            pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
 
-            final_hyps.append([{"tokens": toks[1:length],
-                                "score": score,
-                                "attention": torch.empty(0),  # src_len x tgt_len
-                                "alignment": torch.empty(0),
-                                "positional_scores": pos_scores[1:length]}]
-                              )
+        # for i in range(bsz):
+        #     toks = tokens[top_hyp_idx[i] + i * self.beam_size]
+        #     length = sum(toks.ne(self.pad).int())
+        #     score = last_scores[top_hyp_idx[i] + i * self.beam_size].item()
+        #     pos_scores = scores[top_hyp_idx[i] + i * self.beam_size]
+        #     pos_scores[1:] = pos_scores[1:] - pos_scores[:-1]
+        #
+        #     final_hyps.append([{"tokens": toks[1:length],
+        #                         "score": score,
+        #                         "attention": torch.empty(0),  # src_len x tgt_len
+        #                         "alignment": torch.empty(0),
+        #                         "positional_scores": pos_scores[1:length]}]
+        #                       )
+        final_hyps = []
         return final_hyps
-
-    def _mbr_sampling_step(self,
-                           model_scores: Tensor,
-                           prev_scores: Tensor,
-                           bsz: int,
-                           num_samples: Optional[int] = 15,
-                           decoder_out: Tensor = None,
-                           **kwargs):
-
-        continuous_sample, log_probs_samples, idxs = self.model.sample_from_model(model_scores, num_samples=num_samples)

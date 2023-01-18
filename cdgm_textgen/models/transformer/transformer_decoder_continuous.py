@@ -218,6 +218,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             sample = q_dist.sample(n_samples)
             log_probs_samples = q_dist.log_prob(sample)
 
+
             return sample, log_probs_samples
 
     # legacy. used only with fairseq generator
