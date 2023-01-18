@@ -50,9 +50,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         # apply padding mask
         target = target[mask]
 
-        # transpose output to have mixture component M as a first dim
-        # Mx(B*T)xD
-        out = out[mask].transpose(0, 1)
+        # x is in the format of MxBxTxD --> apply mask starting from dim=1
+        out = out[:,mask]
 
         kappa = torch.norm(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
