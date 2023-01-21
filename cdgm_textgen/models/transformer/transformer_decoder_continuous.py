@@ -178,7 +178,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         #Get decoder_our in MxBxTxD where T=1
-        model_scores = self.get_ps_likelihood_scores(decoder_out)
+        model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze()
         mixture_probs = F.softmax(mixtures_out, -1)
         # for debug purposes
         # from datetime import datetime
@@ -188,8 +188,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         if reduce == "max":
             _, max_idx = mixture_probs.max(dim=1)
-            #idx = max_idx[..., None].expand(-1, -1, model_scores.shape[-1])
-            out = model_scores[max_idx]
+            out = model_scores[max_idx,:]
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
@@ -197,7 +196,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             return out
 
         elif reduce == "sum":
-            out = torch.sum(model_scores, dim=1)
+            out = torch.sum(model_scores, dim=0)
             return out
         else:
             return model_scores
@@ -231,10 +230,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            scores = self.get_ps_likelihood_scores(net_output[0])
+            scores = self.get_ps_likelihood_scores(net_output[0]).squeeze()
             mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
             _, max_idx = mixture_probs.max(dim=-1)
-            out = scores[max_idx]
+            out = scores[max_idx,:]
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
