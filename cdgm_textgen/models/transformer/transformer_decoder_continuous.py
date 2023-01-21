@@ -166,7 +166,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # map the output to the mixture components
 
-        x = vmap(fmodel, (0, 0, None))(params, buffers, x)
+        x = vmap(self.output_ff_with_mix_components, (0, 0, None))(self.mixture_params, self.mixture_buffers, x)
 
         return x, extra
 
