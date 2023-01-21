@@ -177,6 +177,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return mixtures_out
 
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
+        #Get decoder_our in MxBxTxD where T=1
         model_scores = self.get_ps_likelihood_scores(decoder_out)
         mixture_probs = F.softmax(mixtures_out, -1)
         # for debug purposes
@@ -187,18 +188,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         if reduce == "max":
             _, max_idx = mixture_probs.max(dim=1)
-            idx = max_idx[..., None].expand(-1, -1, model_scores.shape[-1])
-            out = torch.gather(model_scores, dim=1, index=idx).squeeze(-1)
+            #idx = max_idx[..., None].expand(-1, -1, model_scores.shape[-1])
+            out = model_scores[max_idx]
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
-            del idx
+            del max_idx
             return out
 
         elif reduce == "sum":
-            out = model_scores * mixture_probs
-            out = torch.sum(out, dim=1)
-
+            out = torch.sum(model_scores, dim=1)
             return out
         else:
             return model_scores
@@ -232,18 +231,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            scores = torch.zeros(0)
-            if metric == "cosine":
-                scores = self.get_cosine_similarity_scores(net_output[0])
-            if metric == "ps":
-                scores = self.get_ps_likelihood_scores(net_output[0])
+            scores = self.get_ps_likelihood_scores(net_output[0])
             mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
             _, max_idx = mixture_probs.max(dim=-1)
-            idx = max_idx[..., None, None].expand(-1, -1, 1, scores.shape[-1])
-            out = torch.gather(scores, dim=2, index=idx).squeeze(dim=2)
+            out = scores[max_idx]
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
-            del idx
             return out

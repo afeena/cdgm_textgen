@@ -140,6 +140,22 @@ class ContinuousSequenceGenerator(nn.Module):
     def get_model_scores(self, decoder_out):
         return self.model.forward_decoder_scores(decoder_out, self.metric)
 
+    def initialize_buffers(self, bsz, device, bos_token):
+        scores = (
+            torch.zeros(bsz * self.beam_size, self.max_len + 1).to(device).float()
+        )  # +1 for eos; pad is never chosen for scoring
+        tokens = (
+            torch.zeros(bsz * self.beam_size, self.max_len + 2)
+            .to(device)
+            .long()
+            .fill_(self.pad)
+        )  # +2 for eos and pad
+        tokens[:, 0] = self.eos if bos_token is None else bos_token
+        finished = torch.zeros(bsz * self.beam_size).bool().to(device)
+        offset = torch.arange(bsz).repeat(self.beam_size).to(device) * self.beam_size
+
+        return scores, tokens, finished, offset
+
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -166,22 +182,11 @@ class ContinuousSequenceGenerator(nn.Module):
 
         # initialize buffers
         bsz = src_tokens.shape[0]
-        scores = (
-            torch.zeros(bsz * self.beam_size, self.max_len + 1).to(src_tokens).float()
-        )  # +1 for eos; pad is never chosen for scoring
-        tokens = (
-            torch.zeros(bsz * self.beam_size, self.max_len + 2)
-            .to(src_tokens)
-            .long()
-            .fill_(self.pad)
-        )  # +2 for eos and pad
-        tokens[:, 0] = self.eos if bos_token is None else bos_token
+        scores, tokens, finished, offset = self.initialize_buffers(bsz, src_tokens.device, bos_token)
 
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
-        finished = torch.zeros(bsz * self.beam_size).bool().to(src_tokens)
-        offset = torch.arange(bsz).repeat(self.beam_size).to(src_tokens) * self.beam_size
 
         for step in range(1, self.max_len + 1):
             prev_scores = scores[:, step - 1].clone()
@@ -387,6 +392,13 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         encoder_out = self.forward_encoder(net_input)
 
         # initialize buffers:
+        bsz = src_tokens.size(0)
+        scores, tokens, finished, offset = self.initialize_buffers(bsz, src_tokens.device, bos_token)
+
+        new_order = torch.arange(bsz).view(-1, 1).repeat(1, self.beam_size).view(-1)
+        new_order = new_order.to(src_tokens.device).long()
+        encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
+
 
         for step in range(1, src_lengths * 2 + 1):
             # get model scores
@@ -398,9 +410,11 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             )
             # get continuous samples
             current_step_vecs, current_step_probs = self.model.forward_samples(decoder_out)
+            get_nearest_tokens = self.model.get_nearest_token(current_step_vecs)
+
             curr_step_tokens = None
 
-            model_scores = self.get_model_scores(decoder_out)
+
 
             # update buffers
             self.update_buffers(curr_step_tokens, current_step_probs, current_step_vecs, step)
