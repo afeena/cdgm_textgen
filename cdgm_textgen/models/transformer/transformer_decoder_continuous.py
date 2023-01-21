@@ -132,9 +132,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.project_out_dim = None
 
         # project output to have emb_dim*num_mixture_components
-        components = [torch.nn.Linear(self.embed_dim, self.output_embed_dim,
-                                                              bias=False) for _ in range(self.num_mixture_components)]
-        self.output_ff_with_mix_components, self.mixture_params, self.mixture_buffers = combine_state_for_ensemble(components)
+        self.output_ff_with_mix_components = torch.nn.ModuleList([torch.nn.Linear(self.embed_dim, self.output_embed_dim,
+                                                              bias=False) for _ in range(self.num_mixture_components)])
+
         for p in self.mixture_params:
             p.requires_grad_()
         # define mixture head to predict the cluster
@@ -166,7 +166,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # map the output to the mixture components
 
-        x = vmap(self.output_ff_with_mix_components, (0, 0, None))(self.mixture_params, self.mixture_buffers, x)
+        fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.output_ff_with_mix_components)
+
+        x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
 
         return x, extra
 
