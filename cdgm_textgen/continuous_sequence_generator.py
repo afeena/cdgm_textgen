@@ -306,7 +306,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                                  step: int,
                                  finished: Tensor, ):
         """
-        Model scores are of shape (bsz, mixture, vocab_size)
+        Model scores are of shape (mixture, bsz, vocab_size)
         Reshape to (bsz, mixture*vocab_size) and get tokens ids by t mod vocab_size
         """
 

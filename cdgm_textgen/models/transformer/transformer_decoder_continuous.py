@@ -69,6 +69,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         return x, extra
 
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
+        """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
             bsz = features.shape[0]
             features = features.view(-1, self.output_embed_dim)
@@ -103,23 +104,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         log_probs_samples = q_dist.log_prob(sample)
 
         return sample, log_probs_samples
-
-    def get_normalized_probs(
-            self,
-            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            log_probs: bool,
-            sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = None,
-    ):
-        with torch.no_grad():
-            scores = torch.zeros(0)
-            if metric == "cosine":
-                scores = self.get_cosine_similarity_scores(net_output[0])
-            if metric == "ps":
-                scores = self.get_ps_likelihood_scores(net_output[0])
-
-        return scores
-
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
@@ -167,7 +151,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # map the output to the mixture components
 
         fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.output_ff_with_mix_components)
-
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
 
         return x, extra
@@ -203,41 +186,29 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         else:
             return model_scores
 
+    def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
+        """get likelihood of target tokens based on output PS distribution"""
+        with torch.no_grad():
+            mixt = features.shape[0]
+            bsz = features.shape[1]
+            kappa = torch.norm(features, dim=-1).unsqueeze(1)
+            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+
+            q_dist = power_spherical.PowerSpherical(features, kappa)
+            log_probs = q_dist.log_prob(self.target_embed_normalized)
+
+            output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
+            return output_proj
+
     def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
         """
         sample mixture index first, then sample from respective PS distribution
+        decoder_out: MxBxTxD
+        mixtures_out: BxTxM
         """
-        with torch.no_grad():
-            bsz = decoder_out.shape[0]
-            features = decoder_out.view(-1, self.output_embed_dim)
-            mixture_probs = F.softmax(mixtures_out, -1)
-            idx = torch.multinomial(mixture_probs, n_samples, replacement=True)
-            features_idx = torch.gather(features, dim=1, index=idx).squeeze(-1)
+        sample, log_probs_samples = None, None
 
-            kappa = torch.norm(features_idx, dim=-1).unsqueeze(1)
-            features_idx = F.normalize(features_idx, p=2.0, dim=-1).unsqueeze(1)
-
-            q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-            sample = q_dist.sample(n_samples)
-            log_probs_samples = q_dist.log_prob(sample)
-
-            return sample, log_probs_samples
-
-    # legacy. used only with fairseq generator
-    def get_normalized_probs(
-            self,
-            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            log_probs: bool,
-            sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = None,
-    ):
-        with torch.no_grad():
-            scores = self.get_ps_likelihood_scores(net_output[0]).squeeze()
-            mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
-            _, max_idx = mixture_probs.max(dim=-1)
-            out = scores[max_idx,:]
-            # for debug purposes
-            # from datetime import datetime
-            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
-
-            return out
+        # sample mixture index
+        mixture_probs = F.softmax(mixtures_out, -1).squeeze(dim=1)
+        mixture_probs_samples = torch.multinomial(mixture_probs, 1, replacement=True)
+        raise NotImplementedError
