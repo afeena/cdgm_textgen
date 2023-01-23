@@ -161,7 +161,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         #Get decoder_our in MxBxTxD where T=1
-        model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze()
+        model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze(dim=2)
         mixture_probs = F.softmax(mixtures_out, -1)
         # for debug purposes
         # from datetime import datetime
