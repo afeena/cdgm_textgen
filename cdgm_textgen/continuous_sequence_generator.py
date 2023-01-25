@@ -309,9 +309,9 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
         Model scores are of shape MxBxV
         """
         # choose the best tokens for each mixture first and then choose beam_size top values among mixtures
-        best_tokens_scores_by_mixtures, best_tokens_idx_by_mixtures = torch.topk(model_scores, self.beam_size, dim=-1)
+        best_tokens_scores_by_mixtures, best_tokens_idx_by_mixtures = torch.max(model_scores, dim=-1)
         topk_token_score, topk_token_pos = best_tokens_scores_by_mixtures.t().topk(self.beam_size, dim=-1)
-        topk_token_idx = best_tokens_idx_by_mixtures.gather(-1, topk_token_pos)
+        topk_token_idx = best_tokens_idx_by_mixtures.gather(0, topk_token_pos)
 
         if len(topk_token_score.size()) == 1:
             topk_token_score = topk_token_score.unsqueeze(0)
