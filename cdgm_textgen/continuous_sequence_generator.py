@@ -306,19 +306,19 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                                  step: int,
                                  finished: Tensor, ):
         """
-        Model scores are of shape (mixture, bsz, vocab_size)
-        Reshape to (bsz, mixture*vocab_size) and get tokens ids by t mod vocab_size
+        Model scores are of shape MxBxV
         """
+        # choose the best tokens for each mixture first and then choose beam_size top values among mixtures
+        best_tokens_scores_by_mixtures, best_tokens_idx_by_mixtures = torch.topk(model_scores, self.beam_size, dim=-1)
+        topk_token_score, topk_token_pos = best_tokens_scores_by_mixtures.t().topk(self.beam_size, dim=-1)
+        topk_token_idx = best_tokens_idx_by_mixtures.gather(-1, topk_token_pos)
 
-        mixture_scores, mixture_tokens = torch.max(model_scores.squeeze(), dim=-1)
-
-        topk_token_score, topk_token_pos = torch.topk(mixture_scores, self.beam_size, dim=-1)
-        topk_token_idx = mixture_tokens.gather(-1, topk_token_pos)
-        # for each of the hyp in the acvtive beam choose self.beam possible extensions
         if len(topk_token_score.size()) == 1:
             topk_token_score = topk_token_score.unsqueeze(0)
             topk_token_idx = topk_token_idx.unsqueeze(0)
+
         new_candidate_scores = prev_scores.unsqueeze(-1).repeat(1, 1, self.beam_size) + topk_token_score
+
         if step == 1:
             # at the first step all hypotheses are equally likely, so use
             # only the first beam
@@ -399,7 +399,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         new_order = new_order.to(src_tokens.device).long()
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
 
-
         for step in range(1, src_lengths * 2 + 1):
             # get model scores
             decoder_out = self.forward_decoder(
@@ -413,8 +412,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             get_nearest_tokens = self.model.get_nearest_token(current_step_vecs)
 
             curr_step_tokens = None
-
-
 
             # update buffers
             self.update_buffers(curr_step_tokens, current_step_probs, current_step_vecs, step)

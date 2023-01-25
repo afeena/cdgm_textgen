@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import power_spherical
 import torch
@@ -105,6 +105,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return sample, log_probs_samples
 
+
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
                  cfg,
@@ -160,7 +161,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return mixtures_out
 
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
-        #Get decoder_our in MxBxTxD where T=1
+        # Get decoder_our in MxBxTxD where T=1
         model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze(dim=2)
         mixture_probs = F.softmax(mixtures_out, -1)
         # for debug purposes
@@ -168,11 +169,11 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
         _, max_idx = mixture_probs.max(dim=-1)
         mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-        model_scores = model_scores * mixture_probs.transpose(0,1)
+        model_scores = model_scores * mixture_probs.transpose(0, 1)
 
         if reduce == "max":
             max_idx = max_idx.t()
-            max_idx = max_idx[...,None].expand(-1,-1,model_scores.size(-1))
+            max_idx = max_idx[..., None].expand(-1, -1, model_scores.size(-1))
             out = model_scores.gather(0, max_idx)
             # for debug purposes
             # from datetime import datetime
@@ -211,4 +212,5 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # sample mixture index
         mixture_probs = F.softmax(mixtures_out, -1).squeeze(dim=1)
         mixture_probs_samples = torch.multinomial(mixture_probs, 1, replacement=True)
+
         raise NotImplementedError

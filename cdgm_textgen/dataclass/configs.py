@@ -56,12 +56,14 @@ class CDGMGenerationConfig(GenerationConfig):
         metadata={"help": "approximate knn with faiss (deprecated)"},
     )
 
+
 @dataclass
 class CDGMCommonConfig(CommonConfig):
     wandb_log_grad: Optional[bool] = field(
         default=False,
         metadata={"help": "log gradients to Weights and Biases"},
     )
+
 
 @dataclass
 class CDGMTextgenConfig(FairseqDataclass):
