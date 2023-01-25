@@ -400,16 +400,18 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
 
         for step in range(1, src_lengths * 2 + 1):
+            prev_tokens = prev_tokens
             # get model scores
             decoder_out = self.forward_decoder(
+                prev_tokens,
                 encoder_out,
                 incremental_states,
                 bos_token=bos_token,
                 **kwargs,
             )
-            # get continuous samples
+            # get samples from the model. Continue until finishing all N samples
             current_step_vecs, current_step_probs = self.model.forward_samples(decoder_out)
-            get_nearest_tokens = self.model.get_nearest_token(current_step_vecs)
+            current_step_tokens = self.model.get_nearest_token(current_step_vecs)
 
             curr_step_tokens = None
 

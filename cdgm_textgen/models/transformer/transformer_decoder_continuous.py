@@ -28,14 +28,18 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
+        #remove projection to vocab
         self.output_projection = None
+
+        #make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
+        self.project_out_dim = None
+
+        self.ff_output_emb = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+
         self.dict_len = len(self.dictionary)
-        if cfg.no_last_dec_layer_norm:
-            self.layers[-1].final_layer_norm = Identity(self.embed_dim, export=cfg.export)
 
         # build target (reference) emb
         padding_idx = dictionary.pad()
-
         self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
         if cfg.target_embed_path:
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
@@ -65,6 +69,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
+        #do customize output projection after LayerNorm
+        x = self.ff_output_emb(x)
 
         return x, extra
 
@@ -117,7 +123,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.project_out_dim = None
 
         # project output to have emb_dim*num_mixture_components
-        self.output_ff_with_mix_components = torch.nn.ModuleList([
+        self.ff_output_emb = torch.nn.ModuleList([
             torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
             for _ in range(self.num_mixture_components)
         ])
@@ -151,7 +157,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # map the output to the mixture components
 
-        fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.output_ff_with_mix_components)
+        fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.ff_output_emb)
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
 
         return x, extra
