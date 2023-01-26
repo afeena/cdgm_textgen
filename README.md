@@ -1,6 +1,6 @@
 # DGMs for text generation
 
-##Requirements
+## Requirements
 This repository contains the extension of [fairseq](https://github.com/facebookresearch/fairseq) for training continuous
 seq2seq models.
 Please follow the installation instruction of `fairseq`.
