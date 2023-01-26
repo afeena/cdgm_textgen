@@ -1,11 +1,13 @@
+import math
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
-import math
+
 import torch
 import torch.nn.functional as F
+from fairseq import metrics
 from fairseq.criterions import register_criterion
-from fairseq import metrics, utils
+
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion
 

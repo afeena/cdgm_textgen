@@ -8,7 +8,6 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerDecoderBase
 from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
-from torch.nn import Identity
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
@@ -28,10 +27,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
-        #remove projection to vocab
+        # remove projection to vocab
         self.output_projection = None
 
-        #make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
+        # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
         self.project_out_dim = None
 
         self.ff_output_emb = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
@@ -69,7 +68,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        #do customize output projection after LayerNorm
+        # do customize output projection after LayerNorm
         x = self.ff_output_emb(x)
 
         return x, extra
@@ -213,10 +212,5 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         decoder_out: MxBxTxD
         mixtures_out: BxTxM
         """
-        sample, log_probs_samples = None, None
-
-        # sample mixture index
-        mixture_probs = F.softmax(mixtures_out, -1).squeeze(dim=1)
-        mixture_probs_samples = torch.multinomial(mixture_probs, 1, replacement=True)
 
         raise NotImplementedError
