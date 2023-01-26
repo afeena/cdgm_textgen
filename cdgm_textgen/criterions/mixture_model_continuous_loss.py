@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
-
+import math
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion
-
+from fairseq import metrics, utils
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion
 
@@ -96,3 +96,20 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.detach().mean(), "prior_entropy": prior_entropy.detach().mean()}
+
+    @staticmethod
+    def reduce_metrics(logging_outputs) -> None:
+        """Aggregate logging outputs from data parallel training."""
+        loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
+        ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
+        sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+        kappa = sum(log.get("kappa", 0) for log in logging_outputs)
+        prior_entropy = sum(log.get("prior_entropy", 0) for log in logging_outputs)
+
+        # we divide by log(2) to convert the loss from base e to base 2
+        metrics.log_scalar(
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+
+        metrics.log_scalar('kappa', kappa / sample_size, sample_size, round=3)
+        metrics.log_scalar(prior_entropy, prior_entropy / sample_size, sample_size, round=3)
