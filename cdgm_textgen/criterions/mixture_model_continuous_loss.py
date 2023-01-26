@@ -112,4 +112,4 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         )
 
         metrics.log_scalar('kappa', kappa / sample_size, sample_size, round=3)
-        metrics.log_scalar(prior_entropy, prior_entropy / sample_size, sample_size, round=3)
+        metrics.log_scalar("prior_entropy", prior_entropy / sample_size, sample_size, round=3)
