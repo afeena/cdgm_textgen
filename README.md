@@ -1,16 +1,17 @@
 # DGMs for text generation
 
-## Quick Start
-
+##Requirements
 This repository contains the extension of [fairseq](https://github.com/facebookresearch/fairseq) for training continuous
 seq2seq models.
 Please follow the installation instruction of `fairseq`.
 
-You do not need to install any additional libraries. Just clone the repository
+Mixture model uses `functorch` for efficient computations, but it's only compatible with torch>=1.13
+
+## Quick Start
 
 ```bash
 
-git clone https://github.com/afeena/cdgm_textgen/
+git clone https://github.com/ltl-uva/cdgm_textgen/
 cd cdgm_textgen
 
 #train the model
