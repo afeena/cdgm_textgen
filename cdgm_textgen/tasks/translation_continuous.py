@@ -35,6 +35,7 @@ class TranslationCountinuousTask(TranslationTask):
             self.sequence_generator = self.build_generator(
                 [model], Namespace(**gen_args)
             )
+
         return model
 
     def build_generator(self, models, args, seq_gen_cls=None,

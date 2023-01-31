@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import power_spherical
 import torch
@@ -100,6 +100,25 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
+    #legacy. compatible with fairseq translation task
+    @torch.no_grad()
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
+    ):
+        with torch.no_grad():
+            scores = torch.zeros(0)
+            if metric == "cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric == "ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
+
+        return scores
+
+
     def sample_output(self, decoder_out, n_samples=1):
         kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
@@ -109,6 +128,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         log_probs_samples = q_dist.log_prob(sample)
 
         return sample, log_probs_samples
+
 
 
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
@@ -165,6 +185,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixtures_out = self.mixture_head_ff_1(decoder_output)
         return mixtures_out
 
+    @torch.no_grad()
     def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
         # Get decoder_our in MxBxTxD where T=1
         model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze(dim=2)
@@ -192,6 +213,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         else:
             return model_scores
 
+
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -213,4 +235,22 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixtures_out: BxTxM
         """
 
-        raise NotImplementedError
+        mixtures_out_probs = F.softmax(mixtures_out, dim=-1)
+        mixture_idx = torch.multinomial(mixtures_out_probs, 1, replacement=True).squeeze(dim=-1)
+        mixture_idx = mixture_idx.t()
+        decoder_out = decoder_out[mixture_idx]
+        q = power_spherical.PowerSpherical(decoder_out, torch.norm(decoder_out, dim=-1).unsqueeze(1))
+        samples = q.sample(n_samples)
+        return samples, q.log_prob(samples)
+
+    @torch.no_grad()
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
+    ):
+        with torch.no_grad():
+            return self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], reduce="max")
+

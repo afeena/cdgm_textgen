@@ -109,6 +109,7 @@ class TransformerModelContinuous(TransformerModelBase):
         return self.decoder.sample_output(decoder_out, n_samples)
 
     # legacy
+    @torch.no_grad()
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
