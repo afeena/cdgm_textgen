@@ -101,13 +101,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             return output_proj
 
     #legacy. compatible with fairseq translation task
-    @torch.no_grad()
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = None,
+            metric: Optional[str] = "cosine",
     ):
         with torch.no_grad():
             scores = torch.zeros(0)
