@@ -31,9 +31,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.output_projection = None
 
         # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
-        self.project_out_dim = None
-
-        self.ff_output_emb = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+        self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
 
         self.dict_len = len(self.dictionary)
 
@@ -68,8 +66,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        # do customize output projection after LayerNorm
-        x = self.ff_output_emb(x)
 
         return x, extra
 
@@ -140,7 +136,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.num_mixture_components = cfg.num_mixture_components
         self.project_out_dim = None
 
-        # project output to have emb_dim*num_mixture_components
+        # project output to have emb_dim*num_mixture_components (replaces project_out_dim)
         self.ff_output_emb = torch.nn.ModuleList([
             torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
             for _ in range(self.num_mixture_components)
@@ -174,7 +170,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         extra["mixtures_out"] = self.forward_mixture(x)
 
         # map the output to the mixture components
-
         fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.ff_output_emb)
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
 
@@ -185,33 +180,39 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return mixtures_out
 
     @torch.no_grad()
-    def get_mixture_output(self, decoder_out, mixtures_out, reduce=None):
-        # Get decoder_our in MxBxTxD where T=1
-        model_scores = self.get_ps_likelihood_scores(decoder_out).squeeze(dim=2)
+    def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
+        if metric == "cosine":
+            score_fn = self.get_cosine_similarity_scores
+        elif metric == "ps":
+            score_fn = self.get_ps_likelihood_scores
+
+        model_scores = None
         mixture_probs = F.softmax(mixtures_out, -1)
         # for debug purposes
         # from datetime import datetime
         # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
-        _, max_idx = mixture_probs.max(dim=-1)
-        mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-        model_scores = model_scores * mixture_probs.transpose(0, 1)
 
         if reduce == "max":
+            #choose max before getting the model scores
+            _, max_idx = mixture_probs.max(dim=-1)
             max_idx = max_idx.t()
-            max_idx = max_idx[..., None].expand(-1, -1, model_scores.size(-1))
-            out = model_scores.gather(0, max_idx)
-            # for debug purposes
-            # from datetime import datetime
-            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+            max_idx = max_idx[..., None, None].expand(-1, -1, 1, decoder_out.size(-1))
+            decoder_out = decoder_out.gather(0, max_idx)
+
+            model_scores = score_fn(decoder_out)
             del max_idx
-            return out
 
-        elif reduce == "sum":
-            out = torch.sum(model_scores, dim=0)
-            return out
         else:
-            return model_scores
+            # Get model_scores in MxBxTxD where T=1
+            model_scores = score_fn(decoder_out).squeeze(dim=2)
 
+            mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
+            model_scores = model_scores * mixture_probs.transpose(0, 1)
+
+            if reduce == "sum":
+                model_scores = torch.sum(model_scores, dim=0)
+
+        return model_scores
 
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
@@ -227,6 +228,15 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
 
+    def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
+        "use for valid only"
+        with torch.no_grad():
+            mixt = features.shape[0]
+            bsz = features.shape[1]
+            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+            output_proj = features @ self.target_embed_normalized.T
+
+            return output_proj.view(mixt, bsz, -1, self.dict_len)
     def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
         """
         sample mixture index first, then sample from respective PS distribution
@@ -242,7 +252,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         samples = q.sample(n_samples)
         return samples, q.log_prob(samples)
 
-    @torch.no_grad()
+# legacy. used only with fairseq generator
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -251,5 +261,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             metric: Optional[str] = None,
     ):
         with torch.no_grad():
-            return self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], reduce="max")
+            scores = self.get_ps_likelihood_scores(net_output[0]).squeeze()
+            mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
+            _, max_idx = mixture_probs.max(dim=-1)
+            out = scores[max_idx,:]
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
+
+            return out
 

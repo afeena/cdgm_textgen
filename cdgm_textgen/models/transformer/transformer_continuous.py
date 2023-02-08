@@ -160,7 +160,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         model_out = decoder_out[0]
         mixtures_out = decoder_out[1]["mixtures_out"] / mixture_temperature
 
-        scores = self.decoder.get_mixture_output(model_out, mixtures_out, reduce)
+        scores = self.decoder.get_mixture_output(model_out, mixtures_out, metric, reduce)
         return scores
 
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,

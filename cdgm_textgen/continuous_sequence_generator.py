@@ -220,7 +220,7 @@ class ContinuousSequenceGenerator(nn.Module):
                 finished = (finished | tokens[:, step].eq(self.eos)).bool()
                 if torch.all(finished):
                     break
-        return self.finalize_hyps(tokens, scores, bsz)
+        return self.finalize_hyps(scores, tokens, bsz)
 
     def finalize_hyps(self, scores, tokens, bsz):
         final_hyps = []
@@ -277,6 +277,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             search_strategy="beam",
             reduce_strategy=None,
             mixture_temperature=1.0,
+            metric = "ps",
             **kwargs
     ):
         if beam_size > model[0].decoder.num_mixture_components:
@@ -286,7 +287,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
                          beam_size=beam_size,
                          min_len=min_len,
                          eos=eos,
-                         metric="ps")
+                         metric=metric)
 
         self.reduce_strategy = reduce_strategy
         if self.metric != "ps":
