@@ -130,6 +130,14 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         default=0,
         metadata={"help": "dropout for the mixture head"},
     )
+    output_parallel: bool = field(default=False,
+                                  metadata={"help": "output each mixture component with separate layer"}
+                                  )
+    mixture_clusters_init_path: Optional[str] = field(default=None,
+                                                     metadata={"help": "path to mixture head weights"}
+                                                     )
+    freeze_mixture_clusters: Optional[bool] = field(default=False,
+                                                      metadata={"help": "freeze mixture head weights during training"})
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)

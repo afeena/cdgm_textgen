@@ -96,7 +96,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
-    #legacy. compatible with fairseq translation task
+    # legacy. compatible with fairseq translation task
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -113,7 +113,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-
     def sample_output(self, decoder_out, n_samples=1):
         kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
@@ -125,26 +124,35 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         return sample, log_probs_samples
 
 
-
 class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self,
                  cfg,
                  dictionary,
-                 embed_tokens
+                 embed_tokens,
                  ):
         super().__init__(cfg, dictionary, embed_tokens)
         self.num_mixture_components = cfg.num_mixture_components
         self.project_out_dim = None
 
         # project output to have emb_dim*num_mixture_components (replaces project_out_dim)
-        self.ff_output_emb = torch.nn.ModuleList([
-            torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
-            for _ in range(self.num_mixture_components)
-        ])
+        self.parallel_output = cfg.output_paralell
+        if self.parallel_output:
+            self.ff_output_head = torch.nn.ModuleList([
+                torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+                for _ in range(self.num_mixture_components)
+            ])
+        else:
+            self.ff_output_head = torch.nn.Linear(self.embed_dim + self.output_embed_dim,
+                                                  self.output_embed_dim, bias=False)
 
         # define mixture head to predict the cluster
-        self.mixture_head_ff_1 = torch.nn.Linear(self.embed_dim,
-                                                 self.num_mixture_components, bias=False)
+        self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
+                                               self.num_mixture_components, bias=False)
+
+        if cfg.mixture_clusters_init_path is not None:
+            self.cluster_means = self.parse_cluster_means(cfg.mixture_clusters_init_path, self.cluster_means.size())
+            self.cluster_means = torch.nn.Parameter(self.cluster_weights)
+            self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
 
     def forward(
             self,
@@ -169,14 +177,31 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         extra["mixtures_out"] = self.forward_mixture(x)
 
-        # map the output to the mixture components
-        fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.ff_output_emb)
-        x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
+        if self.parallel_output:
+            x = self.forward_output_head_parallel(x)
+        else:
+            x = self.forward_output_head(x, extra["mixtures_out"])
 
         return x, extra
 
-    def forward_mixture(self, decoder_output):
-        mixtures_out = self.mixture_head_ff_1(decoder_output)
+    def forward_output_head_parallel(self, x):
+        # map the output to the mixture components
+        fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.ff_output_head)
+        x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
+        return x
+
+    def forward_clustered_output_concat(self, x):
+        # map the output to the mixture components
+        bsz = x.shape[0]
+        seq_len = x.shape[1]
+        x = x[None,...].expand(self.num_mixture_components,-1,-1,-1)
+        latent_z = self.cluster_means[:, None, None, ...].expand(-1, bsz, seq_len, -1)
+        x = torch.cat([x, latent_z], -1)
+        x = self.ff_output_head(x)
+        return x
+
+    def forward_mixture_head(self, decoder_output):
+        mixtures_out = self.ff_mixture_head(decoder_output)
         return mixtures_out
 
     @torch.no_grad()
@@ -193,7 +218,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
 
         if reduce == "max":
-            #choose max before getting the model scores
+            # choose max before getting the model scores
             _, max_idx = mixture_probs.max(dim=-1)
             max_idx = max_idx.t()
             max_idx = max_idx[..., None, None].expand(-1, -1, 1, decoder_out.size(-1))
@@ -237,22 +262,24 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             output_proj = features @ self.target_embed_normalized.T
 
             return output_proj.view(mixt, bsz, -1, self.dict_len)
+
     def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
         """
         sample mixture index first, then sample from respective PS distribution
         decoder_out: MxBxTxD
         mixtures_out: BxTxM
         """
-
-        mixtures_out_probs = F.softmax(mixtures_out, dim=-1)
+        mixtures_out_probs = F.softmax(mixtures_out, dim=-1).view(-1, self.num_mixture_components)
         mixture_idx = torch.multinomial(mixtures_out_probs, 1, replacement=True).squeeze(dim=-1)
         mixture_idx = mixture_idx.t()
         decoder_out = decoder_out[mixture_idx]
-        q = power_spherical.PowerSpherical(decoder_out, torch.norm(decoder_out, dim=-1).unsqueeze(1))
+        normalized_out = F.normalize(decoder_out, p=2.0, dim=-1)
+        kappa_z = torch.norm(decoder_out, dim=-1)
+        q = power_spherical.PowerSpherical(normalized_out, kappa_z)
         samples = q.sample(n_samples)
-        return samples, q.log_prob(samples)
+        return mixture_idx, samples, q.log_prob(samples)
 
-# legacy. used only with fairseq generator
+    # legacy. used only with fairseq generator
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -264,10 +291,28 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             scores = self.get_ps_likelihood_scores(net_output[0]).squeeze()
             mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
             _, max_idx = mixture_probs.max(dim=-1)
-            out = scores[max_idx,:]
+            out = scores[max_idx, :]
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
             return out
 
+    def parse_cluster_means(self, cluster_path, cluster_means_size):
+        """
+        parse cluster means from file
+        file should contain one cluster mean per line
+        header contains num_cluster, num_features
+        """
+        cluster_means = torch.empty(cluster_means_size)
+
+        with open(cluster_path) as f_clusters:
+            header = next(f_clusters)  # remove header
+            assert torch.Size([int(n) for n in header.split()]) == cluster_means_size
+
+            for line_nr, line in enumerate(f_clusters):
+                pieces = line.rstrip().split(" ")
+                cluster_means[line_nr] = torch.Tensor(
+                    [float(weight) for weight in pieces]
+                )
+        return cluster_means
