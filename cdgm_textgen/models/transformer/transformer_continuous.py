@@ -160,6 +160,9 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         return decoder
 
     @torch.jit.script
+    def get_output_with_temperature_scriptable(self, out, temperature):
+        return out / temperature
+
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
                                metric: str = "ps",
                                reduce: Optional[str] = "max",
@@ -167,8 +170,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         assert metric is not None
 
         model_out = decoder_out[0]
-        mixtures_out = decoder_out[1]["mixtures_out"] / mixture_temperature
-
+        mixtures_out = self.get_output_with_temperature_scriptable(decoder_out[1]["mixtures_out"], mixture_temperature)
         scores = self.decoder.get_mixture_output(model_out, mixtures_out, metric, reduce)
         return scores
 

@@ -212,7 +212,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             elif metric == "ps":
                 score_fn = self.get_ps_likelihood_scores
 
-            model_scores = None
             mixture_probs = F.softmax(mixtures_out, -1)
             # for debug purposes
             # from datetime import datetime
