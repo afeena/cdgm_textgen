@@ -47,11 +47,10 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
 
-        loss, logging = self.compute_kl(p, q, kappa, mixture_out=mixture_out)
+        loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
 
         return loss, logging
 
-    @torch.jit.script
     def compute_mixture_unimodel_kl(self, p, q, mixture_out):
         mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
         log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)

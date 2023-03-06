@@ -219,19 +219,6 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
         return loss, logging
 
-
-    @torch.jit.script
-    def compute_ps_kl_scriptable(slef, p,q, n_samples):
-        z_samples = q.rsample((n_samples,))
-        log_pz = p.log_prob(z_samples)
-
-        neg_ce = log_pz.mean(0)
-        entropy = -q.entropy()
-        loss = entropy - neg_ce
-
-        loss = loss.mean(dim=-1)
-        return loss
-
     def compute_kl(self, out, target, mask, **kwargs):
         # apply padding mask
         target = target[mask]
@@ -244,7 +231,14 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         target_kappa = self.target_kappa_scale * norm_target
 
         p, q = self.set_dist(out, target, kappa, target_kappa)
-        loss = self.compute_ps_kl_scriptable(p, q, self.n_samples)
+        z_samples = q.rsample((self.n_samples,))
+        log_pz = p.log_prob(z_samples)
+
+        neg_ce = log_pz.mean(0)
+        entropy = -q.entropy()
+        loss = entropy - neg_ce
+
+        loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.detach().mean()}
 
