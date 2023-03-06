@@ -159,7 +159,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         )
         return decoder
 
-    @torch.jit.script
+    @torch.jit.export
     def get_output_with_temperature_scriptable(self, out, temperature):
         return out / temperature
 
