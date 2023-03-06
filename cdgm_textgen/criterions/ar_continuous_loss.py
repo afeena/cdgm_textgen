@@ -192,7 +192,6 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         self.direction = kldirection
         self.target_kappa_scale = target_kappa_scale
 
-    @torch.jit.script
     def set_dist(self, out, target, out_kappa, target_kappa):
         """
         out: model output
