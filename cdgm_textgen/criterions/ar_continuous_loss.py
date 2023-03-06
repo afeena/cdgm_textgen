@@ -193,15 +193,13 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         self.target_kappa_scale = target_kappa_scale
 
     @torch.jit.script
-    def set_dist(self, out, target, out_kappa):
+    def set_dist(self, out, target, out_kappa, target_kappa):
         """
         out: model output
         target: gold reference
         out_kappa: scale parameter for model output
         """
         out = F.normalize(out, dim=-1)
-        norm_target = torch.norm(target, dim=-1)
-        target_kappa = self.target_kappa_scale * norm_target
         target = F.normalize(target, dim=-1)
         p = power_spherical.PowerSpherical(target,
                                            target_kappa)
@@ -222,7 +220,19 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
         return loss, logging
 
+
     @torch.jit.script
+    def compute_ps_kl_scriptable(slef, p,q, n_samples):
+        z_samples = q.rsample((n_samples,))
+        log_pz = p.log_prob(z_samples)
+
+        neg_ce = log_pz.mean(0)
+        entropy = -q.entropy()
+        loss = entropy - neg_ce
+
+        loss = loss.mean(dim=-1)
+        return loss
+
     def compute_kl(self, out, target, mask, **kwargs):
         # apply padding mask
         target = target[mask]
@@ -231,17 +241,13 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         out = out[mask]
         kappa = kappa[mask]
 
-        p, q = self.set_dist(out, target, kappa)
-        z_samples = q.rsample((self.n_samples,))
-        log_pz = p.log_prob(z_samples)
+        norm_target = torch.norm(target, dim=-1)
+        target_kappa = self.target_kappa_scale * norm_target
 
-        neg_ce = log_pz.mean(0)
-        entropy = -q.entropy()
-        loss = entropy - neg_ce
+        p, q = self.set_dist(out, target, kappa, target_kappa)
+        loss = self.compute_ps_kl_scriptable(p, q, self.n_samples)
 
-        loss = loss.mean(dim=-1)
-
-        return loss, {"kappa": kappa.mean().detach()}
+        return loss, {"kappa": kappa.detach().mean()}
 
 
 @register_criterion("ar_gaussian_kl_loss")

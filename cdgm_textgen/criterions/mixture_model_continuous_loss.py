@@ -47,35 +47,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
 
-        # apply padding mask
-        target = target[mask]
-
-        # x is in the format of MxBxTxD --> apply mask starting from dim=1
-        out = out[:, mask]
-
-        kappa = torch.norm(out, dim=-1)
-        p, q = self.set_dist(out, target, kappa)
-        if mixture_out is not None:
-            mixture_out = mixture_out[mask]
-
         loss, logging = self.compute_kl(p, q, kappa, mixture_out=mixture_out)
 
         return loss, logging
 
     @torch.jit.script
-    def compute_kl(self, p, q, kappa, mixture_out=None):
-        # samples are in format Mx(B*T)xD
-        # get sample x_i for each mixture component i where i=1...M
-        # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
-        # get log Q(x_i) for i=1..M
-        # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
-        # with torch.no_grad():
-        #     from datetime import datetime
-        #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
-        #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-        #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
-        #     print("post save")
-
+    def compute_mixture_unimodel_kl(self, p, q, mixture_out):
         mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
         log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)
 
@@ -98,8 +75,38 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy).mean(dim=-1)
         else:
             loss = loss.mean(dim=-1)
+        return loss, prior_entropy
 
-        return loss, {"kappa": kappa.mean().detach(), "prior_entropy": prior_entropy.mean().detach()}
+    def compute_kl(self, out, target, mask, mixture_out=None):
+        # samples are in format Mx(B*T)xD
+        # get sample x_i for each mixture component i where i=1...M
+        # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
+        # get log Q(x_i) for i=1..M
+        # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
+        # with torch.no_grad():
+        #     from datetime import datetime
+        #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
+        #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+        #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
+        #     print("post save")
+
+        # apply padding mask
+        target = target[mask]
+
+        # x is in the format of MxBxTxD --> apply mask starting from dim=1
+        out = out[:, mask]
+
+        kappa = torch.norm(out, dim=-1)
+        norm_target = torch.norm(target, dim=-1)
+        target_kappa = self.target_kappa_scale * norm_target
+        p, q = self.set_dist(out, target, kappa, target_kappa)
+        if mixture_out is not None:
+            mixture_out = mixture_out[mask]
+
+        loss, prior_entropy = self.compute_mixture_unimodel_kl(p, q, mixture_out)
+
+        return loss, {"kappa": kappa.detach().mean(),
+                      "prior_entropy": prior_entropy.detach().mean()}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
