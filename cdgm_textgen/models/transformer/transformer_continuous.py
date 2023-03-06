@@ -92,7 +92,7 @@ class TransformerModelContinuous(TransformerModelBase):
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
-        scores = torch.zeros(0)
+        scores = None
         model_out = decoder_out[0]
 
         if metric == "cosine":
@@ -134,10 +134,10 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
                                   metadata={"help": "output each mixture component with separate layer"}
                                   )
     mixture_clusters_init_path: Optional[str] = field(default=None,
-                                                     metadata={"help": "path to mixture head weights"}
-                                                     )
+                                                      metadata={"help": "path to mixture head weights"}
+                                                      )
     freeze_mixture_clusters: Optional[bool] = field(default=False,
-                                                      metadata={"help": "freeze mixture head weights during training"})
+                                                    metadata={"help": "freeze mixture head weights during training"})
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)
@@ -159,6 +159,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         )
         return decoder
 
+    @torch.jit.script
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict],
                                metric: str = "ps",
                                reduce: Optional[str] = "max",

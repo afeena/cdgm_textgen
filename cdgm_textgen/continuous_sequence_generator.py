@@ -97,6 +97,7 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
+    @torch.jit.script
     def beam_search_step(self,
                          topk_token_score: Tensor,
                          topk_token_idx: Tensor,
@@ -132,27 +133,27 @@ class ContinuousSequenceGenerator(nn.Module):
         return best_cand_scores.view(-1), best_cand_tokens.view(-1), torch.div(best_cand_idx, self.beam_size,
                                                                                rounding_mode='trunc').view(-1)
 
+    @torch.no_grad()
     def get_topk_model_scores(self, decoder_out):
         model_scores = self.model.forward_decoder_scores(decoder_out, self.metric)
         topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         return topk_token_score, topk_token_idx
 
+    @torch.no_grad()
     def initialize_buffers(self, bsz, device, bos_token):
         scores = (
-            torch.zeros(bsz * self.beam_size, self.max_len + 1).to(device).float()
+            torch.zeros(bsz * self.beam_size, self.max_len + 1, device=device, dtype=torch.float)
         )  # +1 for eos; pad is never chosen for scoring
         tokens = (
-            torch.zeros(bsz * self.beam_size, self.max_len + 2)
-            .to(device)
-            .long()
-            .fill_(self.pad)
+            torch.full((bsz * self.beam_size, self.max_len + 2), self.pad, device=device, dtype=torch.long)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
-        finished = torch.zeros(bsz * self.beam_size).bool().to(device)
-        offset = torch.arange(bsz).repeat(self.beam_size).to(device) * self.beam_size
+        finished = torch.zeros(bsz * self.beam_size, device=device, dtype=torch.bool)
+        offset = torch.arange(bsz, device=device).repeat(self.beam_size) * self.beam_size
 
         return scores, tokens, finished, offset
 
+    @torch.no_grad()
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -182,8 +183,8 @@ class ContinuousSequenceGenerator(nn.Module):
         encoder_out = self.model.encoder.reorder_encoder_out(encoder_out, new_order)
 
         for step in range(1, self.max_len + 1):
-            prev_scores = scores[:, step - 1].clone()
-            prev_tokens = tokens[:, : step].clone()
+            prev_scores = scores[:, step - 1].detach().clone()
+            prev_tokens = tokens[:, : step].detach().clone()
 
             decoder_out = self.forward_decoder(
                 prev_tokens,
@@ -199,18 +200,18 @@ class ContinuousSequenceGenerator(nn.Module):
             # update buffers
             active_hyp_idx = (~finished).nonzero().view(-1)
             finished_idx = finished.nonzero().long().view(-1)
-            retain_hyps_idx = torch.empty(bsz * self.beam_size).to(cand_scores).long()
+            retain_hyps_idx = torch.empty(bsz * self.beam_size, device=cand_scores.device, dtype=torch.long)
             retain_hyps_idx[finished_idx] = finished_idx
             num_remain = self.beam_size - torch.sum(finished)
             retain_hyps_idx[active_hyp_idx] = candidate_idx[:num_remain]
 
-            step_tensor = torch.full((active_hyp_idx.size(0),), step).to(src_tokens).long()[..., None].t()
+            step_tensor = torch.full((1, active_hyp_idx.size(0)), step, device=src_tokens.device, dtype=torch.long)
             idx = (active_hyp_idx, step_tensor)
             tokens[idx] = cand_tokens[:num_remain]
             scores[idx] = cand_scores[:num_remain]
 
-            new_scores = scores.index_select(0, retain_hyps_idx.long())
-            new_tokens = tokens.index_select(0, retain_hyps_idx.long())
+            new_scores = scores.index_select(0, retain_hyps_idx)
+            new_tokens = tokens.index_select(0, retain_hyps_idx)
 
             tokens = new_tokens
             scores = new_scores
@@ -222,6 +223,7 @@ class ContinuousSequenceGenerator(nn.Module):
                     break
         return self.finalize_hyps(scores, tokens, bsz)
 
+    @torch.jit.script
     def finalize_hyps(self, scores, tokens, bsz):
         final_hyps = []
 
@@ -277,7 +279,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             search_strategy="beam",
             reduce_strategy=None,
             mixture_temperature=1.0,
-            metric = "ps",
+            metric="ps",
             **kwargs
     ):
         if beam_size > model[0].decoder.num_mixture_components:

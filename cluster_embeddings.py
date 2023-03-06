@@ -1,11 +1,10 @@
 import sys
-from power_spherical import PowerSpherical
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-from geomstats.learning.kmeans import RiemannianKMeans
-import numpy as np
 from geomstats.geometry.hypersphere import Hypersphere
-
+from geomstats.learning.kmeans import RiemannianKMeans
 
 embd_file = sys.argv[1]
 n_clusters = int(sys.argv[2])
@@ -22,7 +21,7 @@ with open(embd_file) as ef:
         idx2wrd[i] = tok
         tens = torch.tensor([float(v) for v in vals])
         emb_mat_norms[i] = F.normalize(tens, dim=0)
-        i+= 1
+        i += 1
 
 print("Loaded embeddings for {} tokens".format(len(wrd2idx)))
 
@@ -57,6 +56,6 @@ centroids = kmeans.centroids
 np.savetxt(f"{n_clusters}_centroids_dim100.txt", centroids.numpy())
 
 # find nearest neighbor
-#neighbor_ix = torch.argsort(centroids @ emb_mat_norms.T, dim=-1, descending=True)
-#for ixs in neighbor_ix:
+# neighbor_ix = torch.argsort(centroids @ emb_mat_norms.T, dim=-1, descending=True)
+# for ixs in neighbor_ix:
 #    print(", ".join(idx2wrd[int(i.item())] for i in ixs[:5]))

@@ -7,8 +7,6 @@ from fairseq.tasks import register_task
 from fairseq.tasks.translation import TranslationConfig
 from fairseq.tasks.translation import TranslationTask
 
-from cdgm_textgen.dataclass.configs import CDGMGenerationConfig
-
 EVAL_BLEU_ORDER = 4
 
 
@@ -45,7 +43,7 @@ class TranslationCountinuousTask(TranslationTask):
             MixtureContinuousSequenceGenerator
         if hasattr(models[0].decoder, "num_mixture_components"):
             seq_gen_cls = MixtureContinuousSequenceGenerator
-            extra_gen_cls_kwargs = {"reduce_strategy": getattr(args,"reduce_strategy", "max")}
+            extra_gen_cls_kwargs = {"reduce_strategy": getattr(args, "reduce_strategy", "max")}
         else:
             seq_gen_cls = ContinuousSequenceGenerator
             extra_gen_cls_kwargs = {}

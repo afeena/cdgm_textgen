@@ -69,6 +69,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    @torch.jit.script
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -83,6 +84,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
 
+    @torch.jit.script
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
@@ -97,6 +99,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             return output_proj
 
     # legacy. compatible with fairseq translation task
+    @torch.jit.script
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -105,7 +108,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             metric: Optional[str] = "cosine",
     ):
         with torch.no_grad():
-            scores = torch.zeros(0)
+            scores = None
             if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
@@ -150,7 +153,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                self.num_mixture_components, bias=False)
 
         if cfg.mixture_clusters_init_path is not None:
-            self.cluster_means = self.parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size([self.num_mixture_components, self.output_embed_dim]))
+            self.cluster_means = self.parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
+                [self.num_mixture_components, self.output_embed_dim]))
             self.cluster_means = torch.nn.Parameter(self.cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
 
@@ -194,7 +198,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # map the output to the mixture components
         bsz = x.shape[0]
         seq_len = x.shape[1]
-        x = x[None,...].expand(self.num_mixture_components,-1,-1,-1)
+        x = x[None, ...].expand(self.num_mixture_components, -1, -1, -1)
         latent_z = self.cluster_means[:, None, None, ...].expand(-1, bsz, seq_len, -1)
         x = torch.cat([x, latent_z], -1)
         x = self.ff_output_head(x)
@@ -240,6 +244,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         return model_scores
 
+    @torch.jit.script
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -254,6 +259,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
 
+    @torch.jit.script
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         "use for valid only"
         with torch.no_grad():
@@ -281,6 +287,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return mixture_idx, samples, q.log_prob(samples)
 
     # legacy. used only with fairseq generator
+    @torch.jit.script
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -298,9 +305,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
             return out
-
-
-
 
     def parse_cluster_means(self, cluster_path, cluster_means_size):
         """

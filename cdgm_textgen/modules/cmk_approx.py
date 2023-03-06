@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from hyperspherical_vae.ops.ive import ive_fraction_approx2
 
+
 @torch.jit.script
 def _log_iv_approx(m, k):
     """
@@ -22,6 +23,7 @@ def _log_iv_approx(m, k):
                )
 
     return torch.where(k < m, k_le_m, k_geq_m)
+
 
 @torch.jit.script
 def _neglogcmk(m, k):
