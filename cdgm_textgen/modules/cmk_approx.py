@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from hyperspherical_vae.ops.ive import ive_fraction_approx2
 
-
+@torch.jit.script
 def _log_iv_approx(m, k):
     """
     m - dimension of the vector, torch.tensor
@@ -23,7 +23,7 @@ def _log_iv_approx(m, k):
 
     return torch.where(k < m, k_le_m, k_geq_m)
 
-
+@torch.jit.script
 def _neglogcmk(m, k):
     logcmk = (- (0.5 * m - 1.0) * torch.log(k)
               + (0.5 * m) * np.log(2.0 * np.pi)

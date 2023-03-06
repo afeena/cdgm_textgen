@@ -192,6 +192,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         self.direction = kldirection
         self.target_kappa_scale = target_kappa_scale
 
+    @torch.jit.script
     def set_dist(self, out, target, out_kappa):
         """
         out: model output
@@ -221,6 +222,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
 
         return loss, logging
 
+    @torch.jit.script
     def compute_kl(self, out, target, mask, **kwargs):
         # apply padding mask
         target = target[mask]

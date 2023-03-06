@@ -204,38 +204,39 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixtures_out = self.ff_mixture_head(decoder_output)
         return mixtures_out
 
-    @torch.no_grad()
+    @torch.jit.script
     def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
-        if metric == "cosine":
-            score_fn = self.get_cosine_similarity_scores
-        elif metric == "ps":
-            score_fn = self.get_ps_likelihood_scores
+        with torch.no_grad():
+            if metric == "cosine":
+                score_fn = self.get_cosine_similarity_scores
+            elif metric == "ps":
+                score_fn = self.get_ps_likelihood_scores
 
-        model_scores = None
-        mixture_probs = F.softmax(mixtures_out, -1)
-        # for debug purposes
-        # from datetime import datetime
-        # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
+            model_scores = None
+            mixture_probs = F.softmax(mixtures_out, -1)
+            # for debug purposes
+            # from datetime import datetime
+            # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
 
-        if reduce == "max":
-            # choose max before getting the model scores
-            _, max_idx = mixture_probs.max(dim=-1)
-            max_idx = max_idx.t()
-            max_idx = max_idx[..., None, None].expand(-1, -1, 1, decoder_out.size(-1))
-            decoder_out = decoder_out.gather(0, max_idx)
+            if reduce == "max":
+                # choose max before getting the model scores
+                _, max_idx = mixture_probs.max(dim=-1)
+                max_idx = max_idx.t()
+                max_idx = max_idx[..., None, None].expand(-1, -1, 1, decoder_out.size(-1))
+                decoder_out = decoder_out.gather(0, max_idx)
 
-            model_scores = score_fn(decoder_out)
-            del max_idx
+                model_scores = score_fn(decoder_out)
+                del max_idx
 
-        else:
-            # Get model_scores in MxBxTxD where T=1
-            model_scores = score_fn(decoder_out).squeeze(dim=2)
+            else:
+                # Get model_scores in MxBxTxD where T=1
+                model_scores = score_fn(decoder_out).squeeze(dim=2)
 
-            mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-            model_scores = model_scores * mixture_probs.transpose(0, 1)
+                mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
+                model_scores = model_scores * mixture_probs.transpose(0, 1)
 
-            if reduce == "sum":
-                model_scores = torch.sum(model_scores, dim=0)
+                if reduce == "sum":
+                    model_scores = torch.sum(model_scores, dim=0)
 
         return model_scores
 
@@ -297,6 +298,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
             return out
+
+
+
 
     def parse_cluster_means(self, cluster_path, cluster_means_size):
         """

@@ -47,11 +47,6 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
 
-        loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
-
-        return loss, logging
-
-    def compute_kl(self, out, target, mask, mixture_out=None):
         # apply padding mask
         target = target[mask]
 
@@ -60,30 +55,37 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         kappa = torch.norm(out, dim=-1)
         p, q = self.set_dist(out, target, kappa)
+        if mixture_out is not None:
+            mixture_out = mixture_out[mask]
 
-        mixture_out = mixture_out[mask]
-        mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
-        log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)
+        loss, logging = self.compute_kl(p, q, kappa, mixture_out=mixture_out)
 
+        return loss, logging
+
+    @torch.jit.script
+    def compute_kl(self, p, q, kappa, mixture_out=None):
         # samples are in format Mx(B*T)xD
         # get sample x_i for each mixture component i where i=1...M
-        z_samples = q.rsample()
         # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
-        log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
         # get log Q(x_i) for i=1..M
         # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
-        log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
-
-        p_out = p.log_prob(z_samples)
-
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - p_out.t()), dim=-1)
-
         # with torch.no_grad():
         #     from datetime import datetime
         #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
         #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
         #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
         #     print("post save")
+
+        mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
+        log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)
+
+        z_samples = q.rsample()
+        log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
+        log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+
+        p_out = p.log_prob(z_samples)
+
+        loss = torch.sum(mixture_out_probs * (log_q_out.t() - p_out.t()), dim=-1)
 
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
         if self.mixture_regularizer == "posterior":
@@ -97,7 +99,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         else:
             loss = loss.mean(dim=-1)
 
-        return loss, {"kappa": kappa.detach().mean(), "prior_entropy": prior_entropy.detach().mean()}
+        return loss, {"kappa": kappa.mean().detach(), "prior_entropy": prior_entropy.mean().detach()}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
