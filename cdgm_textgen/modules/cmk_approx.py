@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import math
 from hyperspherical_vae.ops.ive import ive_fraction_approx2
 
 
@@ -13,7 +14,7 @@ def _log_iv_approx(m, k):
 
     k_le_m = (m * torch.log(k)
               + (eta * k)
-              - (eta + m) * np.log(2.0)
+              - (eta + m) * math.log(2.0)
               - torch.lgamma(m + 1.0)
               )
 
@@ -28,7 +29,7 @@ def _log_iv_approx(m, k):
 @torch.jit.script
 def _neglogcmk(m, k):
     logcmk = (- (0.5 * m - 1.0) * torch.log(k)
-              + (0.5 * m) * np.log(2.0 * np.pi)
+              + (0.5 * m) * math.log(2.0 * math.pi)
               + _log_iv_approx(0.5 * m - 1.0, k)
               )
     return logcmk
