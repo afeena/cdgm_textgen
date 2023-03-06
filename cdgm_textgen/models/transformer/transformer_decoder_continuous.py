@@ -69,7 +69,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
-    @torch.jit.script
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -84,7 +83,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
 
-    @torch.jit.script
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
@@ -99,7 +97,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             return output_proj
 
     # legacy. compatible with fairseq translation task
-    @torch.jit.script
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -208,7 +205,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         mixtures_out = self.ff_mixture_head(decoder_output)
         return mixtures_out
 
-    @torch.jit.script
     def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
         with torch.no_grad():
             if metric == "cosine":
@@ -244,7 +240,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         return model_scores
 
-    @torch.jit.script
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -259,7 +254,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
 
-    @torch.jit.script
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         "use for valid only"
         with torch.no_grad():
@@ -287,7 +281,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return mixture_idx, samples, q.log_prob(samples)
 
     # legacy. used only with fairseq generator
-    @torch.jit.script
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
