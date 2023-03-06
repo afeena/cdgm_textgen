@@ -135,7 +135,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.project_out_dim = None
 
         # project output to have emb_dim*num_mixture_components (replaces project_out_dim)
-        self.parallel_output = cfg.output_paralell
+        self.parallel_output = cfg.output_parallel
         if self.parallel_output:
             self.ff_output_head = torch.nn.ModuleList([
                 torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
@@ -150,8 +150,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                self.num_mixture_components, bias=False)
 
         if cfg.mixture_clusters_init_path is not None:
-            self.cluster_means = self.parse_cluster_means(cfg.mixture_clusters_init_path, self.cluster_means.size())
-            self.cluster_means = torch.nn.Parameter(self.cluster_weights)
+            self.cluster_means = self.parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size([self.num_mixture_components, self.output_embed_dim]))
+            self.cluster_means = torch.nn.Parameter(self.cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
 
     def forward(
@@ -175,12 +175,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             alignment_heads=alignment_heads,
         )
 
-        extra["mixtures_out"] = self.forward_mixture(x)
+        extra["mixtures_out"] = self.forward_mixture_head(x)
 
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
         else:
-            x = self.forward_output_head(x, extra["mixtures_out"])
+            x = self.forward_clustered_output_concat(x)
 
         return x, extra
 
@@ -307,9 +307,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         cluster_means = torch.empty(cluster_means_size)
 
         with open(cluster_path) as f_clusters:
-            header = next(f_clusters)  # remove header
-            assert torch.Size([int(n) for n in header.split()]) == cluster_means_size
-
             for line_nr, line in enumerate(f_clusters):
                 pieces = line.rstrip().split(" ")
                 cluster_means[line_nr] = torch.Tensor(
