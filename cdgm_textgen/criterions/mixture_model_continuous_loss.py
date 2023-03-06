@@ -129,9 +129,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         loss, log_q_out, prior_entropy = self.loss_summation_scriptable(log_q_out_component,
                                                                         log_prior_probs,
                                                                         mixture_out_probs,
-                                                                        log_p_out,
-                                                                        self.mixture_regularizer,
-                                                                        self.mixture_regularizer_weight)
+                                                                        log_p_out)
         if self.mixture_regularizer == "posterior":
             reg_term = self.get_posterior_regularization(log_prior_probs,
                                                          log_q_out,
