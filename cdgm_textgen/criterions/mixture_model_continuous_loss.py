@@ -1,12 +1,13 @@
 import math
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import register_criterion
+from torch import Tensor
 
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion
@@ -52,7 +53,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, logging
 
     @torch.jit.script
-    def get_mixture_out_softmax(self, mixture_out, mixture_temperature):
+    def get_mixture_out_softmax(self, mixture_out: Tensor, mixture_temperature: float) -> Tuple[Tensor]:
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
@@ -60,10 +61,10 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
     @torch.jit.script
     def get_posterior_regularization(self,
-                                     log_prior_probs,
-                                     log_q_out,
-                                     mixture_out_probs,
-                                     mixture_regularizer_weight):
+                                     log_prior_probs: Tensor,
+                                     log_q_out: Tensor,
+                                     mixture_out_probs: Tensor,
+                                     mixture_regularizer_weight: float) -> Tensor:
         lmodes_probs = log_prior_probs + log_q_out.t()
         lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
         entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
@@ -71,24 +72,27 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return reg_term
 
     @torch.jit.script
-    def get_prior_regularization(self, mixture_out_probs, log_prior_probs, mixture_regularizer_weight):
+    def get_prior_regularization(self,
+                                 mixture_out_probs: Tensor,
+                                 log_prior_probs: Tensor,
+                                 mixture_regularizer_weight: float) -> Tensor:
         entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
         reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
         return reg_term
 
     @torch.jit.script
     def loss_summation_scriptable(self,
-                                  log_q_out_component,
-                                  log_prior_probs,
-                                  mixture_out_probs,
-                                  log_p_out):
+                                  log_q_out_component: Tensor,
+                                  log_prior_probs: Tensor,
+                                  mixture_out_probs: Tensor,
+                                  log_p_out: Tensor) -> Tuple[Tensor]:
 
         log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
         loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_out.t()), dim=-1)
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
         return loss, log_q_out, prior_entropy
 
-    def compute_kl(self, out, target, mask, mixture_out=None):
+    def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
         # samples are in format Mx(B*T)xD
         # get sample x_i for each mixture component i where i=1...M
         # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
