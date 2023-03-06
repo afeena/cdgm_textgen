@@ -51,29 +51,50 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         return loss, logging
 
-    def compute_mixture_unimodel_kl(self, p, q, mixture_out):
-        mixture_out_probs = F.softmax(mixture_out / self.mixture_temperature, dim=-1)  # prior
-        log_prior_probs = F.log_softmax(mixture_out / self.mixture_temperature, dim=-1)
+    @torch.jit.script
+    def compute_mixture_out_softmax_scriptable(self, mixture_out, mixture_temperature):
+        mixture_out_with_temp = mixture_out / mixture_temperature
+        mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
+        log_prior_probs = torch.log(mixture_out_probs)
+        return mixture_out_probs, log_prior_probs
 
-        z_samples = q.rsample()
-        log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
+    @torch.jit.script
+    def loss_summation_scriptable(self, log_q_out_component,
+                                  log_prior_probs,
+                                  mixture_out_probs,
+                                  log_p_out,
+                                  mixture_regularizer,
+                                  mixture_regularizer_weight):
+
         log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
-
-        p_out = p.log_prob(z_samples)
-
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - p_out.t()), dim=-1)
-
+        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_out.t()), dim=-1)
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        if self.mixture_regularizer == "posterior":
+
+        if mixture_regularizer == "posterior":
             lmodes_probs = log_prior_probs + log_q_out.t()
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
             entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-            loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy).mean(dim=-1)
-        elif self.mixture_regularizer == "prior":
+            loss = loss.mean(dim=-1) + (mixture_regularizer_weight * entropy).mean(dim=-1)
+        elif mixture_regularizer == "prior":
             entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-            loss = loss.mean(dim=-1) + (self.mixture_regularizer_weight * entropy).mean(dim=-1)
+            loss = loss.mean(dim=-1) + (mixture_regularizer_weight * entropy).mean(dim=-1)
         else:
             loss = loss.mean(dim=-1)
+        return loss, prior_entropy
+
+    def compute_mixture_unimodel_kl(self, p, q, mixture_out):
+
+        mixture_out_probs, log_prior_probs = self.compute_mixture_out_softmax_scriptable(mixture_out,
+                                                                                         self.mixture_temperature)
+        z_samples = q.rsample()
+        log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
+        log_p_out = p.log_prob(z_samples)
+
+        loss, prior_entropy = self.loss_summation_scriptable(log_q_out_component,
+                                                             log_prior_probs,
+                                                             mixture_out_probs,
+                                                             log_p_out, self.mixture_regularizer,
+                                                             self.mixture_regularizer_weight)
         return loss, prior_entropy
 
     def compute_kl(self, out, target, mask, mixture_out=None):
