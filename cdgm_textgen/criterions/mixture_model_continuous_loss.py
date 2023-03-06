@@ -53,7 +53,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, logging
 
     @torch.jit.script
-    def get_mixture_out_softmax(self, mixture_out: Tensor, mixture_temperature: float) -> Tuple[Tensor]:
+    def get_mixture_out_softmax(self, mixture_out: Tensor, mixture_temperature: float) -> Tuple[Tensor, Tensor]:
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
@@ -85,7 +85,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                   log_q_out_component: Tensor,
                                   log_prior_probs: Tensor,
                                   mixture_out_probs: Tensor,
-                                  log_p_out: Tensor) -> Tuple[Tensor]:
+                                  log_p_out: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 
         log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
         loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_out.t()), dim=-1)
