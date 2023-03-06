@@ -53,18 +53,21 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, logging
 
     @torch.jit.script
-    def get_mixture_out_softmax(self, mixture_out: Tensor, mixture_temperature: float) -> Tuple[Tensor, Tensor]:
+    @staticmethod
+    def get_mixture_out_softmax(mixture_out: Tensor,
+                                mixture_temperature: float) -> Tuple[Tensor, Tensor]:
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
         return mixture_out_probs, log_prior_probs
 
     @torch.jit.script
-    def get_posterior_regularization(self,
-                                     log_prior_probs: Tensor,
-                                     log_q_out: Tensor,
-                                     mixture_out_probs: Tensor,
-                                     mixture_regularizer_weight: float) -> Tensor:
+    @staticmethod
+    def get_posterior_regularization(
+            log_prior_probs: Tensor,
+            log_q_out: Tensor,
+            mixture_out_probs: Tensor,
+            mixture_regularizer_weight: float) -> Tensor:
         lmodes_probs = log_prior_probs + log_q_out.t()
         lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
         entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
@@ -72,8 +75,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return reg_term
 
     @torch.jit.script
-    def get_prior_regularization(self,
-                                 mixture_out_probs: Tensor,
+    @staticmethod
+    def get_prior_regularization(mixture_out_probs: Tensor,
                                  log_prior_probs: Tensor,
                                  mixture_regularizer_weight: float) -> Tensor:
         entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
@@ -81,11 +84,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return reg_term
 
     @torch.jit.script
-    def loss_summation_scriptable(self,
-                                  log_q_out_component: Tensor,
-                                  log_prior_probs: Tensor,
-                                  mixture_out_probs: Tensor,
-                                  log_p_out: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    @staticmethod
+    def loss_summation_scriptable(
+            log_q_out_component: Tensor,
+            log_prior_probs: Tensor,
+            mixture_out_probs: Tensor,
+            log_p_out: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 
         log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
         loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_out.t()), dim=-1)
@@ -119,7 +123,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             mixture_out = mixture_out[mask]
 
         mixture_out_probs, log_prior_probs = self.get_mixture_out_softmax(mixture_out,
-                                                                          self.mixture_temperature)
+                                                                          self.mixture_temperature
+                                                                          )
         z_samples = q.rsample()
         log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
         log_p_out = p.log_prob(z_samples)
