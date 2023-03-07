@@ -93,22 +93,41 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
         return loss, log_q_out, prior_entropy
 
+    @torch.jit.export
+    def get_log_prob(self, dist, z_samples):
+        ln = dist.log_normalizer()
+        q_log_prob = dist.scale * torch.log1p(
+            (dist.loc * z_samples).sum(-1)
+        )
+        log_dist_prob = ln+q_log_prob
+        return log_dist_prob
+
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
-        # samples are in format Mx(B*T)xD
-        # get sample x_i for each mixture component i where i=1...M
-        # get mixture components log prob q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
-        # get log Q(x_i) for i=1..M
-        # where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
+        """
+        out: Tensor(MxBxTxD) - output of the model where
+        M - number of mixtures,
+        B - batch size, T - sequence length, D - out embeddings dim
+        target: Tensor(BxTxD) - target embeddings tensor
+        mask: Tensor(BxT) - padding mask acording to target
+        mixture_out: Tensor(BxTxM) - mixture logits
+        return: Tuple[Tensor(1).Dict] - loss tensor and logging dict
+
+        Calculate KL divergence between out (mixture of PS distribution) and target (PS distribution)
+        1. get sample x_i for each mixture component i, where i=1...M
+        2. get mixture components log probabilities q_m(x_i) for each sample component x_i i=1...M and mixture component m=1...M
+        3. get log Q(x_i) for i=1..M, where Q(x_i) = log \sum_m=1^M (w_m*q_m(x_i)) --> apply logsumexp
+
+        to save mixture priors you can use the following code:
         # with torch.no_grad():
         #     from datetime import datetime
         #     lmodes_probs = F.log_softmax(mixture_out, dim=-1) + q_out
         #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
         #     torch.save(lmodes_probs, f"mixture_priors_{datetime.now().timestamp()}")
         #     print("post save")
+        """
 
         # apply padding mask
         target = target[mask]
-
         # x is in the format of MxBxTxD --> apply mask starting from dim=1
         out = out[:, mask]
 
@@ -123,8 +142,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                                           self.mixture_temperature
                                                                           )
         z_samples = q.rsample()
-        log_q_out_component = q.log_prob(z_samples.unsqueeze(1))
-        log_p_out = p.log_prob(z_samples)
+        log_q_out_component = self.get_log_prob(q, z_samples.unsqueeze(1))
+        log_p_out = self.get_log_prob(p, z_samples)
 
         loss, log_q_out, prior_entropy = self.loss_summation_scriptable(log_q_out_component,
                                                                         log_prior_probs,
