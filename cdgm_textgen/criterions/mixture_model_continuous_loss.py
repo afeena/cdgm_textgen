@@ -22,7 +22,9 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
                         mixture_out: Tensor,
                         mixture_temperature: float,
                         regularizer: str,
-                        mixture_regularizer_weight: float) -> Tuple[Tensor, Tensor]:
+                        mixture_regularizer_weight: float,
+                        log_pi,
+                        log2) -> Tuple[Tensor, Tensor]:
     mixture_out_probs = F.softmax(mixture_out / mixture_temperature, dim=-1)  # prior
     log_prior_probs = torch.log(mixture_out_probs)
 
@@ -31,10 +33,10 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
     beta = (q_loc.shape[-1] - 1) / 2
 
     log_q_prob = -(
-            (alphaq + beta) * LOG2
+            (alphaq + beta) * log2
             + torch.lgamma(alphaq)
             - torch.lgamma(alphaq + beta)
-            + beta * LOG_PI
+            + beta * log_pi
     ) + q_scale * torch.log1p(
         (q_loc * z_samples.unsqueeze(1)).sum(-1)
     )
@@ -42,10 +44,10 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
     alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
 
     log_p_prob = -(
-            (alphap + beta) * LOG2
+            (alphap + beta) * log2
             + torch.lgamma(alphap)
             - torch.lgamma(alphap + beta)
-            + beta * LOG_PI
+            + beta * log_pi
     ) + p_scale * torch.log1p(
         (p_loc * z_samples).sum(-1)
     )
@@ -151,7 +153,9 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                   mixture_out,
                                                   self.mixture_temperature,
                                                   str(self.mixture_regularizer),
-                                                  self.mixture_regularizer_weight)
+                                                  self.mixture_regularizer_weight,
+                                                  LOG_PI,
+                                                  LOG2)
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
