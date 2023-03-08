@@ -9,5 +9,5 @@ class TranslationTaskJIT(TranslationTask):
     def build_criterion(self, cfg: DictConfig):
         from fairseq import criterions
         criterion = criterions.build_criterion(cfg, self)
-        return torch.jit.script(criterion)
+        return torch.jit.script_if_tracing(criterion)
 
