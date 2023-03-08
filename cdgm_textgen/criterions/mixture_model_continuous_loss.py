@@ -94,12 +94,19 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         return loss, log_q_out, prior_entropy
 
     @torch.jit.export
-    def get_log_prob(self, dist, z_samples):
-        ln = dist.log_normalizer()
-        q_log_prob = dist.scale * torch.log1p(
-            (dist.loc * z_samples).sum(-1)
+    def get_log_prob(self, loc, scale, z_samples):
+        alpha = (loc.shape[-1] - 1) / 2 + scale
+        beta = (loc.shape[-1] - 1) / 2
+        log_normalizer = -(
+            (alpha + beta) * math.log(2)
+            + torch.lgamma(alpha)
+            - torch.lgamma(alpha + beta)
+            + beta * math.log(math.pi)
         )
-        log_dist_prob = ln+q_log_prob
+        q_log_prob = scale * torch.log1p(
+            (loc * z_samples).sum(-1)
+        )
+        log_dist_prob = log_normalizer+q_log_prob
         return log_dist_prob
 
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
