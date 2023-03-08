@@ -8,10 +8,65 @@ import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
+from torch.jit import script_if_tracing
 
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion
 
+
+@torch.jit.script
+def get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples,
+                            mixture_out,
+                            mixture_temperature,
+                            regularizer,
+                            mixture_regularizer_weight):
+        mixture_out_with_temp = mixture_out / mixture_temperature
+        mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
+        log_prior_probs = torch.log(mixture_out_probs)
+
+        alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
+        betaq = (q_loc.shape[-1] - 1) / 2
+        log_normalizerq = -(
+                (alphaq + betaq) * math.log(2)
+                + torch.lgamma(alphaq)
+                - torch.lgamma(alphaq + betaq)
+                + betaq * math.log(math.pi)
+        )
+        q_log_prob = q_scale * torch.log1p(
+            (q_loc * z_samples.unsqueeze(1)).sum(-1)
+        )
+        log_q_prob = log_normalizerq + q_log_prob
+
+        alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
+        betap = (p_loc.shape[-1] - 1) / 2
+        log_normalizer = -(
+                (alphap + betap) * math.log(2)
+                + torch.lgamma(alphap)
+                - torch.lgamma(alphap + betap)
+                + betap * math.log(math.pi)
+        )
+        p_log_prob = p_scale * torch.log1p(
+            (p_loc * z_samples).sum(-1)
+        )
+        log_p_prob = log_normalizer + p_log_prob
+
+        log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
+        prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+
+        reg_term = torch.tensor([0.0], device=mixture_out.device)
+        if regularizer is not None and regularizer == "posterior":
+            lmodes_probs = log_prior_probs + log_q_out.t()
+            lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+            entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+        if regularizer is not None and regularizer == "prior":
+            entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+
+        loss = loss.mean(dim=-1) + reg_term
+
+        return loss, prior_entropy
 
 @dataclass
 class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
@@ -53,62 +108,6 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
         return loss, logging
 
-
-
-    @torch.jit.export
-    def get_loss_scriptable(self, q_loc, q_scale, p_loc, p_scale, z_samples,
-                            mixture_out,
-                            mixture_temperature,
-                            regularizer,
-                            mixture_regularizer_weight):
-        mixture_out_with_temp = mixture_out / mixture_temperature
-        mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
-        log_prior_probs = torch.log(mixture_out_probs)
-
-        alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
-        betaq = (q_loc.shape[-1] - 1) / 2
-        log_normalizerq = -(
-                (alphaq + betaq) * math.log(2)
-                + torch.lgamma(alphaq)
-                - torch.lgamma(alphaq + betaq)
-                + betaq * math.log(math.pi)
-        )
-        q_log_prob = q_scale * torch.log1p(
-            (q_loc * z_samples.unsqueeze(1)).sum(-1)
-        )
-        log_q_prob = log_normalizerq + q_log_prob
-
-        alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
-        betap = (p_loc.shape[-1] - 1) / 2
-        log_normalizer = -(
-                (alphap + betap) * math.log(2)
-                + torch.lgamma(alphap)
-                - torch.lgamma(alphap + betap)
-                + betap * math.log(math.pi)
-        )
-        p_log_prob = p_scale * torch.log1p(
-            (p_loc * z_samples).sum(-1)
-        )
-        log_p_prob = log_normalizer + p_log_prob
-
-        log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
-        prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-
-        reg_term = torch.tensor([0.0], device=mixture_out.device)
-        # if regularizer is not None:
-        #     lmodes_probs = log_prior_probs + log_q_out.t()
-        #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-        #     entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-        #     reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        # elif "prior" == regularizer:
-        #     entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        #     reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-
-        loss = loss.mean(dim=-1) + reg_term
-
-        return loss, prior_entropy
-
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
         """
         out: Tensor(MxBxTxD) - output of the model where
@@ -147,7 +146,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
 
-        loss, prior_entropy = self.get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
+        loss, prior_entropy = get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
                                                                      mixture_out,
                                                                      self.mixture_temperature,
                                                                      self.mixture_regularizer,
