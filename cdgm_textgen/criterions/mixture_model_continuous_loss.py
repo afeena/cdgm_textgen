@@ -15,11 +15,12 @@ from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
 
 
 @torch.jit.script
-def get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples,
-                            mixture_out,
-                            mixture_temperature,
-                            regularizer,
-                            mixture_regularizer_weight):
+def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: Tensor,
+                            z_samples: Tensor,
+                            mixture_out : Tensor,
+                            mixture_temperature: float,
+                            regularizer: str,
+                            mixture_regularizer_weight: float):
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
@@ -55,14 +56,14 @@ def get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples,
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
         reg_term = torch.tensor([0.0], device=mixture_out.device)
-        # if regularizer is not None and regularizer == "posterior":
-        #     lmodes_probs = log_prior_probs + log_q_out.t()
-        #     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-        #     entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-        #     reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        # if regularizer is not None and regularizer == "prior":
-        #     entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        #     reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+        if regularizer is not None and regularizer == "posterior":
+            lmodes_probs = log_prior_probs + log_q_out.t()
+            lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+            entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+        if regularizer is not None and regularizer == "prior":
+            entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
 
         loss = loss.mean(dim=-1) + reg_term
 
