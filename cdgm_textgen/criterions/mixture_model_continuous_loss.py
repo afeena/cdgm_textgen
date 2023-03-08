@@ -53,62 +53,61 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
         return loss, logging
 
+
+
     @torch.jit.export
-    def get_mixture_out_softmax(self, mixture_out: Tensor,
-                                mixture_temperature: float) -> Tuple[Tensor, Tensor]:
+    def get_loss_scriptable(self, q, p, z_samples,
+                            mixture_out,
+                            mixture_temperature,
+                            regularizer,
+                            mixture_regularizer_weight):
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
-        return mixture_out_probs, log_prior_probs
 
-    @torch.jit.export
-    def get_posterior_regularization(self,
-            log_prior_probs: Tensor,
-            log_q_out: Tensor,
-            mixture_out_probs: Tensor,
-            mixture_regularizer_weight: float) -> Tensor:
-        lmodes_probs = log_prior_probs + log_q_out.t()
-        lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-        entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        return reg_term
+        alphaq = (q.loc.shape[-1] - 1) / 2 + q.scale
+        betaq = (q.loc.shape[-1] - 1) / 2
+        log_normalizerq = -(
+                (alphaq + betaq) * math.log(2)
+                + torch.lgamma(alphaq)
+                - torch.lgamma(alphaq + betaq)
+                + betaq * math.log(math.pi)
+        )
+        q_log_prob = q.scale * torch.log1p(
+            (q.loc * z_samples.unsqueeze(1)).sum(-1)
+        )
+        log_q_prob = log_normalizerq + q_log_prob
 
-    @torch.jit.export
-    def get_prior_regularization(self,
-                                 mixture_out_probs: Tensor,
-                                 log_prior_probs: Tensor,
-                                 mixture_regularizer_weight: float) -> Tensor:
-        entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        return reg_term
-
-    @torch.jit.export
-    def loss_summation_scriptable(self,
-            log_q_out_component: Tensor,
-            log_prior_probs: Tensor,
-            mixture_out_probs: Tensor,
-            log_p_out: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-
-        log_q_out = torch.logsumexp(log_q_out_component + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_out.t()), dim=-1)
-        prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        return loss, log_q_out, prior_entropy
-
-    @torch.jit.export
-    def get_log_prob(self, loc, scale, z_samples):
-        alpha = (loc.shape[-1] - 1) / 2 + scale
-        beta = (loc.shape[-1] - 1) / 2
+        alphap = (p.loc.shape[-1] - 1) / 2 + p.scale
+        betap = (p.loc.shape[-1] - 1) / 2
         log_normalizer = -(
-            (alpha + beta) * math.log(2)
-            + torch.lgamma(alpha)
-            - torch.lgamma(alpha + beta)
-            + beta * math.log(math.pi)
+                (alphap + betap) * math.log(2)
+                + torch.lgamma(alphap)
+                - torch.lgamma(alphap + betap)
+                + betap * math.log(math.pi)
         )
-        q_log_prob = scale * torch.log1p(
-            (loc * z_samples).sum(-1)
+        p_log_prob = p.scale * torch.log1p(
+            (p.loc * z_samples).sum(-1)
         )
-        log_dist_prob = log_normalizer+q_log_prob
-        return log_dist_prob
+        log_p_prob = log_normalizer + p_log_prob
+
+        log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
+        prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+
+        reg_term = torch.tensor([0.0], device=mixture_out.device)
+        if regularizer == "posterior":
+            lmodes_probs = log_prior_probs + log_q_out.t()
+            lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+            entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+        elif regularizer == "prior":
+            entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+
+        loss = loss.mean(dim=-1) + reg_term
+
+        return loss, prior_entropy
 
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
         """
@@ -143,34 +142,17 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         norm_target = torch.norm(target, dim=-1)
         target_kappa = self.target_kappa_scale * norm_target
         p, q = self.set_dist(out, target, kappa, target_kappa)
+        z_samples = q.rsample()
+
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
 
-        mixture_out_probs, log_prior_probs = self.get_mixture_out_softmax(mixture_out,
-                                                                          self.mixture_temperature
-                                                                          )
-        z_samples = q.rsample()
-        log_q_out_component = self.get_log_prob(q.loc, q.scale, z_samples.unsqueeze(1))
-        log_p_out = self.get_log_prob(p.loc, p.scale, z_samples)
+        loss, log_q_out, prior_entropy = self.get_log_probs_and_loss(q, p, z_samples,
+                                                                     mixture_out,
+                                                                     self.mixture_temperature,
+                                                                     self.mixture_regularizer,
+                                                                     self.mixture_regularizer_weight)
 
-        loss, log_q_out, prior_entropy = self.loss_summation_scriptable(log_q_out_component,
-                                                                        log_prior_probs,
-                                                                        mixture_out_probs,
-                                                                        log_p_out)
-        if self.mixture_regularizer == "posterior":
-            reg_term = self.get_posterior_regularization(log_prior_probs,
-                                                         log_q_out,
-                                                         mixture_out_probs,
-                                                         self.mixture_regularizer_weight)
-            loss = loss.mean(dim=-1) + reg_term
-        elif self.mixture_regularizer == "prior":
-            reg_term = self.get_prior_regularization(mixture_out_probs,
-                                                     log_prior_probs,
-                                                     self.mixture_regularizer_weight)
-            loss = loss.mean(dim=-1) + reg_term
-
-        else:
-            loss = loss.mean(dim=-1)
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
