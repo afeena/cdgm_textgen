@@ -44,7 +44,18 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
     @torch.jit.ignore
     def forward(self, model, sample, reduce=True):
-        super().forward(model, sample, reduce)
+        net_output = model(**sample["net_input"])
+        loss, logging = self.compute_loss(model, net_output, sample)
+
+        logging_output = {
+            "loss": loss.detach(),
+            "ntokens": sample["ntokens"],
+            "nsentences": sample["target"].size(0),
+            "sample_size": 1,
+        }
+        if type(logging) is dict:
+            logging_output = {**logging_output, **logging}
+        return loss, 1, logging_output
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
