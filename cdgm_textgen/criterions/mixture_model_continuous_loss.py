@@ -20,7 +20,7 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
                             mixture_out : Tensor,
                             mixture_temperature: float,
                             regularizer: str,
-                            mixture_regularizer_weight: float):
+                            mixture_regularizer_weight: float) -> Tuple[Tensor, Tensor]:
         mixture_out_with_temp = mixture_out / mixture_temperature
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
