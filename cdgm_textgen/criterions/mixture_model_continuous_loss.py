@@ -149,8 +149,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                                           self.mixture_temperature
                                                                           )
         z_samples = q.rsample()
-        log_q_out_component = self.get_log_prob(q, z_samples.unsqueeze(1))
-        log_p_out = self.get_log_prob(p, z_samples)
+        log_q_out_component = self.get_log_prob(q.loc, q.scale, z_samples.unsqueeze(1))
+        log_p_out = self.get_log_prob(p.loc, p.scale, z_samples)
 
         loss, log_q_out, prior_entropy = self.loss_summation_scriptable(log_q_out_component,
                                                                         log_prior_probs,
