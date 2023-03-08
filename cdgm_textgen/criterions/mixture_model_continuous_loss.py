@@ -42,6 +42,9 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         self.mixture_regularizer_weight = 0 if mixture_regularizer is None else mixture_regularizer_weight
         self.mixture_temperature = mixture_temperature
 
+    @torch.jit.ignore
+    def forward(self, model, sample, reduce=True):
+        super().forward(model, sample, reduce)
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
