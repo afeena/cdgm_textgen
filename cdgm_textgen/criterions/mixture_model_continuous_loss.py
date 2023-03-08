@@ -8,66 +8,66 @@ import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
-from torch.jit import script_if_tracing
 
 from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
     ARPowerSphericalRevKLCriterion
 
+LOG_PI = math.log(math.pi)
+LOG2 = math.log(2)
+
 
 @torch.jit.script
 def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: Tensor,
-                            z_samples: Tensor,
-                            mixture_out : Tensor,
-                            mixture_temperature: float,
-                            regularizer: str,
-                            mixture_regularizer_weight: float) -> Tuple[Tensor, Tensor]:
-        mixture_out_with_temp = mixture_out / mixture_temperature
-        mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
-        log_prior_probs = torch.log(mixture_out_probs)
+                        z_samples: Tensor,
+                        mixture_out: Tensor,
+                        mixture_temperature: float,
+                        regularizer: str,
+                        mixture_regularizer_weight: float) -> Tuple[Tensor, Tensor]:
+    mixture_out_probs = F.softmax(mixture_out / mixture_temperature, dim=-1)  # prior
+    log_prior_probs = torch.log(mixture_out_probs)
 
-        alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
-        betaq = (q_loc.shape[-1] - 1) / 2
-        log_normalizerq = -(
-                (alphaq + betaq) * math.log(2)
-                + torch.lgamma(alphaq)
-                - torch.lgamma(alphaq + betaq)
-                + betaq * math.log(math.pi)
-        )
-        q_log_prob = q_scale * torch.log1p(
-            (q_loc * z_samples.unsqueeze(1)).sum(-1)
-        )
-        log_q_prob = log_normalizerq + q_log_prob
+    alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
+    # here we assume beta q = beta p since both has the same dimension
+    beta = (q_loc.shape[-1] - 1) / 2
 
-        alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
-        betap = (p_loc.shape[-1] - 1) / 2
-        log_normalizer = -(
-                (alphap + betap) * math.log(2)
-                + torch.lgamma(alphap)
-                - torch.lgamma(alphap + betap)
-                + betap * math.log(math.pi)
-        )
-        p_log_prob = p_scale * torch.log1p(
-            (p_loc * z_samples).sum(-1)
-        )
-        log_p_prob = log_normalizer + p_log_prob
+    log_q_prob = -(
+            (alphaq + beta) * LOG2
+            + torch.lgamma(alphaq)
+            - torch.lgamma(alphaq + beta)
+            + beta * LOG_PI
+    ) + q_scale * torch.log1p(
+        (q_loc * z_samples.unsqueeze(1)).sum(-1)
+    )
 
-        log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
-        loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
-        prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+    alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
 
-        reg_term = torch.tensor([0.0], device=mixture_out.device)
-        if regularizer == "posterior":
-            lmodes_probs = log_prior_probs + log_q_out.t()
-            lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-            entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        if regularizer == "prior":
-            entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-            reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+    log_p_prob = -(
+            (alphap + beta) * LOG2
+            + torch.lgamma(alphap)
+            - torch.lgamma(alphap + beta)
+            + beta * LOG_PI
+    ) + p_scale * torch.log1p(
+        (p_loc * z_samples).sum(-1)
+    )
 
-        loss = loss.mean(dim=-1) + reg_term
+    log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+    loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
+    prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
-        return loss, prior_entropy
+    reg_term = torch.tensor([0.0], device=mixture_out.device)
+    if regularizer == "posterior":
+        lmodes_probs = log_prior_probs + log_q_out.t()
+        lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+        entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
+        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+    if regularizer == "prior":
+        entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
+        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+
+    loss = loss.mean(dim=-1) + reg_term
+
+    return loss, prior_entropy
+
 
 @dataclass
 class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
@@ -148,11 +148,10 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             mixture_out = mixture_out[mask]
 
         loss, prior_entropy = get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
-                                                                     mixture_out,
-                                                                     self.mixture_temperature,
-                                                                     str(self.mixture_regularizer),
-                                                                     self.mixture_regularizer_weight)
-
+                                                  mixture_out,
+                                                  self.mixture_temperature,
+                                                  str(self.mixture_regularizer),
+                                                  self.mixture_regularizer_weight)
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
