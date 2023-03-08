@@ -99,12 +99,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
         reg_term = torch.tensor([0.0], device=mixture_out.device)
-        if regularizer == "posterior":
+        if "posterior" == regularizer:
             lmodes_probs = log_prior_probs + log_q_out.t()
             lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
             entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
             reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-        elif regularizer == "prior":
+        elif "prior" == regularizer:
             entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
             reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
 
