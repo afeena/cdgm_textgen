@@ -59,7 +59,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
 
     @torch.jit.export
-    def get_loss_scriptable(self, q, p, z_samples,
+    def get_loss_scriptable(self, q_loc, q_scale, p_loc, p_scale, z_samples,
                             mixture_out,
                             mixture_temperature,
                             regularizer,
@@ -68,29 +68,29 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         mixture_out_probs = F.softmax(mixture_out_with_temp, dim=-1)  # prior
         log_prior_probs = torch.log(mixture_out_probs)
 
-        alphaq = (q.loc.shape[-1] - 1) / 2 + q.scale
-        betaq = (q.loc.shape[-1] - 1) / 2
+        alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
+        betaq = (q_loc.shape[-1] - 1) / 2
         log_normalizerq = -(
                 (alphaq + betaq) * math.log(2)
                 + torch.lgamma(alphaq)
                 - torch.lgamma(alphaq + betaq)
                 + betaq * math.log(math.pi)
         )
-        q_log_prob = q.scale * torch.log1p(
-            (q.loc * z_samples.unsqueeze(1)).sum(-1)
+        q_log_prob = q_scale * torch.log1p(
+            (q_loc * z_samples.unsqueeze(1)).sum(-1)
         )
         log_q_prob = log_normalizerq + q_log_prob
 
-        alphap = (p.loc.shape[-1] - 1) / 2 + p.scale
-        betap = (p.loc.shape[-1] - 1) / 2
+        alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
+        betap = (p_loc.shape[-1] - 1) / 2
         log_normalizer = -(
                 (alphap + betap) * math.log(2)
                 + torch.lgamma(alphap)
                 - torch.lgamma(alphap + betap)
                 + betap * math.log(math.pi)
         )
-        p_log_prob = p.scale * torch.log1p(
-            (p.loc * z_samples).sum(-1)
+        p_log_prob = p_scale * torch.log1p(
+            (p_loc * z_samples).sum(-1)
         )
         log_p_prob = log_normalizer + p_log_prob
 
@@ -150,7 +150,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
 
-        loss, prior_entropy = self.get_loss_scriptable(q, p, z_samples,
+        loss, prior_entropy = self.get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
                                                                      mixture_out,
                                                                      self.mixture_temperature,
                                                                      self.mixture_regularizer,
