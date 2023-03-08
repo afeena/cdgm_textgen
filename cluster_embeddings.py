@@ -7,10 +7,11 @@ from geomstats.geometry.hypersphere import Hypersphere
 from geomstats.learning.kmeans import RiemannianKMeans
 
 embd_file = sys.argv[1]
-n_clusters = int(sys.argv[2])
+dim=int(sys.argv[2])
+n_clusters = int(sys.argv[3])
 wrd2idx = {}
 idx2wrd = {}
-emb_mat_norms = torch.empty((27513, 100))
+emb_mat_norms = torch.empty((27513, dim))
 i = 0
 
 with open(embd_file) as ef:
@@ -53,7 +54,7 @@ kmeans = RiemannianKMeans(metric=sphere.metric,
 kmeans.fit(emb_mat_norms)
 centroids = kmeans.centroids
 
-np.savetxt(f"{n_clusters}_centroids_dim100.txt", centroids.numpy())
+np.savetxt(f"{n_clusters}_centroids_dim{dim}.txt", centroids.numpy())
 
 # find nearest neighbor
 # neighbor_ix = torch.argsort(centroids @ emb_mat_norms.T, dim=-1, descending=True)
