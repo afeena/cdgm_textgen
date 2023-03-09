@@ -23,7 +23,8 @@ def get_prob(loc, scale, beta, log_pi, log2, z_samples):
     return log_q_prob
 
 def get_logsum_scriptable(log_q_prob, log_p_prob, mixture_out_probs, log_prior_probs):
-    log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+    prob_sum = log_q_prob + log_prior_probs.transpose(0, 1).unsqueeze(0)
+    log_q_out = torch.logsumexp(prob_sum, dim=1)
     loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
     prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
     return loss, prior_entropy
