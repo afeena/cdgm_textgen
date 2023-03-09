@@ -37,7 +37,7 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
             - torch.lgamma(p_alpha + beta)
             + beta * log_pi
     ) + p_scale * torch.log1p(
-        (p_loc * z_samples).sum(-1)
+        torch.einsum("jk, ljk -> lj", p_loc, z_samples)
     )
 
     prob_sum = log_q_prob + log_prior_probs.transpose(0, 1).unsqueeze(0)
