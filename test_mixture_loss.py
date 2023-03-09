@@ -36,14 +36,18 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
                         log_pi: float,
                         log2: float) -> Tuple[Tensor, Tensor]:
 
-    mixture_out_probs, log_prior_probs = get_mixtures_softmax_scriptable(mixture_out, mixture_temperature)
+    with torch.profiler.record_function("get_mixtures_softmax_scriptable"):
+        mixture_out_probs, log_prior_probs = get_mixtures_softmax_scriptable(mixture_out, mixture_temperature)
 
     # here we assume beta q = beta p since both has the same dimension
     beta = (q_loc.shape[-1] - 1) / 2
 
-    log_q_prob = get_prob(q_loc, q_scale, beta, log_pi, log2, z_samples.unsqueeze(1))
-    log_p_prob = get_prob(p_loc, p_scale, beta, log_pi, log2, z_samples)
-    loss, prior_entropy = get_logsum_scriptable(log_q_prob, log_p_prob, mixture_out_probs, log_prior_probs)
+    with torch.profiler.record_function("get_prob_q"):
+        log_q_prob = get_prob(q_loc, q_scale, beta, log_pi, log2, z_samples.unsqueeze(1))
+    with torch.profiler.record_function("get_probpq"):
+        log_p_prob = get_prob(p_loc, p_scale, beta, log_pi, log2, z_samples)
+    with torch.profiler.record_function("get_logsumexp"):
+        loss, prior_entropy = get_logsum_scriptable(log_q_prob, log_p_prob, mixture_out_probs, log_prior_probs)
 
 
     reg_term = torch.tensor([0.0], device=mixture_out.device)
@@ -72,7 +76,13 @@ if __name__=="__main__":
     mixture_regularizer_weight =  0.0
     log_pi = math.log(math.pi)
     log2= math.log(2.0)
-    with torch.autograd.profiler.profile(use_cuda=True, profile_memory=True) as p:
+    with torch.profiler.profile(
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
+            profile_memory=True,
+    ) as p:
         for _ in range(2): 
             get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples, mixture_out, mixture_temperature, regularizer, mixture_regularizer_weight, log_pi, log2)
     print(p.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
