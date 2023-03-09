@@ -28,31 +28,30 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
     mixture_out_probs = F.softmax(mixture_out / mixture_temperature, dim=-1)  # prior
     log_prior_probs = torch.log(mixture_out_probs)
 
-    alphaq = (q_loc.shape[-1] - 1) / 2 + q_scale
     # here we assume beta q = beta p since both has the same dimension
     beta = (q_loc.shape[-1] - 1) / 2
-
+    q_alpha = (q_loc.shape[-1] - 1) / 2 + q_scale
     log_q_prob = -(
-            (alphaq + beta) * log2
-            + torch.lgamma(alphaq)
-            - torch.lgamma(alphaq + beta)
+            (q_alpha + beta) * log2
+            + torch.lgamma(q_alpha)
+            - torch.lgamma(q_alpha + beta)
             + beta * log_pi
     ) + q_scale * torch.log1p(
-        (q_loc * z_samples.unsqueeze(1)).sum(-1)
+        torch.einsum("ijk, ljk -> lij", q_loc, z_samples)
     )
 
-    alphap = (p_loc.shape[-1] - 1) / 2 + p_scale
-
+    p_alpha = (p_loc.shape[-1] - 1) / 2 + p_scale
     log_p_prob = -(
-            (alphap + beta) * log2
-            + torch.lgamma(alphap)
-            - torch.lgamma(alphap + beta)
+            (p_alpha + beta) * log2
+            + torch.lgamma(p_alpha)
+            - torch.lgamma(p_alpha + beta)
             + beta * log_pi
     ) + p_scale * torch.log1p(
-        (p_loc * z_samples).sum(-1)
+        torch.einsum("jk, ljk -> lj", p_loc, z_samples)
     )
 
-    log_q_out = torch.logsumexp(log_q_prob + log_prior_probs.transpose(0, 1)[None, :, :], dim=1)
+    prob_sum = log_q_prob + log_prior_probs.transpose(0, 1).unsqueeze(0)
+    log_q_out = torch.logsumexp(prob_sum, dim=1)
     loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
     prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
