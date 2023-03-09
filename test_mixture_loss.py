@@ -4,8 +4,6 @@ import torch
 from torch import Tensor
 import torch.nn.functional as F
 import math
-
-@torch.jit.script
 def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: Tensor,
                         z_samples: Tensor,
                         mixture_out: Tensor,
@@ -60,16 +58,18 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
     return loss, prior_entropy
 
 if __name__=="__main__":
-    q_loc= torch.rand(128, 64, 128)
-    q_scale= torch.rand(128, 64)
-    p_loc= torch.rand(64, 128)
-    p_scale= torch.rand(64,)
-    z_samples= torch.rand(128, 64, 128)
-    mixture_out = torch.rand(64, 128)
+    q_loc= torch.rand(128, 64, 128).cuda()
+    q_scale= torch.rand(128, 64).cuda()
+    p_loc= torch.rand(64, 128).cuda()
+    p_scale= torch.rand(64,).cuda()
+    z_samples= torch.rand(128, 64, 128).cuda()
+    mixture_out = torch.rand(64, 128).cuda()
     mixture_temperature = 1.0
     regularizer = 'none'
-    mixture_regularizer_weight: 0.0
+    mixture_regularizer_weight =  0.0
     log_pi = math.log(math.pi)
     log2= math.log(2.0)
-
-    get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples, mixture_out, mixture_temperature, regularizer, mixture_regularizer_weight, log_pi, log2)
+    with torch.autograd.profiler.profile(use_cuda=True, profile_memory=True) as p:
+        for _ in range(2): 
+            get_loss_scriptable(q_loc, q_scale, p_loc, p_scale, z_samples, mixture_out, mixture_temperature, regularizer, mixture_regularizer_weight, log_pi, log2)
+    print(p.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
