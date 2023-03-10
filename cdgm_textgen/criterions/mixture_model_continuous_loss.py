@@ -105,9 +105,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
 
-        with torch.autograd.profiler.profile(use_cuda=True, profile_memory=True) as prof:
-            loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
-        print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
+        loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
+        
         return loss, logging
 
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
