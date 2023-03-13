@@ -136,7 +136,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
     mixture_clusters_init_path: Optional[str] = field(default=None,
                                                       metadata={"help": "path to mixture head weights"}
                                                       )
-    freeze_mixture_clusters: Optional[bool] = field(default=False,
+    freeze_mixture_clusters: Optional[bool] = field(default=True,
                                                     metadata={"help": "freeze mixture head weights during training"})
 
 

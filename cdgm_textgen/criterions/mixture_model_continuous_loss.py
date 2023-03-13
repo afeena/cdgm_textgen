@@ -106,7 +106,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         mixture_out = net_output[1]["mixtures_out"]
 
         loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
-        
+
         return loss, logging
 
     def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
