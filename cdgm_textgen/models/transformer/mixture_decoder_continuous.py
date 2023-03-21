@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import power_spherical
 import torch
 import torch.nn.functional as F
-
 from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
@@ -186,4 +185,3 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
 
             return out
-

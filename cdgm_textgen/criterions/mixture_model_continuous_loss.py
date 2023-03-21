@@ -7,11 +7,12 @@ import torch
 from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
+
+from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
+                                     ARPowerSphericalRevKLCriterion)
 from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_softmax_with_temperature_scriptable,
                                         log_prob_scriptable)
-from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
-                                    ARPowerSphericalRevKLCriterion)
 
 
 @torch.jit.script
@@ -22,7 +23,6 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
                         regularizer: str,
                         mixture_regularizer_weight: float,
                         ) -> Tuple[Tensor, Tensor]:
-
     mixture_out_probs = softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
     log_prior_probs = log_softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
 
@@ -131,11 +131,10 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                   self.mixture_temperature,
                                                   str(self.mixture_regularizer),
                                                   self.mixture_regularizer_weight,
-                                                 )
+                                                  )
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
-
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:

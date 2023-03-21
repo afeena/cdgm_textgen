@@ -7,7 +7,7 @@ from geomstats.geometry.hypersphere import Hypersphere
 from geomstats.learning.kmeans import RiemannianKMeans
 
 embd_file = sys.argv[1]
-dim=int(sys.argv[2])
+dim = int(sys.argv[2])
 n_clusters = int(sys.argv[3])
 wrd2idx = {}
 idx2wrd = {}

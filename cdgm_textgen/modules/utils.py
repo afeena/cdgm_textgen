@@ -1,22 +1,24 @@
 import math
-from typing import Tuple
 
 import torch
-from torch import Tensor
 import torch.nn.functional as F
-import numpy as np
+from torch import Tensor
+
 
 @torch.jit.script
 def output_with_temperature_scriptable(out: Tensor, temperature: float) -> Tensor:
     return out / temperature
 
+
 @torch.jit.script
 def softmax_with_temperature_scriptable(out: Tensor, temperature: float) -> Tensor:
     return F.softmax(out / temperature, dim=-1)
 
+
 @torch.jit.script
 def log_softmax_with_temperature_scriptable(out: Tensor, temperature: float) -> Tensor:
     return F.log_softmax(out / temperature, dim=-1)
+
 
 @torch.jit.script
 def log_prob_scriptable(loc: Tensor, scale: Tensor, value: Tensor, m_string: str) -> Tensor:

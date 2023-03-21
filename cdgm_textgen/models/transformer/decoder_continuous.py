@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 from fairseq import utils
 from fairseq.models.transformer import TransformerDecoderBase
-from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
@@ -122,6 +121,3 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         log_probs_samples = q_dist.log_prob(sample)
 
         return sample, log_probs_samples
-
-
-

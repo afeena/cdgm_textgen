@@ -7,10 +7,11 @@ from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
-from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
+
 logger = logging.getLogger("cdgm_textgen.models.transformer.transfore_continuous")
 
 
@@ -173,4 +174,3 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
                         mixture_out: Optional[Tensor] = None) -> Tensor:
         return self.decoder.sample_mixture_and_output(decoder_out, n_samples, mixture_out)
-

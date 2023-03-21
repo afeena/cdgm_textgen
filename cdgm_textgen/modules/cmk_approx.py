@@ -1,6 +1,8 @@
-import torch
 import math
+
+import torch
 from hyperspherical_vae.ops.ive import ive_fraction_approx2
+
 
 def _log_iv_approx(m, k):
     """
@@ -21,6 +23,7 @@ def _log_iv_approx(m, k):
                )
 
     return torch.where(k < m, k_le_m, k_geq_m)
+
 
 def _neglogcmk(m, k):
     logcmk = (- (0.5 * m - 1.0) * torch.log(k)
