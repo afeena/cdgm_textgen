@@ -7,9 +7,10 @@ from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
+from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
-from cdgm_textgen.models.transformer.transformer_decoder_continuous import ContinuousTransformerDecoder, \
-    MixtureContinuousTransformerDecoder
+from cdgm_textgen.modules.utils import output_with_temperature_scriptable
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transfore_continuous")
 
@@ -92,7 +93,7 @@ class TransformerModelContinuous(TransformerModelBase):
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
-        scores = torch.zeros(0)
+        scores = None
         model_out = decoder_out[0]
 
         if metric == "cosine":
@@ -130,6 +131,14 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         default=0,
         metadata={"help": "dropout for the mixture head"},
     )
+    output_parallel: bool = field(default=False,
+                                  metadata={"help": "output each mixture component with separate layer"}
+                                  )
+    mixture_clusters_init_path: Optional[str] = field(default=None,
+                                                      metadata={"help": "path to mixture head weights"}
+                                                      )
+    freeze_mixture_clusters: Optional[bool] = field(default=True,
+                                                    metadata={"help": "freeze mixture head weights during training"})
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)
@@ -158,8 +167,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         assert metric is not None
 
         model_out = decoder_out[0]
-        mixtures_out = decoder_out[1]["mixtures_out"] / mixture_temperature
-
+        mixtures_out = output_with_temperature_scriptable(decoder_out[1]["mixtures_out"], mixture_temperature)
         scores = self.decoder.get_mixture_output(model_out, mixtures_out, metric, reduce)
         return scores
 
