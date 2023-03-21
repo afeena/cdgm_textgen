@@ -68,7 +68,7 @@ class ContinuousCriterion(FairseqCriterion):
             loss += length_loss
 
         logging_output = {
-            "loss": loss.data,
+            "loss": loss.detach(),
             "nll_loss": token_loss,
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),

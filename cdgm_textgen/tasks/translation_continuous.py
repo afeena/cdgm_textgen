@@ -2,6 +2,7 @@ import json
 from argparse import Namespace
 from dataclasses import dataclass, field
 
+import torch
 from fairseq.data import encoders
 from fairseq.tasks import register_task
 from fairseq.tasks.translation import TranslationConfig
@@ -21,7 +22,7 @@ class TranslationContinuousConfig(TranslationConfig):
 
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
-class TranslationCountinuousTask(TranslationTask):
+class TranslationContinuousTask(TranslationTask):
     def build_model(self, cfg: TranslationContinuousConfig, from_checkpoint=False):
         model = super().build_model(cfg, from_checkpoint)
         if self.cfg.eval_bleu:
@@ -33,7 +34,7 @@ class TranslationCountinuousTask(TranslationTask):
             self.sequence_generator = self.build_generator(
                 [model], Namespace(**gen_args))
 
-        return model
+        return torch.compile(model)
 
     def build_generator(self, models, args, seq_gen_cls=None,
                         extra_gen_cls_kwargs=None,

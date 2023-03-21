@@ -56,7 +56,7 @@ class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
         metadata={"help": "type of mixture reg: posterior or prior"},
     )
     mixture_regularizer_weight: Optional[float] = field(
-        default=0.1,
+        default=0,
         metadata={"help": "weight of mixture reg"},
     )
     mixture_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for mixture prior"})

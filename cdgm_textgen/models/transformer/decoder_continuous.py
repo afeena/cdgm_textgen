@@ -10,6 +10,7 @@ from torch import Tensor
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
+from cdgm_textgen.modules.utils import (log_prob_scriptable)
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
@@ -68,32 +69,34 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    @torch.no_grad()
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
-        with torch.no_grad():
-            bsz = features.shape[0]
-            features = features.view(-1, self.output_embed_dim)
-            kappa = torch.norm(features, dim=-1).unsqueeze(1)
-            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+        bsz = features.shape[0]
+        features = features.view(-1, self.output_embed_dim)
+        kappa = torch.norm(features, dim=-1).unsqueeze(1)
+        features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
 
-            q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = q_dist.log_prob(self.target_embed_normalized)
+        q_dist = power_spherical.PowerSpherical(features, kappa)
+        log_probs = log_prob_scriptable(q_dist.loc, q_dist.scale,
+                                        self.target_embed_normalized,
+                                        "jk, ljk -> lj")
 
-            output_proj = log_probs.view(bsz, -1, self.dict_len)
-            return output_proj
+        output_proj = log_probs.view(bsz, -1, self.dict_len)
+        return output_proj
 
+    @torch.no_grad()
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            kappa = torch.tensor([1.], device=features.device)
-            features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
-            norm_const = _neglogcmk(m, kappa)
+        kappa = torch.tensor([1.], device=features.device)
+        features = F.normalize(features, p=2.0, dim=-1)
+        m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
+        norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ self.target_embed_normalized.T
-            if norm_const is not None:
-                output_proj += norm_const.squeeze()
+        output_proj = features @ self.target_embed_normalized.T
+        if norm_const is not None:
+            output_proj += norm_const.squeeze()
 
-            return output_proj
+        return output_proj
 
     # legacy. compatible with fairseq translation task
     def get_normalized_probs(
@@ -111,13 +114,3 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_ps_likelihood_scores(net_output[0])
 
         return scores
-
-    def sample_output(self, decoder_out, n_samples=1):
-        kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
-
-        q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-        sample = q_dist.sample(n_samples)
-        log_probs_samples = q_dist.log_prob(sample)
-
-        return sample, log_probs_samples
