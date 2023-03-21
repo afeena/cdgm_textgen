@@ -4,16 +4,14 @@ from dataclasses import field
 from typing import Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
-
-from cdgm_textgen.criterions import ARPowerSphericalRevKLCriterionConfig, \
-    ARPowerSphericalRevKLCriterion
-
-LOG_PI = math.log(math.pi)
-LOG2 = math.log(2)
+from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
+                                        log_softmax_with_temperature_scriptable,
+                                        log_prob_scriptable)
+from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
+                                    ARPowerSphericalRevKLCriterion)
 
 
 @torch.jit.script
@@ -23,32 +21,13 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
                         mixture_temperature: float,
                         regularizer: str,
                         mixture_regularizer_weight: float,
-                        log_pi: float,
-                        log2: float) -> Tuple[Tensor, Tensor]:
-    mixture_out_probs = F.softmax(mixture_out / mixture_temperature, dim=-1)  # prior
-    log_prior_probs = torch.log(mixture_out_probs)
+                        ) -> Tuple[Tensor, Tensor]:
 
-    # here we assume beta q = beta p since both has the same dimension
-    beta = (q_loc.shape[-1] - 1) / 2
-    q_alpha = (q_loc.shape[-1] - 1) / 2 + q_scale
-    log_q_prob = -(
-            (q_alpha + beta) * log2
-            + torch.lgamma(q_alpha)
-            - torch.lgamma(q_alpha + beta)
-            + beta * log_pi
-    ) + q_scale * torch.log1p(
-        torch.einsum("ijk, ljk -> lij", q_loc, z_samples)
-    )
+    mixture_out_probs = softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
+    log_prior_probs = log_softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
 
-    p_alpha = (p_loc.shape[-1] - 1) / 2 + p_scale
-    log_p_prob = -(
-            (p_alpha + beta) * log2
-            + torch.lgamma(p_alpha)
-            - torch.lgamma(p_alpha + beta)
-            + beta * log_pi
-    ) + p_scale * torch.log1p(
-        torch.einsum("jk, ljk -> lj", p_loc, z_samples)
-    )
+    log_q_prob = log_prob_scriptable(q_loc, q_scale, z_samples, "ijk, ljk -> lij")
+    log_p_prob = log_prob_scriptable(p_loc, p_scale, z_samples, "jk, ljk -> lj")
 
     prob_sum = log_q_prob + log_prior_probs.transpose(0, 1).unsqueeze(0)
     log_q_out = torch.logsumexp(prob_sum, dim=1)
@@ -152,11 +131,11 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                   self.mixture_temperature,
                                                   str(self.mixture_regularizer),
                                                   self.mixture_regularizer_weight,
-                                                  LOG_PI,
-                                                  LOG2)
+                                                 )
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
+
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
