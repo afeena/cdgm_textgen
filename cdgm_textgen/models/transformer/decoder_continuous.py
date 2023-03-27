@@ -24,10 +24,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         super().__init__(cfg,
                          dictionary, embed_tokens,
                          no_encoder_attn=no_encoder_attn,
-                         output_projection=output_projection,
+                         output_projection=None,
                          )
-        # remove projection to vocab
-        self.output_projection = None
+
 
         # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
         self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)

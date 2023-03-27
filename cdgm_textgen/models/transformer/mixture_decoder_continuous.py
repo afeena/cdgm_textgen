@@ -27,7 +27,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.parallel_output = cfg.output_parallel
         if self.parallel_output:
             self.ff_output_head = torch.nn.ModuleList([
-                torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+                torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=True)
                 for _ in range(self.num_mixture_components)
             ])
         else:
