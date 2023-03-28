@@ -14,15 +14,12 @@ from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_softmax_with_temperature_scriptable,
                                         log_prob_scriptable)
 
-
 @torch.jit.script
 def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: Tensor,
                         z_samples: Tensor,
                         mixture_out: Tensor,
                         mixture_temperature: float,
-                        regularizer: str,
-                        mixture_regularizer_weight: float,
-                        ) -> Tuple[Tensor, Tensor]:
+                        ) -> Tuple[Tensor, Tensor, Tensor]:
     mixture_out_probs = softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
     log_prior_probs = log_softmax_with_temperature_scriptable(mixture_out, temperature=mixture_temperature)
 
@@ -35,18 +32,14 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: 
     prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
     reg_term = torch.tensor([0.0], device=mixture_out.device)
-    if regularizer == "posterior":
-        lmodes_probs = log_prior_probs + log_q_out.t()
-        lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
-        entropy = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
-    if regularizer == "prior":
-        entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
-        reg_term = (mixture_regularizer_weight * entropy).mean(dim=-1)
+
+    lmodes_probs = log_prior_probs + log_q_out.t()
+    lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
+    posterior = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
 
     loss = loss.mean(dim=-1) + reg_term
 
-    return loss, prior_entropy
+    return loss, prior_entropy, posterior
 
 
 @dataclass
@@ -126,12 +119,15 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
 
-        loss, prior_entropy = get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
-                                                  mixture_out,
-                                                  self.mixture_temperature,
-                                                  str(self.mixture_regularizer),
-                                                  self.mixture_regularizer_weight,
-                                                  )
+        loss, prior_entropy, posterior = get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
+                                                             mixture_out,
+                                                             self.mixture_temperature
+                                                             )
+        # torchscript cannot handle control flow, calculate reg term only here
+        if self.mixture_regularizer == "prior":
+            loss += self.mixture_regularizer_weight * prior_entropy
+        elif self.mixture_regularizer == "posterior":
+            loss += self.mixture_regularizer_weight * posterior
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
@@ -140,7 +136,6 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
-        ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
         kappa = sum(log.get("kappa", 0) for log in logging_outputs)
         prior_entropy = sum(log.get("prior_entropy", 0) for log in logging_outputs)
