@@ -32,13 +32,11 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor,
     loss = torch.sum(mixture_out_probs * (log_q_out.t() - log_p_prob.t()), dim=-1)
     prior_entropy = -(mixture_out_probs * log_prior_probs).mean(dim=-1)
 
-    reg_term = torch.tensor([0.0], device=mixture_out.device)
+
 
     lmodes_probs = log_prior_probs + log_q_out.t()
     lmodes_probs = lmodes_probs.t() - torch.logsumexp(lmodes_probs, dim=-1)
     posterior = -(mixture_out_probs * lmodes_probs.t()).mean(dim=-1)
-
-    loss = loss.mean(dim=-1) + reg_term
 
     return loss, prior_entropy, posterior
 
@@ -128,10 +126,11 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                              )
         # torchscript cannot handle control flow, calculate reg term only here
         if self.mixture_regularizer == "prior":
-            loss += self.mixture_regularizer_weight * prior_entropy
+            loss += (self.mixture_regularizer_weight * prior_entropy)
         elif self.mixture_regularizer == "posterior":
             loss += self.mixture_regularizer_weight * posterior
 
+        loss = loss.mean(dim=-1)
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
 
