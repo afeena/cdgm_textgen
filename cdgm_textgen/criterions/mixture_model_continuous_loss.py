@@ -15,7 +15,8 @@ from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_prob_scriptable)
 
 @torch.jit.script
-def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor, p_loc: Tensor, p_scale: Tensor,
+def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor,
+                        p_loc: Tensor, p_scale: Tensor,
                         z_samples: Tensor,
                         mixture_out: Tensor,
                         mixture_temperature: float,
@@ -119,7 +120,9 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
 
-        loss, prior_entropy, posterior = get_loss_scriptable(q.loc, q.scale, p.loc, p.scale, z_samples,
+        loss, prior_entropy, posterior = get_loss_scriptable(q.loc, q.scale,
+                                                             p.loc, p.scale,
+                                                             z_samples,
                                                              mixture_out,
                                                              self.mixture_temperature
                                                              )
