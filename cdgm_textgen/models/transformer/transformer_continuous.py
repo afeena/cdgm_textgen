@@ -128,7 +128,7 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
         metadata={"help": "number of mixture components for the distribution"},
     )
     mixture_dropout: float = field(
-        default=0,
+        default=0.1,
         metadata={"help": "dropout for the mixture head"},
     )
     output_parallel: bool = field(default=False,

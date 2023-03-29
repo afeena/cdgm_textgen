@@ -43,6 +43,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.ff_mixture_head = torch.nn.Linear(4*self.embed_dim,
                                                self.num_mixture_components, bias=False)
         torch.nn.init.normal_(self.ff_mixture_head.weight, mean=0, std=self.embed_dim ** -0.5)
+        self.dropout = torch.nn.Dropout(cfg.mixture_dropout)
 
     def forward(
             self,
