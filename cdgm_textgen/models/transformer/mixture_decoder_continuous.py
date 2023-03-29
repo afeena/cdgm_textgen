@@ -40,7 +40,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
 
         # define mixture head to predict the cluster
-        self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
+        self.ff_mixture_head = torch.nn.Linear(4*self.embed_dim,
                                                self.num_mixture_components, bias=False)
         torch.nn.init.normal_(self.ff_mixture_head.weight, mean=0, std=self.embed_dim ** -0.5)
 
@@ -65,7 +65,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             alignment_heads=alignment_heads,
         )
 
-        extra["mixtures_out"] = self.forward_mixture_head(x, extra["hidden_states"])
+        extra["mixtures_out"] = self.forward_mixture_head(x, extra["inner_states"])
 
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
@@ -93,7 +93,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def forward_mixture_head(self, decoder_output, hidden_states=None):
         if hidden_states:
             pooled_output = torch.cat(tuple([hidden_states[i] for i in [-4, -3, -2, -1]]), dim=-1)
-            pooled_output = pooled_output[:, 0, :]
             pooled_output = self.dropout(pooled_output)
         else:
             pooled_output = decoder_output
