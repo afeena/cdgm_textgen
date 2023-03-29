@@ -65,7 +65,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             alignment_heads=alignment_heads,
         )
 
-        extra["mixtures_out"] = self.forward_mixture_head(x)
+        extra["mixtures_out"] = self.forward_mixture_head(x, extra["hidden_states"])
 
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
@@ -90,8 +90,14 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         x = self.ff_output_head(x)
         return x
 
-    def forward_mixture_head(self, decoder_output):
-        mixtures_out = self.ff_mixture_head(decoder_output)
+    def forward_mixture_head(self, decoder_output, hidden_states=None):
+        if hidden_states:
+            pooled_output = torch.cat(tuple([hidden_states[i] for i in [-4, -3, -2, -1]]), dim=-1)
+            pooled_output = pooled_output[:, 0, :]
+            pooled_output = self.dropout(pooled_output)
+        else:
+            pooled_output = decoder_output
+        mixtures_out = self.ff_mixture_head(pooled_output)
         return mixtures_out
 
     def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
