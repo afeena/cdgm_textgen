@@ -42,7 +42,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # define mixture head to predict the cluster
         self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
                                                self.num_mixture_components, bias=False)
-        torch.nn.init.normal_(self.ff_mixture_head.weight, mean=0, std=self.embedding_dim ** -0.5)
+        torch.nn.init.normal_(self.ff_mixture_head.weight, mean=0, std=self.embed_dim ** -0.5)
 
     def forward(
             self,
