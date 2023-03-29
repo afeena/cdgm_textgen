@@ -124,13 +124,17 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                              mixture_out,
                                                              self.mixture_temperature
                                                              )
-        # torchscript cannot handle control flow, calculate reg term only here
-        if self.mixture_regularizer == "prior":
-            loss += (self.mixture_regularizer_weight * prior_entropy)
-        elif self.mixture_regularizer == "posterior":
-            loss += self.mixture_regularizer_weight * posterior
-
         loss = loss.mean(dim=-1)
+        # torchscript cannot handle control flow, calculate reg term only here
+        reg = None
+        if self.mixture_regularizer == "prior":
+            reg = (self.mixture_regularizer_weight * prior_entropy).mean(dim=-1)
+        elif self.mixture_regularizer == "posterior":
+            reg = (self.mixture_regularizer_weight * posterior).mena(dim=-1)
+
+        if reg:
+            loss += reg
+
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
 
