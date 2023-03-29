@@ -27,7 +27,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         self.parallel_output = cfg.output_parallel
         if self.parallel_output:
             self.ff_output_head = torch.nn.ModuleList([
-                torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=True)
+                torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
                 for _ in range(self.num_mixture_components)
             ])
         else:
@@ -42,6 +42,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # define mixture head to predict the cluster
         self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
                                                self.num_mixture_components, bias=False)
+        torch.nn.init.normal_(self.ff_mixture_head.weight, mean=0, std=self.embedding_dim ** -0.5)
 
     def forward(
             self,
