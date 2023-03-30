@@ -179,7 +179,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             scores = self.get_ps_likelihood_scores(net_output[0]).squeeze()
             mixture_probs = F.softmax(net_output[1]["mixtures_out"], dim=-1)
             _, max_idx = mixture_probs.max(dim=-1)
-            out = scores[max_idx, :]
+            idx = max_idx[..., None, None].expand(-1, -1, 1, scores.shape[-1])
+            out = torch.gather(scores, dim=2, index=idx).squeeze(dim=2)
             # for debug purposes
             # from datetime import datetime
             # torch.save(dist, f"mixture_dist_{datetime.now().timestamp()}")
