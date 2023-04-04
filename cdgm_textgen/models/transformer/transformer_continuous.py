@@ -174,3 +174,14 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
                         mixture_out: Optional[Tensor] = None) -> Tensor:
         return self.decoder.sample_mixture_and_output(decoder_out, n_samples, mixture_out)
+
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = "cosine",
+    ):
+        logging.error("get_normalized_probs is not supported for mixture models, "
+                      "use translation_cont task for continuous sequence generator")
+        raise NotImplementedError

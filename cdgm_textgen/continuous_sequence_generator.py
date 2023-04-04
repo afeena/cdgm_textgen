@@ -97,7 +97,6 @@ class ContinuousSequenceGenerator(nn.Module):
         """
         return self._generate(sample, **kwargs)
 
-    @torch.jit.script
     def beam_search_step(self,
                          topk_token_score: Tensor,
                          topk_token_idx: Tensor,
@@ -223,7 +222,6 @@ class ContinuousSequenceGenerator(nn.Module):
                     break
         return self.finalize_hyps(scores, tokens, bsz)
 
-    @torch.jit.script
     def finalize_hyps(self, scores, tokens, bsz):
         final_hyps = []
 
@@ -249,11 +247,9 @@ class ContinuousSequenceGenerator(nn.Module):
                               )
         return final_hyps
 
-    @torch.jit.export
     def forward_encoder(self, net_input: Dict[str, Tensor]):
         return self.model.encoder.forward_torchscript(net_input)
 
-    @torch.jit.export
     def forward_decoder(self,
                         tokens,
                         encoder_out: Dict[str, List[Tensor]],
@@ -279,7 +275,7 @@ class MixtureContinuousSequenceGenerator(ContinuousSequenceGenerator):
             search_strategy="beam",
             reduce_strategy=None,
             mixture_temperature=1.0,
-            metric="ps",
+            metric="cosine",
             **kwargs
     ):
         if beam_size > model[0].decoder.num_mixture_components:
