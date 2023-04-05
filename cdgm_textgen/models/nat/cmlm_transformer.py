@@ -9,10 +9,15 @@ Ghazvininejad, Marjan, et al.
 "Constant-time machine translation with conditional masked language models."
 arXiv preprint arXiv:1904.09324 (2019).
 """
+from dataclasses import field, dataclass
+
 import omegaconf
-from fairseq.models import register_model, register_model_architecture
+from fairseq.models import register_model
 from fairseq.models.nat import NATransformerModel
+from fairseq.models.transformer import TransformerConfig
 from fairseq.utils import new_arange
+
+
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 from cdgm_textgen.models.nat import CMLMTransformerConfig
 from cdgm_textgen.dataclass.utils import convert_omegaconf_to_namesapce
@@ -26,6 +31,35 @@ def _skeptical_unmasking(output_scores, output_masks, p):
     return skeptical_mask.scatter(1, sorted_index, skeptical_mask)
 
 
+@dataclass
+class CMLMTransformerConfig(TransformerConfig):
+    # --- special arguments ---
+    sg_length_pred: bool = field(
+        default=False,
+        metadata={
+            "help": "stop gradients through length"
+        }
+    )
+    pred_length_offset: bool = field(
+        default=False,
+        metadata={
+            "help": "predict length offset"
+        },
+    )
+    length_loss_factor: float = field(
+        default=0.1,
+        metadata={"help": "loss factor for length"},
+    )
+    ngram_predictor: int = field(
+        default=1, metadata={"help": "maximum iterations for iterative refinement."},
+    )
+    src_embedding_copy: bool = field(
+        default=False,
+        metadata={
+            "help": "copy source embeddings"
+        },
+    )
+    label_smoothing: float = field(default=0.1, metadata={"help": "label smoothing"})
 @register_model("cmlm_transformer_base", dataclass=CMLMTransformerConfig)
 class CMLMNATransformerModel(NATransformerModel):
 
