@@ -72,7 +72,7 @@ class CMLMNATransformerModel(NATransformerModel):
                 "out": word_ins_out,
                 "tgt": tgt_tokens,
                 "mask": word_ins_mask,
-                "ls": self.cfg.label_smoothing,
+                "ls": self.args.label_smoothing,
                 "nll_loss": True,
             },
             "length": {
