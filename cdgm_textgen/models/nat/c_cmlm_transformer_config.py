@@ -8,6 +8,34 @@ from typing import Optional
 from fairseq.dataclass import ChoiceEnum
 from fairseq.models.transformer import TransformerConfig
 
+@dataclass
+class CMLMTransformerConfig(TransformerConfig):
+    # --- special arguments ---
+    sg_length_pred: bool = field(
+        default=False,
+        metadata={
+            "help": "stop gradients through length"
+        }
+    )
+    pred_length_offset: bool = field(
+        default=False,
+        metadata={
+            "help": "predict length offset"
+        },
+    )
+    length_loss_factor: float = field(
+        default=0.1,
+        metadata={"help": "loss factor for length"},
+    )
+    ngram_predictor: int = field(
+        default=1, metadata={"help": "maximum iterations for iterative refinement."},
+    )
+    src_embedding_copy: bool = field(
+        default=False,
+        metadata={
+            "help": "copy source embeddings"
+        },
+    )
 
 @dataclass
 class CCMLMTransformerConfig(TransformerConfig):
