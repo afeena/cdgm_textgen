@@ -6,3 +6,4 @@
 
 from .c_cmlm_transformer import *
 from .c_cmlm_transformer_config import *
+from .cmlm_transformer import *
