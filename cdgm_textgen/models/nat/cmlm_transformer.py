@@ -9,13 +9,13 @@ Ghazvininejad, Marjan, et al.
 "Constant-time machine translation with conditional masked language models."
 arXiv preprint arXiv:1904.09324 (2019).
 """
-
+import omegaconf
 from fairseq.models import register_model, register_model_architecture
 from fairseq.models.nat import NATransformerModel
 from fairseq.utils import new_arange
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
 from cdgm_textgen.models.nat import CMLMTransformerConfig
-
+from cdgm_textgen.dataclass.utils import convert_omegaconf_to_namesapce
 
 def _skeptical_unmasking(output_scores, output_masks, p):
     sorted_index = output_scores.sort(-1)[1]
@@ -38,51 +38,11 @@ class CMLMNATransformerModel(NATransformerModel):
         )
 
     @classmethod
-    def build_model(cls, cfg, task):
-        """Build a new model instance."""
-
-        #  bug caused by interaction between OmegaConf II and argparsing
-        cfg.decoder.input_dim = int(cfg.decoder.input_dim)
-        cfg.decoder.output_dim = int(cfg.decoder.output_dim)
-        # --
-
-        if cfg.encoder.layers_to_keep:
-            cfg.encoder.layers = len(cfg.encoder.layers_to_keep.split(","))
-        if cfg.decoder.layers_to_keep:
-            cfg.decoder.layers = len(cfg.decoder.layers_to_keep.split(","))
-
-        src_dict, tgt_dict = task.source_dictionary, task.target_dictionary
-
-        if cfg.share_all_embeddings:
-            if src_dict != tgt_dict:
-                raise ValueError("--share-all-embeddings requires a joined dictionary")
-            if cfg.encoder.embed_dim != cfg.decoder.embed_dim:
-                raise ValueError(
-                    "--share-all-embeddings requires --encoder-embed-dim to match --decoder-embed-dim"
-                )
-            if cfg.decoder.embed_path and (
-                    cfg.decoder.embed_path != cfg.encoder.embed_path
-            ):
-                raise ValueError(
-                    "--share-all-embeddings not compatible with --decoder-embed-path"
-                )
-            encoder_embed_tokens = cls.build_embedding(
-                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
-            )
-            decoder_embed_tokens = encoder_embed_tokens
-            cfg.share_decoder_input_output_embed = True
-        else:
-            encoder_embed_tokens = cls.build_embedding(
-                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
-            )
-            decoder_embed_tokens = cls.build_embedding(
-                cfg, tgt_dict, cfg.decoder.embed_dim, cfg.decoder.embed_path
-            )
-        if cfg.offload_activations:
-            cfg.checkpoint_activations = True  # offloading implies checkpointing
-        encoder = cls.build_encoder(cfg, src_dict, encoder_embed_tokens)
-        decoder = cls.build_decoder(cfg, tgt_dict, decoder_embed_tokens)
-        return cls(cfg, encoder, decoder)
+    def build_model(cls, args, task):
+        if isinstance(args, omegaconf.DictConfig):
+            args = convert_omegaconf_to_namesapce(args)
+        model = super().build_model(args, task)
+        return model
 
     def forward(
         self, src_tokens, src_lengths, prev_output_tokens, tgt_tokens, **kwargs
