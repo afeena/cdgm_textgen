@@ -26,7 +26,7 @@ def _skeptical_unmasking(output_scores, output_masks, p):
     return skeptical_mask.scatter(1, sorted_index, skeptical_mask)
 
 
-@register_model("cmlm_transformer", dataclass=CMLMTransformerConfig)
+@register_model("cmlm_transformer_base", dataclass=CMLMTransformerConfig)
 class CMLMNATransformerModel(NATransformerModel):
 
     @classmethod
