@@ -30,6 +30,14 @@ def _skeptical_unmasking(output_scores, output_masks, p):
 class CMLMNATransformerModel(NATransformerModel):
 
     @classmethod
+    def add_args(cls, parser):
+        """Add model-specific arguments to the parser."""
+        # we want to build the args recursively in this case.
+        gen_parser_from_dataclass(
+            parser, CMLMTransformerConfig(), delete_default=False, with_prefix=""
+        )
+
+    @classmethod
     def build_model(cls, cfg, task):
         """Build a new model instance."""
 
