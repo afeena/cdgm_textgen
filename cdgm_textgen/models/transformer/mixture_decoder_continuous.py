@@ -95,10 +95,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
         with torch.no_grad():
+            score_fn = self.get_ps_likelihood_scores
             if metric == "cosine":
                 score_fn = self.get_cosine_similarity_scores
-            elif metric == "ps":
-                score_fn = self.get_ps_likelihood_scores
 
             mixture_probs = F.softmax(mixtures_out, -1)
             # for debug purposes
