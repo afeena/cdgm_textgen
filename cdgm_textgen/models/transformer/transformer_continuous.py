@@ -181,7 +181,9 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
+            reduce_strategy: Optional[str] = "max",
     ):
-        logging.error("get_normalized_probs is not supported for mixture models, "
-                      "use translation_cont task for continuous sequence generator")
-        raise NotImplementedError
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, 
+                                                 metric,
+                                                 reduce_strategy)
+

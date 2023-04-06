@@ -165,3 +165,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         q = power_spherical.PowerSpherical(normalized_out, kappa_z)
         samples = q.sample(n_samples)
         return mixture_idx, samples, q.log_prob(samples)
+
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = "pas",
+            reduce_strategy: Optional[str] = "max",
+    ):
+        with torch.no_grad():
+            scores = self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], metric, reduce=reduce_strategy)
+
+        return scores
