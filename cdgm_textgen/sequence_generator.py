@@ -847,6 +847,7 @@ class EnsembleModel(nn.Module):
                 if attn is not None:
                     attn = attn[:, -1, :]
 
+
             if len(decoder_out[0].shape) == 4:
                 decoder_out_tuple = (
                     decoder_out[0][:, :, -1:, :].div_(temperature),
