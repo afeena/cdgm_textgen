@@ -103,7 +103,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             # for debug purposes
             # from datetime import datetime
             # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
-
             if reduce == "max":
                 # choose max before getting the model scores
                 _, max_idx = mixture_probs.max(dim=-1)
@@ -176,5 +175,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     ):
         with torch.no_grad():
             scores = self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], metric, reduce=reduce_strategy)
+            scores = scores.squeeze(0)
 
         return scores
