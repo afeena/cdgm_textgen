@@ -7,6 +7,7 @@
 Train a new model on one or across multiple GPUs.
 """
 import fairseq_cli.train as train
+import fairseq
 
 import cdgm_textgen.tasks.utils as cdgm_utils
 from cdgm_textgen.dataclass.configs import CDGMTextgenConfig
@@ -20,7 +21,7 @@ train.convert_namespace_to_omegaconf = cdgm_convert_namespace_to_omegaconf
 
 
 # patch tasks for fairseq
-train.tasks.translation.TranslationTask.build_generator = cdgm_utils.tasks.utils.build_generator
+fairseq.tasks.translation.TranslationTask.build_generator = cdgm_utils.build_generator
 # train.tasks.translation_lev.TranslationLevenshteinTask.build_model = cdgm_utils.build_model_levenshtein
 # train.tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
 # train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
