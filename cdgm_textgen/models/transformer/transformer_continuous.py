@@ -139,6 +139,8 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
                                                       )
     freeze_mixture_clusters: Optional[bool] = field(default=True,
                                                     metadata={"help": "freeze mixture head weights during training"})
+    add_latent_z: Optional[bool]  = field(default=False,
+                                                    metadata={"help": "add z_i to the output of decoder"})
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)

@@ -35,12 +35,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                   self.output_embed_dim, bias=False)
             self.ff_cluster_head = torch.nn.Linear(self.output_embed_dim,
                                                    self.output_embed_dim, bias=False)
+            self.latent_z
+
             if cfg.mixture_clusters_init_path is not None:
                 self.cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
                     [self.num_mixture_components, self.output_embed_dim]))
-                self.cluster_means = torch.nn.Parameter(self.cluster_means)
-                self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
-
+            else:
+                self.cluster_means = torch.rand(self.num_mixture_components, self.output_embed_dim)
+            self.cluster_means = torch.nn.Parameter(self.cluster_means)
+            self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
+            self.latent_z = cfg.add_latent_z
         # define mixture head to predict the cluster
         self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
                                                self.num_mixture_components, bias=False)
@@ -71,7 +75,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
         else:
-            x = self.forward_clustered_output(x)
+            x = self.forward_clustered_output(x, self.latent_z)
 
         return x, extra
 
@@ -81,11 +85,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
         return x
 
-    def forward_clustered_output(self, x):
+    def forward_clustered_output(self, x, latent_z=False):
         # map the output to the mixture components
-        x_out = self.ff_output_head(x)
-        latent_z = self.ff_cluster_head(self.cluster_means).unsqueeze(1).unsqueeze(1)
-        return x_out + latent_z
+        x_out_d2o = self.ff_output_head(x)
+        x_out_o2o = self.ff_cluster_head(self.cluster_means).unsqueeze(1).unsqueeze(1)
+        x_out = x_out_d2o + x_out_o2o
+
+        if latent_z:
+            x_out = x_out + self.cluster_means.unsqueeze(1).unsqueeze(1)
+
+        return x_out
 
     def forward_mixture_head(self, decoder_output):
         mixtures_out = self.ff_mixture_head(decoder_output)
