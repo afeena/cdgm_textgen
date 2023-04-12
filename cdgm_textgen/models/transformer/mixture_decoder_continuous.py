@@ -35,8 +35,6 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                   self.output_embed_dim, bias=False)
             self.ff_cluster_head = torch.nn.Linear(self.output_embed_dim,
                                                    self.output_embed_dim, bias=False)
-            self.latent_z
-
             if cfg.mixture_clusters_init_path is not None:
                 self.cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
                     [self.num_mixture_components, self.output_embed_dim]))
