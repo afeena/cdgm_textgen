@@ -43,6 +43,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             self.cluster_means = torch.nn.Parameter(self.cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
             self.latent_z = cfg.add_latent_z
+
         # define mixture head to predict the cluster
         self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
                                                self.num_mixture_components, bias=False)
@@ -73,7 +74,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
         else:
-            x = self.forward_clustered_output(x, self.latent_z)
+            x = self.forward_clustered_output(x)
 
         return x, extra
 
@@ -83,13 +84,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
         return x
 
-    def forward_clustered_output(self, x, latent_z=False):
+    def forward_clustered_output(self, x):
         # map the output to the mixture components
         x_out_d2o = self.ff_output_head(x)
         x_out_o2o = self.ff_cluster_head(self.cluster_means).unsqueeze(1).unsqueeze(1)
         x_out = x_out_d2o + x_out_o2o
 
-        if latent_z:
+        if self.latent_z:
             x_out = x_out + self.cluster_means.unsqueeze(1).unsqueeze(1)
 
         return x_out
