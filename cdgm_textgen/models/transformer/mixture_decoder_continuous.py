@@ -86,12 +86,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def forward_clustered_output(self, x):
         # map the output to the mixture components
+        means = self.cluster_means.unsqueeze(1).unsqueeze(1)
         x_out_d2o = self.ff_output_head(x)
-        x_out_o2o = self.ff_cluster_head(self.cluster_means).unsqueeze(1).unsqueeze(1)
+        x_out_o2o = self.ff_cluster_head(means)
         x_out = x_out_d2o + x_out_o2o
 
         if self.latent_z:
-            x_out = x_out + self.cluster_means.unsqueeze(1).unsqueeze(1)
+            x_out = x_out + means
 
         return x_out
 
