@@ -31,8 +31,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 for _ in range(self.num_mixture_components)
             ])
         else:
-            self.ff_output_head = torch.nn.Linear(self.embed_dim + self.output_embed_dim,
+            self.ff_output_head = torch.nn.Linear(self.embed_dim,
                                                   self.output_embed_dim, bias=False)
+            self.ff_cluster_head = torch.nn.Linear(self.output_embed_dim,
+                                                   self.output_embed_dim, bias=False)
             if cfg.mixture_clusters_init_path is not None:
                 self.cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
                     [self.num_mixture_components, self.output_embed_dim]))
@@ -69,7 +71,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
         else:
-            x = self.forward_clustered_output_concat(x)
+            x = self.forward_clustered_output(x)
 
         return x, extra
 
@@ -79,15 +81,11 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
         return x
 
-    def forward_clustered_output_concat(self, x):
+    def forward_clustered_output(self, x):
         # map the output to the mixture components
-        bsz = x.shape[0]
-        seq_len = x.shape[1]
-        x = x[None, ...].expand(self.num_mixture_components, -1, -1, -1)
-        latent_z = self.cluster_means[:, None, None, ...].expand(-1, bsz, seq_len, -1)
-        x = torch.cat([x, latent_z], -1)
-        x = self.ff_output_head(x)
-        return x
+        x_out = self.ff_output_head(x)
+        latent_z = self.ff_cluster_head(self.cluster_means).unsqueeze(1).unsqueeze(1)
+        return x_out + latent_z
 
     def forward_mixture_head(self, decoder_output):
         mixtures_out = self.ff_mixture_head(decoder_output)
@@ -174,7 +172,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             reduce_strategy: Optional[str] = "max",
     ):
         with torch.no_grad():
-            scores = self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], metric, reduce=reduce_strategy)
+            scores = self.get_mixture_output(net_output[0], net_output[1]["mixtures_out"], metric,
+                                             reduce=reduce_strategy)
             scores = scores.squeeze(0)
 
         return scores
