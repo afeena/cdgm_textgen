@@ -19,7 +19,6 @@ from fairseq.utils import new_arange
 
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
-from cdgm_textgen.models.nat import CMLMTransformerConfig
 from cdgm_textgen.dataclass.utils import convert_omegaconf_to_namesapce
 
 def _skeptical_unmasking(output_scores, output_masks, p):

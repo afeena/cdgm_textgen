@@ -12,7 +12,7 @@ from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureCo
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
 
-logger = logging.getLogger("cdgm_textgen.models.transformer.transfore_continuous")
+logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous")
 
 
 @dataclass
