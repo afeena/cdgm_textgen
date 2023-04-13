@@ -9,6 +9,7 @@ from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
 from cdgm_textgen.modules import parse_cluster_means
+from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
@@ -36,11 +37,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             self.ff_cluster_head = torch.nn.Linear(self.output_embed_dim,
                                                    self.output_embed_dim, bias=False)
             if cfg.mixture_clusters_init_path is not None:
-                self.cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
+                cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
                     [self.num_mixture_components, self.output_embed_dim]))
             else:
-                self.cluster_means = torch.rand(self.num_mixture_components, self.output_embed_dim)
-            self.cluster_means = torch.nn.Parameter(self.cluster_means)
+                cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
+                                                                   self.num_mixture_components)
+            self.cluster_means = torch.nn.Parameter(cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
             self.latent_z = cfg.add_latent_z
 
