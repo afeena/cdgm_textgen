@@ -7,9 +7,12 @@ import torch
 from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
+import power_spherical
+import torch.nn.functional as F
 
 from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
-                                     ARPowerSphericalRevKLCriterion)
+                                     ARPowerSphericalRevKLCriterion, ARPowerSphericalCriterion,
+                                     ARPowerSphericalCriterionConfig)
 from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_softmax_with_temperature_scriptable,
                                         log_prob_scriptable)
@@ -39,6 +42,60 @@ def get_loss_scriptable(q_loc: Tensor, q_scale: Tensor,
     return loss, prior_entropy, posterior
 
 
+@register_criterion("power_spherical_mixture_loss", dataclass=ARPowerSphericalCriterionConfig)
+class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
+    def __init__(self, task, sentence_avg, kappa_lambda):
+        super().__init__(task,
+                         sentence_avg,
+                         kappa_lambda)
+
+
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+        out = net_output[0]
+        mixture_out = net_output[1]["mixtures_out"]
+        target = target[mask]
+
+        #out is in a shape MxBxTxD, take mask only over last 3 dims
+        out = out[:, mask]
+        mixture_out = mixture_out[mask]
+        out = F.normalize(out, dim=-1)
+        kappa = torch.norm(out, dim=-1)
+
+
+        d_x = power_spherical.PowerSpherical(out, kappa)
+
+        #Q(x) = \sum_{m=1}^M p_m Q_m(x)
+        #logQ(x) = log(\sum_{m=1}^M p_m Q_m(x))
+
+        q_outs = d_x.log_prob(target)
+        p_outs = F.log_softmax(mixture_out, dim=-1)
+        loss = -torch.logsumexp(p_outs*q_outs, dim=-1)
+        reg_term = self.kappa_lambda * (torch.pow(kappa, 2).mean(dim=-1))
+        loss = loss.mean(dim=-1) + reg_term.mean(dim=-1)
+
+        logging = {"kappa": kappa.detach().mean(dim=-1)}
+
+        return loss, logging
+
+    @staticmethod
+    def reduce_metrics(logging_outputs) -> None:
+        """Aggregate logging outputs from data parallel training."""
+        loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
+        sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+        kappa = sum(log.get("kappa", 0) for log in logging_outputs)
+        prior_entropy = sum(log.get("prior_entropy", 0) for log in logging_outputs)
+
+        # we divide by log(2) to convert the loss from base e to base 2
+        metrics.log_scalar(
+            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+
+        metrics.log_scalar('kappa', kappa / sample_size, sample_size, round=3)
+        metrics.log_scalar("prior_entropy", prior_entropy / sample_size, sample_size, round=3)
+
+
 @dataclass
 class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
     mixture_regularizer: Optional[str] = field(
@@ -50,8 +107,6 @@ class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
         metadata={"help": "weight of mixture reg"},
     )
     mixture_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for mixture prior"})
-
-
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=MixturePSKLCriterionConfig)
 class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
     def __init__(self, task, n_samples,

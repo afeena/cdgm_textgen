@@ -6,7 +6,9 @@
 
 from .cmk_approx import neg_log_cmk_approx
 from .utils import *
+from .riemannian_clustering import *
 
 __all__ = [
-    "neg_log_cmk_approx"
+    "neg_log_cmk_approx",
+    "cluster_embeddings_riemannian"
 ]
