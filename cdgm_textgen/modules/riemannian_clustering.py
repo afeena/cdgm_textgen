@@ -14,6 +14,7 @@ def cluster_embeddings_riemannian(embeddings, n_clusters):
     logger.info("Clustering embeddings on the hypersphere with {} clusters".format(n_clusters))
 
     kmeans = RiemannianKMeans(metric=sphere.metric,
+                              n_clusters=n_clusters,
                               tol=1e-5,
                               init='kmeans++',
                               init_step_size=.5,
