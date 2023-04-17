@@ -69,8 +69,8 @@ class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
         # logQ(x) = log(\sum_{m=1}^M p_m Q_m(x))
 
         q_outs = d_x.log_prob(target)
-        p_outs = F.log_softmax(mixture_out, dim=-1)
-        loss = -torch.logsumexp(p_outs * q_outs, dim=-1)
+        p_outs = F.log_softmax(mixture_out, dim=-1).transpose(0, 1).unsqueeze(0)
+        loss = -torch.logsumexp(q_outs+p_outs, dim=1)
         reg_term = self.kappa_lambda * (torch.pow(kappa, 2).mean(dim=-1))
         loss = loss.mean(dim=-1) + reg_term.mean(dim=-1)
 
