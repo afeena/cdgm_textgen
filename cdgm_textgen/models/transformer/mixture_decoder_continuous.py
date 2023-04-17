@@ -8,7 +8,7 @@ from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
-from cdgm_textgen.modules import parse_cluster_means
+from cdgm_textgen.modules import parse_cluster_means, sum_scriptable
 from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -91,10 +91,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         means = self.cluster_means.unsqueeze(1).unsqueeze(1)
         x_out_d2o = self.ff_output_head(x)
         x_out_o2o = self.ff_cluster_head(means)
-        x_out = x_out_d2o + x_out_o2o
+        x_out = sum_scriptable(x_out_d2o, x_out_o2o)
 
         if self.latent_z:
-            x_out = x_out + means
+            x_out = sum_scriptable(x_out, means)
 
         return x_out
 
