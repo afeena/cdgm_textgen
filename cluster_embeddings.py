@@ -8,8 +8,7 @@ if __name__ == "__main__":
     embeddings_file = sys.argv[1]
     n_clusters = int(sys.argv[2])
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    emb_mat_norms = torch.load(embeddings_file, map_location=device)
+    emb_mat_norms = torch.load(embeddings_file)
     #don't use pad and bos tokens
     emb_mat_norms = F.normalize(emb_mat_norms[2:,:], dim=-1)
     dim = emb_mat_norms.shape[-1]
