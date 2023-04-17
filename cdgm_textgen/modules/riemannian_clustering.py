@@ -14,10 +14,11 @@ def cluster_embeddings_riemannian(embeddings, n_clusters):
     logger.info("Clustering embeddings on the hypersphere with {} clusters".format(n_clusters))
 
     kmeans = RiemannianKMeans(metric=sphere.metric,
-                              n_clusters=n_clusters,
                               tol=1e-5,
-                              verbose=2,
-                              max_iter=1000)
+                              init='kmeans++',
+                              init_step_size=.5,
+                              max_iter_mean=1000,
+                              max_iter=10,)
     kmeans.fit(embeddings)
     cluster_centroids = kmeans.centroids
     return cluster_centroids
