@@ -14,7 +14,7 @@ if __name__ == "__main__":
     emb_mat_norms = F.normalize(emb_mat_norms[2:,:], dim=-1)
     dim = emb_mat_norms.shape[-1]
 
-    print("Loaded embeddings for {} tokens".format(len(emb_mat_norms.shape[0])))
+    print("Loaded embeddings for {} tokens".format(emb_mat_norms.shape[0]))
 
     centroids = cluster_embeddings_riemannian(emb_mat_norms, n_clusters)
     np.savetxt(f"{n_clusters}_centroids_dim{dim}.txt", centroids.numpy())
