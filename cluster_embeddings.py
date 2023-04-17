@@ -6,27 +6,14 @@ from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_rieman
 
 if __name__ == "__main__":
     embeddings_file = sys.argv[1]
-    dim = int(sys.argv[2])
-    n_clusters = int(sys.argv[3])
-    vocab_size = int(sys.argv[4])
+    n_clusters = int(sys.argv[2])
 
-    wrd2idx = {}
-    idx2wrd = {}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    emb_mat_norms = torch.empty((vocab_size, dim), device=device)
-    i = 0
+    emb_mat_norms = torch.load(embeddings_file, map_location=device)
+    emb_mat_norms = F.normalize(emb_mat_norms, dim=-1)
+    dim = emb_mat_norms.shape[-1]
 
-    with open(embeddings_file) as ef:
-        for line in ef:
-            line = line.strip()
-            tok, vals = line.split()[0], line.split()[1:]
-            wrd2idx[tok] = i
-            idx2wrd[i] = tok
-            tens = torch.tensor([float(v) for v in vals])
-            emb_mat_norms[i] = F.normalize(tens, dim=0)
-            i += 1
-
-    print("Loaded embeddings for {} tokens".format(len(wrd2idx)))
+    print("Loaded embeddings for {} tokens".format(len(emb_mat_norms.shape[0])))
 
     centroids = cluster_embeddings_riemannian(emb_mat_norms, n_clusters)
     np.savetxt(f"{n_clusters}_centroids_dim{dim}.txt", centroids.numpy())
