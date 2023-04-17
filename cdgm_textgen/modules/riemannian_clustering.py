@@ -15,11 +15,12 @@ def cluster_embeddings_riemannian(embeddings, n_clusters):
 
     kmeans = RiemannianKMeans(metric=sphere.metric,
                               n_clusters=n_clusters,
-                              tol=1e-5,
+                              tol=1e-3,
                               init='random',
                               init_step_size=.5,
                               max_iter_mean=1000,
-                              max_iter=100)
+                              max_iter=200,
+                              verbose=2)
     kmeans.fit(embeddings)
     cluster_centroids = kmeans.centroids
     return cluster_centroids
