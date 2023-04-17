@@ -18,7 +18,7 @@ def cluster_embeddings_riemannian(embeddings, n_clusters):
                               init='kmeans++',
                               init_step_size=.5,
                               max_iter_mean=1000,
-                              max_iter=10,)
+                              max_iter=100)
     kmeans.fit(embeddings)
     cluster_centroids = kmeans.centroids
     return cluster_centroids
