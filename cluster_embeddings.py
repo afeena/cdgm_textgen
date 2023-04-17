@@ -12,7 +12,8 @@ if __name__ == "__main__":
 
     wrd2idx = {}
     idx2wrd = {}
-    emb_mat_norms = torch.empty((vocab_size, dim))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    emb_mat_norms = torch.empty((vocab_size, dim), device=device)
     i = 0
 
     with open(embeddings_file) as ef:
