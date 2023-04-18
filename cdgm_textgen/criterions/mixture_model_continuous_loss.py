@@ -60,8 +60,8 @@ class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
         # out is in a shape MxBxTxD, take mask only over last 3 dims
         out = out[:, mask]
         mixture_out = mixture_out[mask]
-        out = F.normalize(out, dim=-1)
         kappa = torch.norm(out, dim=-1)
+        out = F.normalize(out, dim=-1)
 
         d_x = power_spherical.PowerSpherical(out, kappa)
 
@@ -74,7 +74,7 @@ class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
         reg_term = self.kappa_lambda * (torch.pow(kappa, 2).mean(dim=-1))
         loss = loss.mean(dim=-1) + reg_term.mean(dim=-1)
 
-        logging = {"kappa": kappa.detach().mean(dim=-1)}
+        logging = {"kappa": kappa.detach().mean()}
 
         return loss, logging
 
