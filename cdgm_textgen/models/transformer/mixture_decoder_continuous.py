@@ -101,7 +101,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return x_out
 
     def forward_mixture_head(self, decoder_output):
-        if self.uniform_prior:
+        if not self.uniform_prior:
             mixtures_out = self.ff_mixture_head(decoder_output)
         else:
 
