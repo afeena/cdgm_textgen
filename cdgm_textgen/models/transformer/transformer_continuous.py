@@ -141,6 +141,8 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
                                                     metadata={"help": "freeze mixture head weights during training"})
     add_latent_z: Optional[bool]  = field(default=False,
                                                     metadata={"help": "add z_i to the output of decoder"})
+    uniform_prior: Optional[bool] = field(default=False,
+                                          metadata={"help": "use uniform prior for mixture components"})
 
 
 @register_model("continuous_transformer_mixture", dataclass=MixtureContinuousTransformerConfig)

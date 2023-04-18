@@ -41,14 +41,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                     [self.num_mixture_components, self.output_embed_dim]))
             else:
                 cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
-                                                                   self.num_mixture_components)
+                                                              self.num_mixture_components)
             self.cluster_means = torch.nn.Parameter(cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
             self.latent_z = cfg.add_latent_z
 
-        # define mixture head to predict the cluster
-        self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
-                                               self.num_mixture_components, bias=False)
+        self.uniform_prior = cfg.uniform_prior
+        if not self.uniform_prior:
+            # define mixture head to predict the cluster
+            self.ff_mixture_head = torch.nn.Linear(self.embed_dim,
+                                                   self.num_mixture_components, bias=False)
 
     def forward(
             self,
@@ -99,7 +101,14 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         return x_out
 
     def forward_mixture_head(self, decoder_output):
-        mixtures_out = self.ff_mixture_head(decoder_output)
+        if self.uniform_prior:
+            mixtures_out = self.ff_mixture_head(decoder_output)
+        else:
+
+            mixtures_out = torch.ones(decoder_output.size(0),
+                                      decoder_output.size(1),
+                                      self.num_mixture_components,
+                                      device=decoder_output.device)
         return mixtures_out
 
     def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
