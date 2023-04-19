@@ -38,13 +38,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                    self.output_embed_dim, bias=False)
             if cfg.mixture_clusters_init_path is not None:
                 cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
-                    [self.num_mixture_components, self.output_embed_dim]))
+                    [self.num_mixture_components, 1, 1, self.output_embed_dim]))
             else:
                 cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
                                                               self.num_mixture_components)
             self.cluster_means = torch.nn.Parameter(cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
-            self.latent_z = cfg.add_latent_z
 
         self.uniform_prior = cfg.uniform_prior
         if not self.uniform_prior:
@@ -75,10 +74,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         extra["mixtures_out"] = self.forward_mixture_head(x)
 
-        if self.parallel_output:
-            x = self.forward_output_head_parallel(x)
-        else:
-            x = self.forward_clustered_output(x)
+        x = self.forward_clustered_output(x)
 
         return x, extra
 
@@ -90,15 +86,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def forward_clustered_output(self, x):
         # map the output to the mixture components
-        means = self.cluster_means.unsqueeze(1).unsqueeze(1)
-        x_out_d2o = self.ff_output_head(x)
-        x_out_o2o = self.ff_cluster_head(means)
-        x_out = sum_scriptable(x_out_d2o, x_out_o2o)
+        x_out = self.ff_output_head(x)
+        x_out = x_out+self.ff_cluster_head(self.cluster_means)
 
-        if self.latent_z:
-            x_out = sum_scriptable(x_out, means)
-
-        return x_out
+        return x_out+self.cluster_means
 
     def forward_mixture_head(self, decoder_output):
         if not self.uniform_prior:
