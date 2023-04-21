@@ -8,7 +8,7 @@ from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
-from cdgm_textgen.modules import parse_cluster_means, sum_scriptable
+from cdgm_textgen.modules import parse_cluster_means, triple_sum_scriptable
 from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -87,9 +87,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def forward_clustered_output(self, x):
         # map the output to the mixture components
         x_out = self.ff_output_head(x)
-        x_out = x_out+self.ff_cluster_head(self.cluster_means)
+        cluster_out = self.ff_cluster_head(self.cluster_means)
 
-        return x_out+self.cluster_means
+        return triple_sum_scriptable(x_out, cluster_out, self.cluster_means)
 
     def forward_mixture_head(self, decoder_output):
         if not self.uniform_prior:
