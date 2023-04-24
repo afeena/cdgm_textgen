@@ -42,8 +42,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             else:
                 cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
                                                               self.num_mixture_components)
-            self.cluster_means = torch.nn.Parameter(cluster_means.unsqueeze(1).unsqueeze(1))
-            self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
+            self.cluster_means = torch.nn.Parameter(cluster_means, requires_grad=not cfg.freeze_mixture_clusters)
 
         self.uniform_prior = cfg.uniform_prior
         if not self.uniform_prior:
@@ -86,10 +85,11 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def forward_clustered_output(self, x):
         # map the output to the mixture components
+        c_means = self.cluster_means.unsqueeze(1).unsqueeze(1)
         x_out = self.ff_output_head(x)
-        cluster_out = self.ff_cluster_head(self.cluster_means)
+        cluster_out = self.ff_cluster_head(c_means)
 
-        return triple_sum_scriptable(x_out, cluster_out, self.cluster_means)
+        return triple_sum_scriptable(x_out, cluster_out, c_means)
 
     def forward_mixture_head(self, decoder_output):
         if not self.uniform_prior:
