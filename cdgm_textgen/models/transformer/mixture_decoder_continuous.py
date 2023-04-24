@@ -42,9 +42,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             else:
                 cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
                                                               self.num_mixture_components)
-            self.cluster_means = torch.nn.Parameter(cluster_means)
+            self.cluster_means = torch.nn.Parameter(cluster_means.unsqueeze(1).unsqueeze(1))
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
-            self.cluster_means = self.cluster_means.unsqueeze(1).unsqueeze(1)
 
         self.uniform_prior = cfg.uniform_prior
         if not self.uniform_prior:
