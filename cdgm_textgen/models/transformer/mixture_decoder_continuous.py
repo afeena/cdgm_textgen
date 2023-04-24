@@ -38,12 +38,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                                    self.output_embed_dim, bias=False)
             if cfg.mixture_clusters_init_path is not None:
                 cluster_means = parse_cluster_means(cfg.mixture_clusters_init_path, torch.Size(
-                    [self.num_mixture_components, 1, 1, self.output_embed_dim]))
+                    [self.num_mixture_components, self.output_embed_dim]))
             else:
                 cluster_means = cluster_embeddings_riemannian(self.target_embed_normalized,
                                                               self.num_mixture_components)
             self.cluster_means = torch.nn.Parameter(cluster_means)
             self.cluster_means.requires_grad = not cfg.freeze_mixture_clusters
+            self.cluster_means = self.cluster_means.unsqueeze(1).unsqueeze(1)
 
         self.uniform_prior = cfg.uniform_prior
         if not self.uniform_prior:
