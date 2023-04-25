@@ -210,6 +210,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
         kappa = sum(log.get("kappa", 0) for log in logging_outputs)
         prior_entropy = sum(log.get("prior_entropy", 0) for log in logging_outputs)
+        posterior = sum(log.get("posterior", 0) for log in logging_outputs)
+        norm_f = sum(log.get("norm_f", 0) for log in logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
@@ -218,3 +220,5 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         metrics.log_scalar('kappa', kappa / sample_size, sample_size, round=3)
         metrics.log_scalar("prior_entropy", prior_entropy / sample_size, sample_size, round=3)
+        metrics.log_scalar("posterior", posterior / sample_size, sample_size, round=3)
+        metrics.log_scalar("norm_f", norm_f / sample_size, sample_size, round=3)
