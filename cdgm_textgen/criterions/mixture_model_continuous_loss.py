@@ -105,6 +105,7 @@ class MixturePSKLCriterionConfig(ARPowerSphericalRevKLCriterionConfig):
         metadata={"help": "weight of mixture reg"},
     )
     mixture_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for mixture prior"})
+    norm_f_weight: Optional[float] = field(default=0.0, metadata={"help": "weight for norm of f regularizer"})
 
 
 @register_criterion("power_spherical_klmc_mixture_loss", dataclass=MixturePSKLCriterionConfig)
@@ -128,12 +129,21 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
+        norm_f = net_output[1]["norm_f"]
 
-        loss, logging = self.compute_kl(out, target, mask, mixture_out=mixture_out)
+        loss, logging = self.compute_kl(out,
+                                        target,
+                                        mask,
+                                        mixture_out=mixture_out,
+                                        norm_f=norm_f)
 
         return loss, logging
 
-    def compute_kl(self, out: Tensor, target: Tensor, mask: Tensor, mixture_out: Tensor = None):
+    def compute_kl(self, out: Tensor,
+                   target: Tensor,
+                   mask: Tensor,
+                   mixture_out: Tensor = None,
+                   norm_f: Tensor = None):
         """
         out: Tensor(MxBxTxD) - output of the model where
         M - number of mixtures,
@@ -184,9 +194,12 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
             reg = (self.mixture_regularizer_weight * prior_entropy).mean(dim=-1)
         elif self.mixture_regularizer == "posterior":
             reg = (self.mixture_regularizer_weight * posterior).mean(dim=-1)
+        elif norm_f is not None:
+            reg = (self.norm_f_weight * norm_f).mean(dim=-1)
 
         if reg:
             loss += reg
+
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
