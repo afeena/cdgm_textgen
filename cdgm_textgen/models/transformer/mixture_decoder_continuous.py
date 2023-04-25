@@ -76,7 +76,8 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         if self.parallel_output:
             x = self.forward_output_head_parallel(x)
         else:
-            x = self.forward_clustered_output(x)
+            f, x = self.forward_clustered_output(x)
+            extra["norm_f"] = torch.norm(f, dim=-1)
 
         return x, extra
 
