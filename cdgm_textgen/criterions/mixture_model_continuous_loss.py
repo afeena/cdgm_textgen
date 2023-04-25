@@ -174,8 +174,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         # x is in the format of MxBxTxD --> apply mask starting from dim=1
         out = out[:, mask]
 
-        kappa = torch.norm(out, dim=-1)
-        norm_target = torch.norm(target, dim=-1)
+        kappa: Tensor = torch.norm(out, dim=-1)
+        norm_target: Tensor = torch.norm(target, dim=-1)
         target_kappa = self.target_kappa_scale * norm_target
         p, q = self.set_dist(out, target, kappa, target_kappa)
         z_samples = q.rsample()

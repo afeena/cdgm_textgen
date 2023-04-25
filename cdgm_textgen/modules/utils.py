@@ -12,9 +12,8 @@ def output_with_temperature_scriptable(out: Tensor, temperature: float) -> Tenso
 
 @torch.jit.script
 def triple_sum_scriptable(x: Tensor, y: Tensor, z:Tensor) -> Tuple[Tensor, Tensor]:
-    f: Tensor = x+y
-    out: Tensor = f + z
-    return f, out
+    x = x+y
+    return x, x+z
 
 @torch.jit.script
 def sum_scriptable(x: Tensor, y: Tensor) -> Tensor:

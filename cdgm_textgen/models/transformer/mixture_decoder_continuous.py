@@ -8,7 +8,7 @@ from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
-from cdgm_textgen.modules import parse_cluster_means, sum_scriptable
+from cdgm_textgen.modules import parse_cluster_means, triple_sum_scriptable
 from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -52,7 +52,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
     def forward(
             self,
-            prev_output_tokens,
+            prev_output_tokens: Tensor,
             encoder_out: Optional[Dict[str, List[Tensor]]] = None,
             incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
             features_only: bool = True,
@@ -81,22 +81,21 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         return x, extra
 
-    def forward_output_head_parallel(self, x):
+    def forward_output_head_parallel(self, x: Tensor) -> Tensor:
         # map the output to the mixture components
         fmodel, mixture_params, mixture_buffers = combine_state_for_ensemble(self.ff_output_head)
         x = vmap(fmodel, (0, 0, None))(mixture_params, mixture_buffers, x)
         return x
 
-    def forward_clustered_output(self, x):
+    def forward_clustered_output(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         # map the output to the mixture components
         c_means = self.cluster_means.unsqueeze(1).unsqueeze(1)
         x_out = self.ff_output_head(x)
         cluster_out = self.ff_cluster_head(c_means)
-        f = sum_scriptable(x_out, cluster_out)
 
-        return f, sum_scriptable(f,c_means)
+        return triple_sum_scriptable(x_out, cluster_out, c_means)
 
-    def forward_mixture_head(self, decoder_output):
+    def forward_mixture_head(self, decoder_output: Tensor) -> Tensor:
         if not self.uniform_prior:
             mixtures_out = self.ff_mixture_head(decoder_output)
         else:
@@ -107,7 +106,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                                       device=decoder_output.device)
         return mixtures_out
 
-    def get_mixture_output(self, decoder_out, mixtures_out, metric, reduce=None):
+    def get_mixture_output(self, decoder_out: Tensor,
+                           mixtures_out: Tensor,
+                           metric: str,
+                           reduce: str = None) -> Tensor:
         with torch.no_grad():
             score_fn = self.get_ps_likelihood_scores
             if metric == "cosine":
@@ -166,7 +168,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             return output_proj.view(mixt, bsz, -1, self.dict_len)
 
-    def sample_mixture_and_output(self, decoder_out, mixtures_out, n_samples=1):
+    def sample_mixture_and_output(self,
+                                  decoder_out: Tensor,
+                                  mixtures_out: Tensor,
+                                  n_samples: int = 1) -> Tuple[Tensor, Tensor, Tensor]:
         """
         sample mixture index first, then sample from respective PS distribution
         decoder_out: MxBxTxD
