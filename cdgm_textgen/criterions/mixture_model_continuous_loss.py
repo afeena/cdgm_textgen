@@ -197,7 +197,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         elif self.mixture_regularizer == "posterior":
             reg = (self.mixture_regularizer_weight * posterior).mean(dim=-1)
         elif norm_f is not None:
-            reg = (self.norm_f_weight * norm_f).mean(dim=-1)
+            reg = (self.norm_f_weight * norm_f).mean()
         loss += reg
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
