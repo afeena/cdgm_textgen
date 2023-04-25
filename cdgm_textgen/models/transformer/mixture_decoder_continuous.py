@@ -115,7 +115,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             # for debug purposes
             # from datetime import datetime
             # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
-            if reduce == "max":
+            if reduce == "max" and not self.uniform_prior:
                 # choose max before getting the model scores
                 _, max_idx = mixture_probs.max(dim=-1)
                 max_idx = max_idx.t()
@@ -129,9 +129,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 # Get model_scores in MxBxTxD where T=1
                 model_scores = score_fn(decoder_out).squeeze(dim=2)
 
-                mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-                model_scores = model_scores * mixture_probs.transpose(0, 1)
-
+                if not self.uniform_prior:
+                    mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
+                    model_scores = model_scores * mixture_probs.transpose(0, 1)
+                if reduce == "max":
+                    best_mixt_idx = torch.max(model_scores, dim=0).indices
+                    model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
                 if reduce == "sum":
                     model_scores = torch.sum(model_scores, dim=0)
 
