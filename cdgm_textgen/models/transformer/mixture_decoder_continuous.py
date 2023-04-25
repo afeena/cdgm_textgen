@@ -127,7 +127,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             else:
                 # Get model_scores in MxBxTxD where T=1
-                model_scores = score_fn(decoder_out).squeeze(dim=2)
+                model_scores = score_fn(decoder_out)
 
                 if not self.uniform_prior:
                     mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
