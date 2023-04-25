@@ -191,16 +191,16 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                              )
         loss = loss.mean(dim=-1)
         # torchscript cannot handle control flow, calculate reg term only here
-        reg = torch.zeros(loss.shape, device=loss.device)
         if self.mixture_regularizer == "prior":
-            reg = (self.mixture_regularizer_weight * prior_entropy).mean(dim=-1)
+            loss += (self.mixture_regularizer_weight * prior_entropy).mean(dim=-1)
         elif self.mixture_regularizer == "posterior":
-            reg = (self.mixture_regularizer_weight * posterior).mean(dim=-1)
-        elif norm_f is not None:
-            reg = (self.norm_f_weight * norm_f).mean()
-        loss += reg
+            loss += (self.mixture_regularizer_weight * posterior).mean(dim=-1)
+        if norm_f is not None:
+            loss += (self.norm_f_weight * norm_f).mean()
+
         return loss, {"kappa": kappa.detach().mean(),
-                      "prior_entropy": prior_entropy.detach().mean()}
+                      "prior_entropy": prior_entropy.detach().mean(),
+                      "norm_f": norm_f.detach().mean() if norm_f is not None else 0.0}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
