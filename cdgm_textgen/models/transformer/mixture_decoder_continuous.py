@@ -73,7 +73,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         extra["mixtures_out"] = self.forward_mixture_head(x)
 
-        x = self.forward_clustered_output(x)
+        if self.parallel_output:
+            x = self.forward_output_head_parallel(x)
+        else:
+            x = self.forward_clustered_output(x)
 
         return x, extra
 
@@ -179,7 +182,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = "pas",
+            metric: Optional[str] = "ps",
             reduce_strategy: Optional[str] = "max",
     ):
         with torch.no_grad():
