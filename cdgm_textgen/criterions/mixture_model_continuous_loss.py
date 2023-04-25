@@ -200,7 +200,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean(),
-                      "norm_f": norm_f.detach().mean() if norm_f is not None else 0.0}
+                      "norm_f": norm_f.detach().mean() if norm_f is not None else 0.0,
+                      "posterior": posterior.detach().mean()}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
