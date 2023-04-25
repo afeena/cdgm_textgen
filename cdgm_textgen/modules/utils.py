@@ -16,6 +16,9 @@ def triple_sum_scriptable(x: Tensor, y: Tensor, z:Tensor) -> Tuple[Tensor, Tenso
     out: Tensor = f + z
     return f, out
 
+@torch.jit.script
+def sum_scriptable(x: Tensor, y: Tensor) -> Tensor:
+    return x+y
 
 @torch.jit.script
 def softmax_with_temperature_scriptable(out: Tensor, temperature: float) -> Tensor:
