@@ -115,7 +115,8 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                  target_kappa_scale,
                  mixture_regularizer,
                  mixture_regularizer_weight,
-                 mixture_temperature):
+                 mixture_temperature,
+                 norm_f_weight):
         super().__init__(task,
                          n_samples,
                          kldirection,
@@ -123,6 +124,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         self.mixture_regularizer = mixture_regularizer
         self.mixture_regularizer_weight = 0 if mixture_regularizer is None else mixture_regularizer_weight
         self.mixture_temperature = mixture_temperature
+        self.norm_f_weight = norm_f_weight
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -189,18 +191,14 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                                                              )
         loss = loss.mean(dim=-1)
         # torchscript cannot handle control flow, calculate reg term only here
-        reg = None
+        reg = torch.zeros(loss.shape, device=loss.device)
         if self.mixture_regularizer == "prior":
             reg = (self.mixture_regularizer_weight * prior_entropy).mean(dim=-1)
         elif self.mixture_regularizer == "posterior":
             reg = (self.mixture_regularizer_weight * posterior).mean(dim=-1)
         elif norm_f is not None:
             reg = (self.norm_f_weight * norm_f).mean(dim=-1)
-
-        if reg:
-            loss += reg
-
-
+        loss += reg
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean()}
 
