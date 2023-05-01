@@ -131,7 +131,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
         mixture_out = net_output[1]["mixtures_out"]
-        norm_f = net_output[1]["norm_f"]
+        norm_f = net_output[1].get("norm_f", None)
 
         loss, logging = self.compute_kl(out,
                                         target,
