@@ -859,7 +859,7 @@ class EnsembleModel(nn.Module):
                     None if decoder_len <= 1 else decoder_out[1],
                 )
             probs = model.get_normalized_probs(
-                decoder_out_tuple, log_probs=True, sample=None, metric=metric
+                decoder_out_tuple, log_probs=True, sample=None
             )
             probs = probs[:, -1, :]
             if self.models_size == 1:
