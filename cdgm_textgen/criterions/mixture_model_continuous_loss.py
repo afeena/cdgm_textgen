@@ -183,7 +183,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         if mixture_out is not None:
             mixture_out = mixture_out[mask]
         if norm_f is not None:
-            norm_f = norm_f[mask]
+            norm_f = norm_f[:, mask]
 
         loss, prior_entropy, posterior = get_loss_scriptable(q.loc, q.scale,
                                                              p.loc, p.scale,
