@@ -121,7 +121,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             if reduce == "max":
                 # choose max before getting the model scores
-                model_scores = model_scores * mixture_probs.movedim(2, 0)
+                model_scores = model_scores * mixture_probs.movedim(2, 0)[...,None]
                 best_mixt_idx = torch.max(model_scores, dim=0).indices
                 model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
                 # for debug purposes
