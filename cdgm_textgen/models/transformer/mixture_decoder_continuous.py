@@ -126,6 +126,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
                 # for debug purposes
                 # from datetime import datetime
+                # model_scores[:,:,self.dictionary.pad()] = -1e10
                 # vocab_tokens_idx = torch.max(model_scores, dim=-1).indices
                 # mixt_of_best_token = best_mixt_idx.gather(-1, vocab_tokens_idx)
                 # torch.save(mixt_of_best_token, f"mixt_of_best_token_{datetime.now().timestamp()}")
