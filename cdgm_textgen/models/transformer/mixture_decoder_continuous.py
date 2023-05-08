@@ -116,31 +116,21 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 score_fn = self.get_cosine_similarity_scores
 
             mixture_probs = F.softmax(mixtures_out, -1)
-            # for debug purposes
-            # from datetime import datetime
-            # torch.save(mixture_probs, f"mixture_dist_{datetime.now().timestamp()}")
-            if reduce == "max" and not self.uniform_prior:
+            # Get model_scores in MxBxTxD where T=1
+            model_scores = score_fn(decoder_out)
+
+            if reduce == "max":
                 # choose max before getting the model scores
-                _, max_idx = mixture_probs.max(dim=-1)
-                max_idx = max_idx.t()
-                max_idx = max_idx[..., None, None].expand(-1, -1, 1, decoder_out.size(-1))
-                decoder_out = decoder_out.gather(0, max_idx)
-
+                mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
                 model_scores = score_fn(decoder_out)
-                del max_idx
-
-            else:
-                # Get model_scores in MxBxTxD where T=1
-                model_scores = score_fn(decoder_out)
-
-                if not self.uniform_prior:
-                    mixture_probs = mixture_probs.squeeze(dim=1).unsqueeze(-1)
-                    model_scores = model_scores * mixture_probs.transpose(0, 1)
-                if reduce == "max":
-                    best_mixt_idx = torch.max(model_scores, dim=0).indices
-                    model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
-                if reduce == "sum":
-                    model_scores = torch.sum(model_scores, dim=0)
+                model_scores = model_scores * mixture_probs.transpose(0, 1)
+                best_mixt_idx = torch.max(model_scores, dim=0).indices
+                # for debug purposes
+                # from datetime import datetime
+                # torch.save(best_mixt_idx, f"best_mixt_idx_{datetime.now().timestamp()}")
+                model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
+            if reduce == "sum":
+                model_scores = torch.sum(model_scores, dim=0)
 
         return model_scores
 
