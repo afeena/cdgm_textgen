@@ -123,10 +123,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
                 # choose max before getting the model scores
                 model_scores = model_scores * mixture_probs.movedim(2, 0)
                 best_mixt_idx = torch.max(model_scores, dim=0).indices
+                model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
                 # for debug purposes
                 # from datetime import datetime
-                # torch.save(best_mixt_idx, f"best_mixt_idx_{datetime.now().timestamp()}")
-                model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
+                # vocab_tokens_idx = torch.max(model_scores, dim=-1).indices
+                # mixt_of_best_token = best_mixt_idx.gather(0, vocab_tokens_idx)
+                # torch.save(best_mixt_idx, f"mixt_of_best_token_{datetime.now().timestamp()}")
+
             if reduce == "sum":
                 model_scores = torch.sum(model_scores, dim=0)
 
