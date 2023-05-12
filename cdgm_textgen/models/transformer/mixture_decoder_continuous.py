@@ -160,7 +160,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             return output_proj.view(mixt, bsz, -1, self.dict_len)
 
-    def sample_output_token(self,
+    def sample_output_tokens(self,
                             decoder_out: Tensor,
                             mixtures_out: Tensor,
                             n_samples: int = 1) -> Tensor:
@@ -192,9 +192,10 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         samples = q_dist.sample()
 
         # rounding to a target vocab token
+        probs = q_dist.log_prob(samples)
         token_idxs = (features @ self.target_embed_normalized.T).max(dim=-1).indices
 
-        return token_idxs.movedim(0, 2)
+        return probs, token_idxs.view(bsz*n_samples, -1)
 
     def get_normalized_probs(
             self,
