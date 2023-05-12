@@ -121,7 +121,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             if reduce == "max":
                 # choose max before getting the model scores
-                model_scores = model_scores * mixture_probs.movedim(2, 0)[...,None]
+                model_scores = model_scores * mixture_probs.movedim(2, 0)[..., None]
                 best_mixt_idx = torch.max(model_scores, dim=0).indices
                 model_scores = model_scores.gather(0, best_mixt_idx.unsqueeze(0))
                 # for debug purposes
@@ -160,24 +160,41 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
             return output_proj.view(mixt, bsz, -1, self.dict_len)
 
-    def sample_mixture_and_output(self,
-                                  decoder_out: Tensor,
-                                  mixtures_out: Tensor,
-                                  n_samples: int = 1) -> Tuple[Tensor, Tensor, Tensor]:
+    def sample_output_token(self,
+                            decoder_out: Tensor,
+                            mixtures_out: Tensor,
+                            n_samples: int = 1) -> Tensor:
         """
         sample mixture index first, then sample from respective PS distribution
         decoder_out: MxBxTxD
         mixtures_out: BxTxM
+        n_samples: how much mixtures to sample
+        Returns: token idx BxTxN_samples
         """
-        mixtures_out_probs = F.softmax(mixtures_out, dim=-1).view(-1, self.num_mixture_components)
-        mixture_idx = torch.multinomial(mixtures_out_probs, 1, replacement=True).squeeze(dim=-1)
-        mixture_idx = mixture_idx.t()
-        decoder_out = decoder_out[mixture_idx]
-        normalized_out = F.normalize(decoder_out, p=2.0, dim=-1)
-        kappa_z = torch.norm(decoder_out, dim=-1)
-        q = power_spherical.PowerSpherical(normalized_out, kappa_z)
-        samples = q.sample(n_samples)
-        return mixture_idx, samples, q.log_prob(samples)
+        bsz, seq_len, num_mixt = mixtures_out.shape
+        # BxTxM
+        mixture_probs = F.softmax(mixtures_out, -1)
+        # BxTxN_samples
+        mixture_samples = torch.multinomial(mixture_probs.view(-1, num_mixt), num_samples=n_samples, replacement=True)
+        # N_samplesxBxT
+        mixture_samples = mixture_samples.view(bsz, seq_len, n_samples).movedim(2, 0)
+        # extract decoder output for N_samples only
+        sampled_mixtures_out = torch.gather(decoder_out, 0,
+                                            mixture_samples[..., None].expand(-1, -1, -1, decoder_out.shape[-1]))
+
+        # define output distribution
+        kappa = torch.norm(sampled_mixtures_out, dim=-1)
+        features = F.normalize(sampled_mixtures_out, p=2.0, dim=-1)
+
+        q_dist = power_spherical.PowerSpherical(features, kappa)
+
+        # sample from output distribution and get 1 sample for each Mixture
+        samples = q_dist.sample()
+
+        # rounding for a target vocab
+        token_idxs = (features @ self.target_embed_normalized.T).max(dim=-1).indices
+
+        return token_idxs.movedim(0, 2)
 
     def get_normalized_probs(
             self,
