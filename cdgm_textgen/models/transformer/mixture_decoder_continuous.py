@@ -191,7 +191,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # sample from output distribution and get 1 sample for each Mixture
         samples = q_dist.sample()
 
-        # rounding for a target vocab
+        # rounding to a target vocab token
         token_idxs = (features @ self.target_embed_normalized.T).max(dim=-1).indices
 
         return token_idxs.movedim(0, 2)
