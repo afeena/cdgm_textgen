@@ -335,7 +335,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
     @torch.no_grad()
     def get_topk_model_scores(self, decoder_out):
-        log_probs, topk_token_idx = self.model.forward_samples(decoder_out, self.metric)
+        log_probs, topk_token_idx = self.model.forward_samples(decoder_out[0], decoder_out[1]["mixtures_out"],  self.n_samples)
         return log_probs, topk_token_idx
 
     @torch.no_grad()

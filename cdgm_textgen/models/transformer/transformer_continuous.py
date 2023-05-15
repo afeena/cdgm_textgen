@@ -105,8 +105,8 @@ class TransformerModelContinuous(TransformerModelBase):
 
         return scores
 
-    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
-                        mixture_out: Optional[Tensor] = None) -> Tensor:
+    def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
+                        mixture_out: Optional[Tensor] = None,  n_samples=1) -> Tensor:
         return self.decoder.sample_output(decoder_out, n_samples)
 
     # legacy
@@ -175,9 +175,9 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         scores = self.decoder.get_mixture_output(model_out, mixtures_out, metric, reduce)
         return scores
 
-    def forward_samples(self, decoder_out: Tuple[Tensor, Dict], n_samples=1,
-                        mixture_out: Optional[Tensor] = None) -> Tensor:
-        return self.decoder.sample_output_tokens(decoder_out, mixture_out, n_samples)
+    def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
+                        mixtures_out: Optional[Tensor] = None, n_samples=1,) -> Tensor:
+        return self.decoder.sample_output_tokens(decoder_out, mixtures_out, n_samples)
 
     def get_normalized_probs(
             self,
