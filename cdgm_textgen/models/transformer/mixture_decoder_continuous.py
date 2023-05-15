@@ -163,7 +163,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
     def sample_output_tokens(self,
                             decoder_out: Tensor,
                             mixtures_out: Tensor,
-                            n_samples: int = 1) -> Tensor:
+                            n_samples: int = 1) -> Tuple[Tensor, Tensor]:
         """
         sample mixture index first, then sample from respective PS distribution
         decoder_out: MxBxTxD
@@ -175,25 +175,25 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # BxTxM
         mixture_probs = F.softmax(mixtures_out, -1)
         # BxTxN_samples
-        mixture_samples = torch.multinomial(mixture_probs.view(-1, num_mixt), num_samples=n_samples, replacement=True)
+        mixture_samples = torch.multinomial(mixture_probs.view(-1, num_mixt), num_samples=n_samples, replacement=False)
         # N_samplesxBxT
         mixture_samples = mixture_samples.view(bsz, seq_len, n_samples).movedim(2, 0)
         # extract decoder output for N_samples only
-        sampled_mixtures_out = torch.gather(decoder_out, 0,
+        sampled_mixtures_out: Tensor = torch.gather(decoder_out, 0,
                                             mixture_samples[..., None].expand(-1, -1, -1, decoder_out.shape[-1]))
 
         # define output distribution
-        kappa = torch.norm(sampled_mixtures_out, dim=-1)
-        features = F.normalize(sampled_mixtures_out, p=2.0, dim=-1)
+        kappa: Tensor = torch.norm(sampled_mixtures_out, dim=-1)
+        features: Tensor = F.normalize(sampled_mixtures_out, p=2.0, dim=-1)
 
-        q_dist = power_spherical.PowerSpherical(features, kappa)
+        q_dist: power_spherical.PowerSpherical = power_spherical.PowerSpherical(features, kappa)
 
         # sample from output distribution and get 1 sample for each Mixture
-        samples = q_dist.sample()
+        samples: Tensor = q_dist.sample()
 
         # rounding to a target vocab token
-        probs = q_dist.log_prob(samples)
-        token_idxs = (features @ self.target_embed_normalized.T).max(dim=-1).indices
+        probs: Tensor = q_dist.log_prob(samples)
+        token_idxs: Tensor = (features @ self.target_embed_normalized.T).max(dim=-1).indices
 
         return probs, token_idxs.view(bsz*n_samples, -1)
 
