@@ -16,12 +16,23 @@ class TranslationContinuousConfig(TranslationConfig):
         default="cosine",
         metadata={
             "help": "what measure to use in evaluation for NN search"
-        },
+        }
+    )
+    generator: str = field(
+        default="fairseq",
+        metadata={
+            "help": "what measure to use in evaluation for NN search"
+        }
     )
 
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
 class TranslationCountinuousTask(TranslationTask):
+    def __init__(self, cfg: TranslationContinuousConfig, src_dict, tgt_dict):
+        super().__init__(cfg, src_dict, tgt_dict)
+        self.cfg = cfg
+        self.gen = cfg.generator
+
     def build_model(self, cfg: TranslationContinuousConfig, from_checkpoint=False):
         model = super().build_model(cfg, from_checkpoint)
         if self.cfg.eval_bleu:
@@ -39,18 +50,29 @@ class TranslationCountinuousTask(TranslationTask):
                         extra_gen_cls_kwargs=None,
                         prefix_allowed_tokens_fn=None):
 
-        from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator, \
-            MixtureContinuousSequenceGenerator, MBRContinuousSequenceGenerator
-        if hasattr(models[0].decoder, "num_mixture_components"):
-            if getattr(args, "mbr", False):
-                seq_gen_cls = MBRContinuousSequenceGenerator
-                extra_gen_cls_kwargs = {"n_samples": getattr(args, "n_samples", 1)}
-            else:
-                seq_gen_cls = MixtureContinuousSequenceGenerator
-                extra_gen_cls_kwargs = {"reduce_strategy": getattr(args, "reduce_strategy", "max")}
-        else:
+        if self.gen == "fairseq":
+            return super().build_generator(
+                models,
+                args,
+                seq_gen_cls=seq_gen_cls,
+                extra_gen_cls_kwargs=extra_gen_cls_kwargs,
+                prefix_allowed_tokens_fn=prefix_allowed_tokens_fn,
+            )
+
+        if self.gen == "continuous":
+            import ContinuousSequenceGenerator
             seq_gen_cls = ContinuousSequenceGenerator
             extra_gen_cls_kwargs = {}
+
+        if self.gen == "mixture":
+            from cdgm_textgen.continuous_sequence_generator import MixtureContinuousSequenceGenerator
+            seq_gen_cls = MixtureContinuousSequenceGenerator
+            extra_gen_cls_kwargs = {"reduce_strategy": getattr(args, "reduce_strategy", "max")}
+
+        if self.gen == "mbr":
+            from cdgm_textgen.continuous_sequence_generator import MBRContinuousSequenceGenerator
+            seq_gen_cls = MBRContinuousSequenceGenerator
+            extra_gen_cls_kwargs = {"n_samples": getattr(args, "n_samples", 1)}
 
         return seq_gen_cls(
             models,
