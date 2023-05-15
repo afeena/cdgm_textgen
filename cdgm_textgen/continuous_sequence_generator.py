@@ -318,7 +318,8 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                  min_len=1,
                  eos=None,
                  metric="ps",
-                 n_samples=1
+                 n_samples=1,
+                 **kwargs
                  ):
         super().__init__(model, tgt_dict,
                          beam_size=beam_size,
