@@ -21,7 +21,13 @@ class TranslationContinuousConfig(TranslationConfig):
     generator: str = field(
         default="fairseq",
         metadata={
-            "help": "what measure to use in evaluation for NN search"
+            "help": "generator to use for decoding"
+        }
+    )
+    mbr_nsamples: str = field(
+        default=1,
+        metadata={
+            "help": "number of samples for MBR decoding"
         }
     )
 
