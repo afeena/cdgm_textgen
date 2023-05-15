@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-
+import math
 import power_spherical
 import torch
 import torch.nn.functional as F
@@ -175,27 +175,29 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # BxTxM
         mixture_probs = F.softmax(mixtures_out, -1)
         # BxTxN_samples
-        mixture_samples = torch.multinomial(mixture_probs.view(-1, num_mixt), num_samples=n_samples, replacement=False)
+        mixture_samples = torch.multinomial(mixture_probs.squeeze(1), num_samples=1, replacement=False)
         # N_samplesxBxT
-        mixture_samples = mixture_samples.view(bsz, seq_len, n_samples).movedim(2, 0)
-        # extract decoder output for N_samples only
-        sampled_mixtures_out: Tensor = torch.gather(decoder_out, 0,
-                                            mixture_samples[..., None].expand(-1, -1, -1, decoder_out.shape[-1]))
+        mixture_samples = mixture_samples.view(bsz, seq_len).unsqueeze(0)
 
         # define output distribution
-        kappa: Tensor = torch.norm(sampled_mixtures_out, dim=-1)
-        features: Tensor = F.normalize(sampled_mixtures_out, p=2.0, dim=-1)
+        kappa: Tensor = torch.norm(decoder_out, dim=-1)
+        features: Tensor = F.normalize(decoder_out, p=2.0, dim=-1)
 
         q_dist: power_spherical.PowerSpherical = power_spherical.PowerSpherical(features, kappa)
 
-        # sample from output distribution and get 1 sample for each Mixture
+        # sample from output dist
         samples: Tensor = q_dist.sample()
+        
+        sampled_mixtures_out: Tensor = torch.gather(decoder_out, 0, mixture_samples[..., None].expand(-1, -1, -1, decoder_out.shape[-1]))
 
         # rounding to a target vocab token
-        probs: Tensor = q_dist.log_prob(samples)
-        token_idxs: Tensor = (features @ self.target_embed_normalized.T).max(dim=-1).indices
-
-        return probs, token_idxs.view(bsz*n_samples, -1)
+        probs: Tensor = q_dist.log_prob(sampled_mixtures_out)
+        tgt_kappa = 100*torch.norm(self.target_embed.weight, dim=-1)
+        p_dist: power_spherical.PowerSpherical = power_spherical.PowerSpherical(self.target_embed_normalized, tgt_kappa)
+        token_probs: Tensor = p_dist.log_prob(sampled_mixtures_out)
+        token_probs[:,:,self.dictionary.pad()] = float("-inf")
+        token_idxs = token_probs.max(-1).indices 
+        return probs, token_idxs.view(bsz, -1)
 
     def get_normalized_probs(
             self,

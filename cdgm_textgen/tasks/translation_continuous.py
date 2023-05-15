@@ -24,7 +24,7 @@ class TranslationContinuousConfig(TranslationConfig):
             "help": "generator to use for decoding"
         }
     )
-    mbr_nsamples: str = field(
+    mbr_nsamples: int = field(
         default=1,
         metadata={
             "help": "number of samples for MBR decoding"
@@ -78,7 +78,7 @@ class TranslationCountinuousTask(TranslationTask):
         if self.gen == "mbr":
             from cdgm_textgen.continuous_sequence_generator import MBRContinuousSequenceGenerator
             seq_gen_cls = MBRContinuousSequenceGenerator
-            extra_gen_cls_kwargs = {"n_samples": getattr(args, "mbr_nsamples", 1)}
+            extra_gen_cls_kwargs = {"n_samples": self.cfg.get("mbr_nsamples",1)}
 
         return seq_gen_cls(
             models,

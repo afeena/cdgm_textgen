@@ -392,18 +392,17 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             l_probs, sampled_mixture_tokens = self.get_topk_model_scores(decoder_out)
 
             # update buffers
-            active_hyp_idx = (~finished).nonzero().view(-1)
+            active_hyp_idx = (~finished).nonzero().long().view(-1)
             finished_idx = finished.nonzero().long().view(-1)
             retain_hyps_idx = torch.empty(bsz * self.n_samples, device=sampled_mixture_tokens.device,
                                           dtype=torch.long)
             retain_hyps_idx[finished_idx] = finished_idx
-            num_remain = self.n_samples - torch.sum(finished)
-            retain_hyps_idx[active_hyp_idx] = sampled_mixture_tokens[:num_remain]
+            num_remain = (self.n_samples - torch.sum(finished))
+            retain_hyps_idx[active_hyp_idx] = sampled_mixture_tokens[:num_remain,:].squeeze(-1)
 
-            step_tensor = torch.full((1, active_hyp_idx.size(0)), step, device=src_tokens.device, dtype=torch.long)
-            idx = (active_hyp_idx, step_tensor)
-            tokens[idx] = sampled_mixture_tokens[:num_remain]
-            log_probs[active_hyp_idx] += l_probs[active_hyp_idx]
+            idx = (active_hyp_idx, torch.tensor(step))
+            tokens[idx] = sampled_mixture_tokens[:num_remain, :].squeeze(-1)
+            #log_probs[idx] += l_probs[:num_remain, :].squeeze(-1)
 
             new_tokens = tokens.index_select(0, retain_hyps_idx)
 
