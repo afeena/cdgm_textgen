@@ -394,10 +394,10 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             # update buffers
             active_hyp_idx = (~finished).nonzero().view(-1)
             finished_idx = finished.nonzero().long().view(-1)
-            retain_hyps_idx = torch.empty(bsz * self.num_samples, device=sampled_mixture_tokens.device,
+            retain_hyps_idx = torch.empty(bsz * self.n_samples, device=sampled_mixture_tokens.device,
                                           dtype=torch.long)
             retain_hyps_idx[finished_idx] = finished_idx
-            num_remain = self.num_samples - torch.sum(finished)
+            num_remain = self.n_samples - torch.sum(finished)
             retain_hyps_idx[active_hyp_idx] = sampled_mixture_tokens[:num_remain]
 
             step_tensor = torch.full((1, active_hyp_idx.size(0)), step, device=src_tokens.device, dtype=torch.long)

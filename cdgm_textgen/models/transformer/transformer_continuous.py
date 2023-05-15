@@ -100,9 +100,6 @@ class TransformerModelContinuous(TransformerModelBase):
             scores = self.decoder.get_cosine_similarity_scores(model_out)
         if metric == "ps":
             scores = self.decoder.get_ps_likelihood_scores(model_out)
-        # if metric == "confidence":
-        #     scores = self.decoder.get_confidence_scores(model_out)
-
         return scores
 
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
