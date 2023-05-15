@@ -6,9 +6,9 @@ import logging
 from argparse import Namespace
 from typing import Dict, List, Optional
 
-from fairseq.data import encoders
 import torch
 import torch.nn as nn
+from fairseq.data import encoders
 from torch import Tensor
 
 from cdgm_textgen.models.transformer import TransformerModelContinuous
@@ -335,7 +335,8 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
     @torch.no_grad()
     def get_topk_model_scores(self, decoder_out):
-        log_probs, topk_token_idx = self.model.forward_samples(decoder_out[0], decoder_out[1]["mixtures_out"],  self.n_samples)
+        log_probs, topk_token_idx = self.model.forward_samples(decoder_out[0], decoder_out[1]["mixtures_out"],
+                                                               self.n_samples)
         return log_probs, topk_token_idx
 
     @torch.no_grad()
@@ -397,10 +398,10 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             finished_idx = finished.nonzero().long().view(-1)
             step_tensor = torch.full((1, active_hyp_idx.size(0)), step, device=src_tokens.device, dtype=torch.long)
             idx = (active_hyp_idx, step_tensor)
-            tokens[idx] = sampled_mixture_tokens.view(-1).index_select(0,active_hyp_idx)
-            
-            scores[idx] = prev_scores.view(-1).index_select(0,active_hyp_idx)+sampled_scores.view(-1).index_select(0,active_hyp_idx)
+            tokens[idx] = sampled_mixture_tokens.view(-1).index_select(0, active_hyp_idx)
 
+            scores[idx] = prev_scores.view(-1).index_select(0, active_hyp_idx) + sampled_scores.view(-1).index_select(0,
+                                                                                                                      active_hyp_idx)
 
             if step > 0:
                 # get finished hyps on current step
@@ -415,7 +416,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         import sacrebleu
         final_hyps = []
 
-
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
         last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
         last_scores = last_scores.float()
@@ -425,7 +425,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             hyp_strings = self.model.decoder.dictionary.string(
                 toks,
                 "sentencepiece",
-                extra_symbols_to_ignore = [1], #ignore pad
+                extra_symbols_to_ignore=[1],  # ignore pad
                 # The default unknown string in fairseq is `<unk>`, but
                 # this is tokenized by sacrebleu as `< unk >`, inflating
                 # BLEU scores. Instead, we use a somewhat more verbose
@@ -439,29 +439,26 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
             return hyp_strings
 
-
-        hyp_strings =_decode(tokens)
+        hyp_strings = _decode(tokens)
 
         utility_scores = torch.tensor([
-                [
-                  np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score) + last_scores[k].detach()
-                    for j in range(len(hyp_strings))
-                ]
-                for k in range(len(hyp_strings))
-            ], device=last_scores.device)
+            [
+                np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score) + last_scores[k].detach()
+                for j in range(len(hyp_strings))
+            ]
+            for k in range(len(hyp_strings))
+        ], device=last_scores.device)
         scores = utility_scores.sum(dim=-1)
         best_score, best_idx = scores.max(dim=-1)
 
+        # for each hyp in samples, calculate metric given other samples as targets
+        # calculate sum[log_probs*(-metric)]
 
-          # for each hyp in samples, calculate metric given other samples as targets
-          # calculate sum[log_probs*(-metric)]
-
-        final_hyps.append([{"tokens":  tokens[best_idx][1:lengths[best_idx]],
-                                "score": best_score,
-                                "attention": torch.empty(0),  # src_len x tgt_len
-                                "alignment": torch.empty(0),
-                                "positional_scores": torch.zeros(lengths[best_idx])
-				}
-				]
-                              )
+        final_hyps.append(
+            [{"tokens": tokens[best_idx][1:lengths[best_idx]],
+              "score": best_score,
+              "attention": torch.empty(0),  # src_len x tgt_len
+              "alignment": torch.empty(0),
+              "positional_scores": torch.zeros(lengths[best_idx])}]
+        )
         return final_hyps
