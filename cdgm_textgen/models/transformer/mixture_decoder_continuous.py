@@ -175,9 +175,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         # BxTxM
         mixture_probs = F.softmax(mixtures_out, -1)
         # BxTxN_samples
-        mixture_samples = torch.multinomial(mixture_probs.squeeze(1), num_samples=1, replacement=False)
+        mixture_samples = torch.multinomial(mixture_probs.squeeze(1), num_samples=1, replacement=True)
         # N_samplesxBxT
-        mixture_samples = mixture_samples.view(bsz, seq_len).unsqueeze(0)
+        mixture_samples = mixture_samples.view(1, bsz, seq_len)
 
         # define output distribution
         kappa: Tensor = torch.norm(decoder_out, dim=-1)
@@ -187,17 +187,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # sample from output dist
         samples: Tensor = q_dist.sample()
-        
-        sampled_mixtures_out: Tensor = torch.gather(decoder_out, 0, mixture_samples[..., None].expand(-1, -1, -1, decoder_out.shape[-1]))
+        log_probs: Tensor = q_dist.log_prob(samples)
+        sampled_mixtures_out: Tensor = torch.gather(samples, 0, mixture_samples[...,None].expand(-1,-1,-1,features.shape[-1]))
+        log_probs = torch.gather(log_probs, 0, mixture_samples)
 
         # rounding to a target vocab token
-        probs: Tensor = q_dist.log_prob(sampled_mixtures_out)
-        tgt_kappa = 100*torch.norm(self.target_embed.weight, dim=-1)
-        p_dist: power_spherical.PowerSpherical = power_spherical.PowerSpherical(self.target_embed_normalized, tgt_kappa)
-        token_probs: Tensor = p_dist.log_prob(sampled_mixtures_out)
-        token_probs[:,:,self.dictionary.pad()] = float("-inf")
-        token_idxs = token_probs.max(-1).indices 
-        return probs, token_idxs.view(bsz, -1)
+        token_nn_scores: Tensor = sampled_mixtures_out.squeeze(0) @ self.target_embed_normalized.T
+        token_nn_scores[:,:,self.dictionary.pad()] = float("-inf")
+    
+        token_idxs = token_nn_scores.max(-1).indices
+        return log_probs, token_idxs.view(bsz, -1)
 
     def get_normalized_probs(
             self,
