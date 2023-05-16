@@ -434,15 +434,14 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
 
         utility_scores = torch.tensor([
-            [
+           torch.sum(torch.tensor([
                 np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score + float("1e-10"))
-                + last_scores[k].detach()
+                + last_scores[j].detach()
                 for j in range(len(hyp_strings))
-            ]
+            ]))
             for k in range(len(hyp_strings))
         ], device=last_scores.device)
-        scores = utility_scores.sum(dim=-1)
-        best_score, best_idx = scores.max(dim=-1)
+        best_score, best_idx = utility_scores.max(dim=-1)
 
         # for each hyp in samples, calculate metric given other samples as targets
         # calculate sum[log_probs*(-metric)]
