@@ -420,30 +420,23 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
         last_scores = last_scores.float()
 
-        # since we use log_probs, either take exp or negate uktility score and take min
-        def _decode(toks, escape_unk=False):
-            hyp_strings = self.model.decoder.dictionary.string(
-                toks,
-                "sentencepiece",
-                extra_symbols_to_ignore=[1],  # ignore pad
-                # The default unknown string in fairseq is `<unk>`, but
-                # this is tokenized by sacrebleu as `< unk >`, inflating
-                # BLEU scores. Instead, we use a somewhat more verbose
-                # alternative that is unlikely to appear in the real
-                # reference, but doesn't get split into multiple tokens.
-                unk_string=(
-                    "UNKNOWNTOKENINREF" if escape_unk else "UNKNOWNTOKENINHYP"
-                ),
-            )
-            hyp_strings = hyp_strings.split("\n")
-            hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
-            return hyp_strings
-
-        hyp_strings = _decode(tokens)
+        hyp_strings = self.model.decoder.dictionary.string(
+            tokens,
+            "sentencepiece",
+            extra_symbols_to_ignore=[1],  # ignore pad
+            # The default unknown string in fairseq is `<unk>`, but
+            # this is tokenized by sacrebleu as `< unk >`, inflating
+            # BLEU scores. Instead, we use a somewhat more verbose
+            # alternative that is unlikely to appear in the real
+            # reference, but doesn't get split into multiple tokens.
+        )
+        hyp_strings = hyp_strings.split("\n")
+        hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
 
         utility_scores = torch.tensor([
             [
-                np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score) + last_scores[k].detach()
+                np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score + float("1e-10"))
+                + last_scores[k].detach()
                 for j in range(len(hyp_strings))
             ]
             for k in range(len(hyp_strings))
