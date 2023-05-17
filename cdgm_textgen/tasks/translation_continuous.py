@@ -31,9 +31,9 @@ class TranslationContinuousConfig(TranslationConfig):
         }
     )
     ranking_metric: str = field(
-        default="bleu",
+        default="google_bleu",
         metadata={
-            "help": "number of samples for MBR decoding"
+            "help": "metric to use for ranking. Supported metrics are [google_bleu, meteor]"
         }
     )
 

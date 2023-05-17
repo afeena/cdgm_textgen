@@ -418,8 +418,8 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
     def get_ranking_score(self, hyp, ref):
         ranking_score = torch.tensor(float("1e-10"))
         try:
-            ranking_score += self.ranker.compute(predictions=hyp, references=ref)[self.ranker_name]
-        except ZeroDivisionError:
+            ranking_score += self.ranker.compute(predictions=[hyp], references=[[ref]])[self.ranker_name]
+        except (ZeroDivisionError, RuntimeError):
             pass
         return torch.log(ranking_score)
 
