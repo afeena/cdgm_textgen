@@ -6,6 +6,7 @@ import logging
 from argparse import Namespace
 from typing import Dict, List, Optional
 
+import evaluate
 import torch
 import torch.nn as nn
 from fairseq.data import encoders
@@ -319,6 +320,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                  eos=None,
                  metric="ps",
                  n_samples=1,
+                 ranker="bleu",
                  **kwargs
                  ):
         super().__init__(model, tgt_dict,
@@ -332,6 +334,8 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         self.tokenizer = encoders.build_tokenizer(Namespace(
             tokenizer='moses'
         ))
+        self.ranker = evaluate.load(ranker)
+        self.ranker_name = ranker
 
     @torch.no_grad()
     def get_topk_model_scores(self, decoder_out):
@@ -411,9 +415,15 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
         return self.finalize_hyps(tokens, scores, bsz)
 
+    def get_ranking_score(self, hyp, ref):
+        ranking_score = torch.tensor(float("1e-10"))
+        try:
+            ranking_score += self.ranker.compute(hyp, ref)[self.ranker_name]
+        except ZeroDivisionError:
+            pass
+        return torch.log(ranking_score)
+
     def finalize_hyps(self, tokens, scores, bsz):
-        import numpy as np
-        import sacrebleu
         final_hyps = []
 
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
@@ -434,8 +444,8 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
 
         utility_scores = torch.tensor([
-           torch.sum(torch.tensor([
-                np.log(sacrebleu.sentence_bleu(hyp_strings[k], [hyp_strings[j]]).score + float("1e-10"))
+            torch.sum(torch.tensor([
+                self.get_ranking_score(hyp_strings[k], hyp_strings[j])
                 + last_scores[j].detach()
                 for j in range(len(hyp_strings))
             ]))

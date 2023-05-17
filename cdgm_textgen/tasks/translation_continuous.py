@@ -30,6 +30,12 @@ class TranslationContinuousConfig(TranslationConfig):
             "help": "number of samples for MBR decoding"
         }
     )
+    ranking_metric: str = field(
+        default="bleu",
+        metadata={
+            "help": "number of samples for MBR decoding"
+        }
+    )
 
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
@@ -66,7 +72,7 @@ class TranslationCountinuousTask(TranslationTask):
             )
 
         if self.gen == "continuous":
-            import ContinuousSequenceGenerator
+            from cdgm_textgen.continuous_sequence_generator import ContinuousSequenceGenerator
             seq_gen_cls = ContinuousSequenceGenerator
             extra_gen_cls_kwargs = {}
 
@@ -78,7 +84,8 @@ class TranslationCountinuousTask(TranslationTask):
         if self.gen == "mbr":
             from cdgm_textgen.continuous_sequence_generator import MBRContinuousSequenceGenerator
             seq_gen_cls = MBRContinuousSequenceGenerator
-            extra_gen_cls_kwargs = {"n_samples": self.cfg.get("mbr_nsamples",1)}
+            extra_gen_cls_kwargs = {"n_samples": self.cfg.get("mbr_nsamples", 1),
+                                    "ranker": self.cfg.get("ranking_metric", "bleu")}
 
         return seq_gen_cls(
             models,
