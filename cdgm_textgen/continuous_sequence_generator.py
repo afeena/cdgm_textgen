@@ -320,7 +320,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                  eos=None,
                  metric="ps",
                  n_samples=1,
-                 ranker="bleu",
+                 ranker="bertscore",
                  **kwargs
                  ):
         super().__init__(model, tgt_dict,
