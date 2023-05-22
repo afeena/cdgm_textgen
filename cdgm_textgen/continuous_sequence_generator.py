@@ -424,13 +424,12 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         for i, hyp in enumerate(hyp_strings):
             predictions = [hyp] * len(hyp_strings)
             try:
-                ranking_scores = torch.tensor(self.ranker.compute(predictions=predictions,
+                ranking_scores = 100.0*torch.tensor(self.ranker.compute(predictions=predictions,
                                                       references=hyp_strings,
                                                       model_type="distilbert-base-uncased")["f1"], device=device)+1e-8
-                utility_scores[i] = torch.sum(torch.log(ranking_scores) + last_scores, dim=-1)
             except (ZeroDivisionError, RuntimeError):
                 pass
-
+            utility_scores[i] = torch.sum(torch.log(ranking_scores) + last_scores, dim=-1)
         return utility_scores.max(dim=-1)
 
     def finalize_hyps(self, tokens, scores, bsz):
@@ -438,7 +437,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
         last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
-        last_scores = last_scores.float()
+        last_scores = last_scores.float().squeeze(-1)
 
         hyp_strings = self.model.decoder.dictionary.string(
             tokens,
