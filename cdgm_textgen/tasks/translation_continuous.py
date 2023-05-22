@@ -31,7 +31,7 @@ class TranslationContinuousConfig(TranslationConfig):
         }
     )
     ranking_metric: str = field(
-        default="google_bleu",
+        default="bertscore",
         metadata={
             "help": "metric to use for ranking. Supported metrics are [google_bleu, meteor]"
         }
