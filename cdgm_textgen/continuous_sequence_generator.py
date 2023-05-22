@@ -415,13 +415,24 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
         return self.finalize_hyps(tokens, scores, bsz)
 
-    def get_ranking_score(self, hyp, ref):
-        ranking_score = torch.tensor(float("1e-10"))
-        try:
-            ranking_score += self.ranker.compute(predictions=[hyp], references=[[ref]])[self.ranker_name]
-        except (ZeroDivisionError, RuntimeError):
-            pass
-        return torch.log(ranking_score)
+    def get_utility_scores(self, hyp_strings: list, last_scores: Tensor):
+        # for each hyp in samples, calculate metric given other samples as targets
+        # calculate sum[log_probs*torch.log(metric)]
+        device = last_scores.device
+        num_hyps = len(hyp_strings)
+        utility_scores: Tensor = torch.eye(num_hyps, device=device)
+        for i, hyp in enumerate(hyp_strings):
+            predictions = [hyp] * len(hyp_strings)
+            ranking_scores = torch.full((num_hyps,), float("1e-10"), device=device)
+            try:
+                ranking_scores += self.ranker.compute(predictions=predictions,
+                                                      references=hyp_strings,
+                                                      model_type="distilbert-base-uncased")["f1"]
+                utility_scores[i] = torch.sum(torch.log(ranking_scores) + last_scores, dim=-1)
+            except (ZeroDivisionError, RuntimeError):
+                pass
+
+        return utility_scores.max(dim=-1)
 
     def finalize_hyps(self, tokens, scores, bsz):
         final_hyps = []
@@ -442,19 +453,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         )
         hyp_strings = hyp_strings.split("\n")
         hyp_strings = [self.tokenizer.decode(s) for s in hyp_strings]
-
-        utility_scores = torch.tensor([
-            torch.sum(torch.tensor([
-                self.get_ranking_score(hyp_strings[k], hyp_strings[j])
-                + last_scores[j].detach()
-                for j in range(len(hyp_strings))
-            ]))
-            for k in range(len(hyp_strings))
-        ], device=last_scores.device)
-        best_score, best_idx = utility_scores.max(dim=-1)
-
-        # for each hyp in samples, calculate metric given other samples as targets
-        # calculate sum[log_probs*(-metric)]
+        best_score, best_idx = self.get_utility_scores(hyp_strings, last_scores)
 
         final_hyps.append(
             [{"tokens": tokens[best_idx][1:lengths[best_idx]],
