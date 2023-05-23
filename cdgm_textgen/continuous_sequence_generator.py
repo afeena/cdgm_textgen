@@ -437,7 +437,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
 
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
         last_scores = torch.gather(scores, -1, lengths.unsqueeze(-1))
-        last_scores = last_scores.float().squeeze(-1)
+        last_scores = last_scores.float().squeeze(-1) / lengths.float()
 
         hyp_strings = self.model.decoder.dictionary.string(
             tokens,
