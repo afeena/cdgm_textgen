@@ -199,9 +199,9 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                 F.log_softmax(torch.ones_like(mixture_out,
                 device=mixture_out.device), dim=-1),
                 reduction="none"
-            ).mean(dim=-1) * self.mixture_regularizer_weight
+            ) * self.mixture_regularizer_weight
         loss += confidence_penalty.mean()
-        
+
         if norm_f is not None:
             loss += (self.norm_f_weight * norm_f).mean()
 
