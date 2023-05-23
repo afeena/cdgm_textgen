@@ -424,7 +424,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         for i, hyp in enumerate(hyp_strings):
             predictions = [hyp] * len(hyp_strings)
             try:
-                ranking_scores = 100.0*torch.tensor(self.ranker.compute(predictions=predictions,
+                ranking_scores = torch.tensor(self.ranker.compute(predictions=predictions,
                                                       references=hyp_strings,
                                                       model_type="distilbert-base-uncased")["f1"], device=device)+1e-8
             except (ZeroDivisionError, RuntimeError):
