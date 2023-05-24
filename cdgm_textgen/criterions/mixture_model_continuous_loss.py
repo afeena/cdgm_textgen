@@ -122,7 +122,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
                          kldirection,
                          target_kappa_scale)
         self.mixture_regularizer = mixture_regularizer
-        self.mixture_regularizer_weight = 0 if mixture_regularizer is None else mixture_regularizer_weight
+        self.mixture_regularizer_weight = mixture_regularizer_weight
         self.mixture_temperature = mixture_temperature
         self.norm_f_weight = norm_f_weight
 
@@ -194,12 +194,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         loss = loss.mean(dim=-1)
         # torchscript cannot handle control flow, calculate reg term only here
 
-        confidence_penalty = F.kl_div(
-                F.log_softmax(mixture_out, dim=-1),
-                F.log_softmax(torch.ones_like(mixture_out,
-                device=mixture_out.device), dim=-1),
-                reduction="none"
-            ) * self.mixture_regularizer_weight
+        confidence_penalty = -prior_entropy*self.mixture_regularizer_weight
         loss += confidence_penalty.mean()
 
         if norm_f is not None:
