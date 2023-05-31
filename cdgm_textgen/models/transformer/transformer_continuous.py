@@ -24,7 +24,7 @@ class ContinuousTransformerConfig(TransformerConfig):
     no_last_dec_layer_norm: bool = field(
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
-    ),
+    )
     target_embd: Optional[str] = field(
         default=None,
         metadata={"help": "TYPE OF EMBEDDINGS TO USE, DEFAULT IS 'PRETRAINED'"},
