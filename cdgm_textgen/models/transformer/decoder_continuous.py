@@ -6,7 +6,8 @@ import torch
 import torch.nn.functional as F
 from fairseq import utils
 from fairseq.models.transformer import TransformerDecoderBase
-from torch import Tensor
+from torch import Tensor, nn
+from torch.nn.parameter import Parameter
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
@@ -27,7 +28,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          output_projection=None,
                          )
 
-
         # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
         self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
 
@@ -35,12 +35,17 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         # build target (reference) emb
         padding_idx = dictionary.pad()
-        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
-        if cfg.target_embed_path:
-            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-            embed_dict = utils.parse_embedding(cfg.target_embed_path)
-            utils.load_embedding(embed_dict, dictionary, self.target_embed)
-        self.target_embed.weight.requires_grad = False
+        if cfg.target_embd == 'hypercube':
+            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim, permute=cfg.target_embd_random_cube)
+
+        elif cfg.target_embd == 'pretrained':
+            assert cfg.target_embed_path is not None
+            self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
+            if cfg.target_embed_path:
+                logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+                embed_dict = utils.parse_embedding(cfg.target_embed_path)
+                utils.load_embedding(embed_dict, dictionary, self.target_embed)
+            self.target_embed.weight.requires_grad = False
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                    dim=-1).cuda()
 
@@ -120,3 +125,27 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         log_probs_samples = q_dist.log_prob(sample)
 
         return sample, log_probs_samples
+
+
+class HyperCubeEmbed(nn.Module):
+    def __init__(self, embed_dim, num_emb, permute=False, device=None, dtype=None):
+        super().__init__()
+
+        self.embed_dim = embed_dim
+        self.permute = permute
+        self.num_emb = num_emb
+        self.fac_kwargs = {'device': device, 'dtype': dtype, 'requires_grad': False}
+        self.weight = self.build_cube_embed()
+
+    def build_cube_embed(self):
+        d = torch.arange(self.num_emb, **self.fac_kwargs)
+        if self.permute:
+            perm = torch.randperm(self.num_emb, **self.fac_kwargs)
+            d = d[perm]
+        mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
+        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
+        d[d == 0] = -1
+        return Parameter(d, **self.fac_kwargs)
+
+    def forward(self, x):
+        return self.cube_embeddings[x]
