@@ -24,6 +24,10 @@ class ContinuousTransformerConfig(TransformerConfig):
     no_last_dec_layer_norm: bool = field(
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
+    ),
+    target_embd: Optional[str] = field(
+        default=None,
+        metadata={"help": "TYPE OF EMBEDDINGS TO USE, DEFAULT IS 'PRETRAINED'"},
     )
 
 
@@ -88,7 +92,7 @@ class TransformerModelContinuous(TransformerModelBase):
         # here allow partial loading from other models
         return super().load_state_dict(state_dict, strict=False)
 
-    def get_targets(self, sample, net_output):
+    def get_targets(self, sample, **kwargs):
         return self.decoder.target_embed(sample["target"])
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:

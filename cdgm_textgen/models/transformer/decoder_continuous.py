@@ -38,7 +38,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         if cfg.target_embd == 'hypercube':
             self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim, permute=cfg.target_embd_random_cube)
 
-        elif cfg.target_embd == 'pretrained':
+        else:
             assert cfg.target_embed_path is not None
             self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
             if cfg.target_embed_path:
