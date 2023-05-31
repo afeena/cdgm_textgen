@@ -56,7 +56,21 @@ Avaliable continuous models:
     - `None`, compatible with `mixture_beam` only
 
 ## Citations
-
-[On Target Representation in Continuous-output Neural Machine Translation](https://aclanthology.org/2022.repl4nlp-1.24) (
-Tokarchuk & Niculae, RepL4NLP 2022)
+Please cite as
+```
+@inproceedings{tokarchuk-niculae-2022-target,
+    title = "On Target Representation in Continuous-output Neural Machine Translation",
+    author = "Tokarchuk, Evgeniia  and
+      Niculae, Vlad",
+    booktitle = "Proceedings of the 7th Workshop on Representation Learning for NLP",
+    month = may,
+    year = "2022",
+    address = "Dublin, Ireland",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.repl4nlp-1.24",
+    doi = "10.18653/v1/2022.repl4nlp-1.24",
+    pages = "227--235",
+    abstract = "Continuous generative models proved their usefulness in high-dimensional data, such as image and audio generation. However, continuous models for text generation have received limited attention from the community. In this work, we study continuous text generation using Transformers for neural machine translation (NMT). We argue that the choice of embeddings is crucial for such models, so we aim to focus on one particular aspect{''}:'' target representation via embeddings. We explore pretrained embeddings and also introduce knowledge transfer from the discrete Transformer model using embeddings in Euclidean and non-Euclidean spaces. Our results on the WMT Romanian-English and English-Turkish benchmarks show such transfer leads to the best-performing continuous model.",
+}
+```
 
