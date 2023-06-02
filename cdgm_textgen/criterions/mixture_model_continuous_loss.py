@@ -177,7 +177,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         kappa: Tensor = torch.norm(out, dim=-1)
         norm_target: Tensor = torch.norm(target, dim=-1)
         target_kappa = self.target_kappa_scale * norm_target
-        q, p = self.set_dist(out, target, kappa, target_kappa)
+        p, q = self.set_dist(out, target, kappa, target_kappa)
         z_samples = q.rsample()
 
         if mixture_out is not None:

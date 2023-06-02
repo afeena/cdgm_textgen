@@ -230,7 +230,7 @@ class ARPowerSphericalRevKLCriterion(KLCriterion):
         norm_target = torch.norm(target, dim=-1)
         target_kappa = self.target_kappa_scale * norm_target
 
-        q, p = self.set_dist(out, target, kappa, target_kappa)
+        p, q = self.set_dist(out, target, kappa, target_kappa)
         z_samples = q.rsample((self.n_samples,))
         log_pz = p.log_prob(z_samples)
 
