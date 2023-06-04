@@ -148,4 +148,4 @@ class HyperCubeEmbed(nn.Module):
         return Parameter(d, requires_grad=self.fac_kwargs['requires_grad'])
 
     def forward(self, x):
-        return self.cube_embeddings[x]
+        return self.weight[x]
