@@ -145,7 +145,7 @@ class HyperCubeEmbed(nn.Module):
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
         d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
-        return Parameter(d, requires_grad=self.fac_kwargs['requires_grad'])
+        return Parameter(d.T, requires_grad=self.fac_kwargs['requires_grad'])
 
     def forward(self, x):
         return self.weight[x]

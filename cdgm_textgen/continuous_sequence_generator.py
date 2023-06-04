@@ -439,7 +439,6 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
         for h_idx in range(num_hyps):
             utility_scores[h_idx] += torch.sum(
                 torch.log(torch.tensor(ranking_scores[h_idx], device=device) + last_scores))
-
         return utility_scores.max(dim=-1)
 
     def finalize_hyps(self, tokens, scores, bsz):
