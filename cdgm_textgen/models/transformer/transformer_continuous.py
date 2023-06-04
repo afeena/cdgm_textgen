@@ -26,8 +26,12 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
     target_embd: Optional[str] = field(
-        default=None,
+        default='pretrained',
         metadata={"help": "TYPE OF EMBEDDINGS TO USE, DEFAULT IS 'PRETRAINED'"},
+    )
+    target_embd_random_cube: Optional[bool] = field(
+        default=False,
+        metadata={"help": "shuffle the hypercube embeddings"},
     )
 
 
