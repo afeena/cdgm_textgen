@@ -126,7 +126,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         # rounding to a target vocab token
         token_nn_scores: Tensor = samples.squeeze(0) @ self.target_embed_normalized.T
-        token_nn_scores[:, :, self.dictionary.pad()] = float("-inf")
+        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
 
         token_idxs = token_nn_scores.max(-1).indices
 
