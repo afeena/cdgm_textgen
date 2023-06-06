@@ -190,6 +190,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         log_probs: Tensor = q_dist.log_prob(samples)
         sampled_mixtures_out: Tensor = torch.gather(samples, 0, mixture_samples[...,None].expand(-1,-1,-1,features.shape[-1]))
         log_probs = torch.gather(log_probs, 0, mixture_samples)
+        log_probs += torch.log(mixture_probs.gather(-1, mixture_samples))
 
         # rounding to a target vocab token
         token_nn_scores: Tensor = sampled_mixtures_out.squeeze(0) @ self.target_embed_normalized.T
