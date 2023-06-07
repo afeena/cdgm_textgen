@@ -11,7 +11,8 @@ from fairseq.criterions import register_criterion
 from torch import Tensor
 
 from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
-                                     ARPowerSphericalRevKLCriterion, ARPowerSphericalCriterion,
+                                     ARPowerSphericalRevKLCriterion,
+                                     ARPowerSphericalCriterion,
                                      ARPowerSphericalCriterionConfig)
 from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_softmax_with_temperature_scriptable,
@@ -181,22 +182,20 @@ class MixturePSCriterionConfig(ARPowerSphericalCriterionConfig):
         default=0.1,
         metadata={"help": "weight of mixture reg"},
     )
-    norm_f_weight: Optional[float] = field(default=0.0, metadata={"help": "weight for norm of f regularizer"})
+    norm_f_weight: Optional[float] = field(default=0.0,
+                                           metadata={"help": "weight for norm of f regularizer"})
+
 
 @register_criterion("power_spherical_mixture_loss", dataclass=MixturePSCriterionConfig)
 class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
-    def __init__(self, task, sentence_avg, kappa_lambda,
-                 mixture_regularizer,
+    def __init__(self, task,
+                 sentence_avg,
+                 kappa_lambda,
                  mixture_regularizer_weight,
-                 mixture_temperature,
                  norm_f_weight):
-        super().__init__(task,
-                         sentence_avg,
-                         kappa_lambda)
+        super().__init__(task, sentence_avg, kappa_lambda)
 
-        self.mixture_regularizer = mixture_regularizer
         self.mixture_regularizer_weight = mixture_regularizer_weight
-        self.mixture_temperature = mixture_temperature
         self.norm_f_weight = norm_f_weight
 
     def compute_loss(self, model, net_output, sample, reduce=True):
