@@ -202,8 +202,8 @@ class MixturePowerSphericalCriterion(ARPowerSphericalCriterion):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0]
-        mixture_out = net_output[1].get(["mixtures_out"], None)
-        norm_f = net_output[1].get(["norm_f"], None)
+        mixture_out = net_output[1].get("mixtures_out", None)
+        norm_f = net_output[1].get("norm_f", None)
         target = target[mask]
 
         # out is in a shape MxBxTxD, take mask only over last 3 dims
