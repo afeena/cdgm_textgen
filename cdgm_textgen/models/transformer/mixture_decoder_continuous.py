@@ -174,8 +174,12 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         bsz, seq_len, num_mixt = mixtures_out.shape
         # BxTxM
         mixture_probs = F.softmax(mixtures_out, -1)
+        #from datetime import datetime
+        #postfix = f"_{datetime.now().timestamp()}"
+        #torch.save(mixture_probs, f"mixture_probs{postfix}")
         # BxTxN_samples
         mixture_samples = torch.multinomial(mixture_probs.squeeze(1), num_samples=1, replacement=True)
+        #torch.save(mixture_samples, f"mixture_samples{postfix}")
         # N_samplesxBxT
         mixture_samples = mixture_samples.view(1, bsz, seq_len)
 
@@ -190,13 +194,16 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         log_probs: Tensor = q_dist.log_prob(samples)
         sampled_mixtures_out: Tensor = torch.gather(samples, 0, mixture_samples[...,None].expand(-1,-1,-1,features.shape[-1]))
         log_probs = torch.gather(log_probs, 0, mixture_samples)
-        log_probs += torch.log(mixture_probs.gather(-1, mixture_samples.squeeze(1).unsqueeze(0)))
+        mixture_log_probs = mixture_probs.gather(-1, mixture_samples.squeeze(0).unsqueeze(1))
+        log_probs = log_probs.view(bsz, -1)+mixture_log_probs.view(bsz,-1)
 
         # rounding to a target vocab token
         token_nn_scores: Tensor = sampled_mixtures_out.squeeze(0) @ self.target_embed_normalized.T
         token_nn_scores[:,:,self.dictionary.pad()] = float("-inf")
     
         token_idxs = token_nn_scores.max(-1).indices
+        #torch.save(token_idxs, f"toke_idxs{postfix}")
+        
         return log_probs, token_idxs.view(bsz, -1)
 
     def get_normalized_probs(
