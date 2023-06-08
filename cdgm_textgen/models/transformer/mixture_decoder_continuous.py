@@ -202,7 +202,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         token_nn_scores[:,:,self.dictionary.pad()] = float("-inf")
     
         token_idxs = token_nn_scores.max(-1).indices
-        #torch.save(token_idxs, f"toke_idxs{postfix}")
+        #torch.save(token_idxs, f"token_idxs{postfix}")
         
         return log_probs, token_idxs.view(bsz, -1)
 
