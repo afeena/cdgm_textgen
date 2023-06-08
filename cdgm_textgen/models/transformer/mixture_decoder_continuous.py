@@ -173,12 +173,14 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         """
         bsz, seq_len, num_mixt = mixtures_out.shape
         # BxTxM
-        mixture_probs = F.softmax(mixtures_out, -1)
+        mixture_log_probs = F.log_softmax(mixtures_out, -1)
+
         #from datetime import datetime
         #postfix = f"_{datetime.now().timestamp()}"
         #torch.save(mixture_probs, f"mixture_probs{postfix}")
         # BxTxN_samples
-        mixture_samples = torch.multinomial(mixture_probs.squeeze(1), num_samples=1, replacement=True)
+        mixture_samples = torch.distributions.Categorical(logits=mixture_log_probs).sample((n_samples,))
+        mixture_log_probs = mixture_log_probs.gather(-1, mixture_samples)
         #torch.save(mixture_samples, f"mixture_samples{postfix}")
         # N_samplesxBxT
         mixture_samples = mixture_samples.view(1, bsz, seq_len)
@@ -194,7 +196,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         log_probs: Tensor = q_dist.log_prob(samples)
         sampled_mixtures_out: Tensor = torch.gather(samples, 0, mixture_samples[...,None].expand(-1,-1,-1,features.shape[-1]))
         log_probs = torch.gather(log_probs, 0, mixture_samples)
-        mixture_log_probs = mixture_probs.gather(-1, mixture_samples.squeeze(0).unsqueeze(1))
+
         log_probs = log_probs.view(bsz, -1)+mixture_log_probs.view(bsz,-1)
 
         # rounding to a target vocab token
