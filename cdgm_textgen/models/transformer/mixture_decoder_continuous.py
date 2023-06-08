@@ -8,7 +8,7 @@ from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
-from cdgm_textgen.modules import parse_cluster_means, triple_sum_scriptable
+from cdgm_textgen.modules import parse_cluster_means, triple_sum_scriptable, log_prob_scriptable
 from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -145,7 +145,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
 
             q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = q_dist.log_prob(self.target_embed_normalized)
+            log_probs = log_prob_scriptable(q_dist.loc, q_dist.scale, self.target_embed_normalized, "ijk, ljk -> lij")
 
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
@@ -179,7 +179,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         #postfix = f"_{datetime.now().timestamp()}"
         #torch.save(mixture_probs, f"mixture_probs{postfix}")
         # BxTxN_samples
-        mixture_samples = torch.distributions.Categorical(logits=mixture_log_probs).sample((n_samples,))
+        mixture_samples = torch.distributions.Categorical(logits=mixture_log_probs).sample()
         mixture_log_probs = mixture_log_probs.gather(-1, mixture_samples)
         #torch.save(mixture_samples, f"mixture_samples{postfix}")
         # N_samplesxBxT
@@ -193,7 +193,7 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
 
         # sample from output dist
         samples: Tensor = q_dist.sample()
-        log_probs: Tensor = q_dist.log_prob(samples)
+        log_probs: Tensor = log_prob_scriptable(q_dist.loc, q_dist.scale,samples, "ijk, ljk -> lij")
         sampled_mixtures_out: Tensor = torch.gather(samples, 0, mixture_samples[...,None].expand(-1,-1,-1,features.shape[-1]))
         log_probs = torch.gather(log_probs, 0, mixture_samples)
 

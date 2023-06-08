@@ -10,6 +10,7 @@ from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
+from cdgm_textgen.modules import log_prob_scriptable
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -122,7 +123,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample()
-        log_probs_samples = q_dist.log_prob(samples)
+        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, ljk -> lj")
 
         # rounding to a target vocab token
         token_nn_scores: Tensor = samples.squeeze(0) @ self.target_embed_normalized.T
