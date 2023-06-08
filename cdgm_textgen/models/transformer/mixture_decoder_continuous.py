@@ -145,7 +145,9 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
             features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
 
             q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = log_prob_scriptable(q_dist.loc, q_dist.scale, self.target_embed_normalized, "ijk, ljk -> lij")
+            log_probs = log_prob_scriptable(q_dist.loc, q_dist.scale,
+                                            self.target_embed_normalized,
+                                            "mijk,lk->mijl")
 
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
