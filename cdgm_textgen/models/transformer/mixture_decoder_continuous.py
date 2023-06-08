@@ -141,13 +141,13 @@ class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
         with torch.no_grad():
             mixt = features.shape[0]
             bsz = features.shape[1]
-            kappa = torch.norm(features, dim=-1).unsqueeze(1)
-            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
+            features = F.normalize(features, p=2.0, dim=-1)
+            kappa = torch.norm(features, dim=-1)
 
             q_dist = power_spherical.PowerSpherical(features, kappa)
             log_probs = log_prob_scriptable(q_dist.loc, q_dist.scale,
                                             self.target_embed_normalized,
-                                            "mijk,lk->mijl")
+                                            "mijk,lk->mil")
 
             output_proj = log_probs.view(mixt, bsz, -1, self.dict_len)
             return output_proj
