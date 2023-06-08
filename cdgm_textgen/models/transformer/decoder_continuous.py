@@ -121,7 +121,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
 
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-        samples = q_dist.sample((n_samples,))
+        samples = q_dist.sample()
         log_probs_samples = q_dist.log_prob(samples)
 
         # rounding to a target vocab token
