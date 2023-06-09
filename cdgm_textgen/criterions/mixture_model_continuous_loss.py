@@ -148,7 +148,7 @@ class MixturePowerSphericalRevKLCriterion(ARPowerSphericalRevKLCriterion):
         loss += confidence_penalty.mean()
 
         if norm_f is not None:
-            loss += (self.norm_f_weight * norm_f).mean()
+            loss += (self.norm_f_weight * torch.pow(norm_f,2)).mean()
 
         return loss, {"kappa": kappa.detach().mean(),
                       "prior_entropy": prior_entropy.detach().mean(),
