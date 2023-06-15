@@ -135,13 +135,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
 
 class HyperCubeEmbed(nn.Module):
-    def __init__(self, embed_dim, num_emb, permute=False, device=None, dtype=None):
+    def __init__(self, embed_dim, num_emb, permute=False, dtype=torch.float32, **kwargs):
         super().__init__()
-
         self.embed_dim = embed_dim
         self.permute = permute
         self.num_emb = num_emb
-        self.fac_kwargs = {'device': device, 'dtype': dtype, 'requires_grad': False}
+        self.fac_kwargs = {'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+                           'dtype': dtype,
+                           'requires_grad': False}
         self.weight = self.build_cube_embed()
 
     def build_cube_embed(self):
@@ -152,7 +153,7 @@ class HyperCubeEmbed(nn.Module):
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
         d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
-        return Parameter(d.T, requires_grad=self.fac_kwargs['requires_grad'])
+        return d.T
 
     def forward(self, x):
         return self.weight[x]
