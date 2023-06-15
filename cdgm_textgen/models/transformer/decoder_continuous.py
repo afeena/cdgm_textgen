@@ -37,7 +37,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         # build target (reference) emb
         padding_idx = dictionary.pad()
         if cfg.target_embd == 'hypercube':
-            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim, permute=cfg.target_embd_random_cube)
+            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim,
+                                               permute=cfg.target_embd_random_cube)
 
         else:
             assert cfg.target_embed_path is not None
@@ -117,7 +118,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-    def sample_output(self, decoder_out: Tensor, n_samples: int=1) -> Tuple[Tensor, Tensor]:
+    def sample_output(self, decoder_out: Tensor, n_samples: int = 1) -> Tuple[Tensor, Tensor]:
         kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
 
@@ -141,9 +142,9 @@ class HyperCubeEmbed(nn.Module):
         self.permute = permute
         self.num_emb = num_emb
         self.fac_kwargs = {
-                           'dtype': dtype,
-                           'requires_grad': False,
-                            'device': 'cuda' if torch.cuda.is_available() else 'cpu'}
+            'dtype': dtype,
+            'requires_grad': False,
+            'device': 'cuda' if torch.cuda.is_available() else 'cpu'}
         self.weight = self.build_cube_embed()
 
     def build_cube_embed(self):
@@ -152,7 +153,7 @@ class HyperCubeEmbed(nn.Module):
             perm = torch.randperm(self.num_emb, **self.fac_kwargs)
             d = d[perm]
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
-        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float().to(self.device, d.dtype)
+        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
         return d.T
 
