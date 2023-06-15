@@ -140,9 +140,10 @@ class HyperCubeEmbed(nn.Module):
         self.embed_dim = embed_dim
         self.permute = permute
         self.num_emb = num_emb
-        self.fac_kwargs = {'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+        self.fac_kwargs = {
                            'dtype': dtype,
                            'requires_grad': False}
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.weight = self.build_cube_embed()
 
     def build_cube_embed(self):
@@ -151,7 +152,7 @@ class HyperCubeEmbed(nn.Module):
             perm = torch.randperm(self.num_emb, **self.fac_kwargs)
             d = d[perm]
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
-        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
+        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float().to(self.device, d.dtype)
         d[d == 0] = -1
         return d.T
 
