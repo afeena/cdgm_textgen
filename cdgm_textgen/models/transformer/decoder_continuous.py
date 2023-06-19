@@ -146,17 +146,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample((n_samples,))
         log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "ijk, ljk -> lj")
+        dot_prod = torch.zeros()
 
         s=1.0
         rbf_utility = torch.exp((dot_prod - 1) / (s ** 2))
 
-        # rounding to a target vocab token
-        token_nn_scores: Tensor = samples.squeeze(0) @ self.target_embed_normalized.T
-        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
-
-        token_idxs = token_nn_scores.max(-1).indices
-
-        return log_probs_samples, token_idxs
+        #TODO: finish this function
 
 
 class HyperCubeEmbed(nn.Module):
