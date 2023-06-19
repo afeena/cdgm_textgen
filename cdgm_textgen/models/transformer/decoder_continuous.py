@@ -135,6 +135,29 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return log_probs_samples, token_idxs
 
+    def sample_mbr_token(self, decoder_out: Tensor, n_samples: int = 1) -> Tuple[Tensor, Tensor]:
+        """
+        main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
+        the best token according utility. Then treat it as a greedy search.
+        """
+        kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
+        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
+
+        q_dist = power_spherical.PowerSpherical(features_idx, kappa)
+        samples = q_dist.sample((n_samples,))
+        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "ijk, ljk -> lj")
+
+        s=1.0
+        rbf_utility = torch.exp((dot_prod - 1) / (s ** 2))
+
+        # rounding to a target vocab token
+        token_nn_scores: Tensor = samples.squeeze(0) @ self.target_embed_normalized.T
+        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
+
+        token_idxs = token_nn_scores.max(-1).indices
+
+        return log_probs_samples, token_idxs
+
 
 class HyperCubeEmbed(nn.Module):
     def __init__(self, embed_dim, num_emb, permute=False, dtype=None, **kwargs):
@@ -159,4 +182,5 @@ class HyperCubeEmbed(nn.Module):
         return d.T
 
     def forward(self, x):
-        return self.weight[x]
+        with torch.no_grad():
+            return self.weight[x]
