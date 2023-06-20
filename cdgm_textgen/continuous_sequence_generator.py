@@ -417,7 +417,10 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                 if torch.all(finished):
                     break
 
-        return self.finalize_hyps(tokens, scores, bsz)
+        if not self.token_mbr:
+            return self.finalize_hyps_string_mbr(tokens, scores, bsz)
+        else:
+            return self.finalize_hyps(tokens, scores, bsz)
 
     def get_utility_scores(self, hyp_strings: list, last_scores: Tensor):
         # for each hyp in samples, calculate metric given other samples as targets
@@ -445,7 +448,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
                 torch.log(torch.tensor(ranking_scores[h_idx], device=device) + last_scores))
         return utility_scores.max(dim=-1)
 
-    def finalize_hyps(self, tokens, scores, bsz):
+    def finalize_hyps_string_mbr(self, tokens, scores, bsz):
         final_hyps = []
 
         lengths = torch.sum(tokens.ne(self.pad).int(), dim=-1) - 1
