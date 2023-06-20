@@ -162,7 +162,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         token_idxs = token_nn_scores.max(-1).indices
 
-        return log_probs_samples[best_utility_token], token_idxs
+        return rbf_utility[best_utility_token], token_idxs
 
     def sample_output(self, decoder_out: Tensor, n_samples: int = 1, token_mbr=False) -> Tuple[Tensor, Tensor]:
         if token_mbr is False:
