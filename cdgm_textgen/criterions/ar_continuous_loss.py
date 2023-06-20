@@ -43,9 +43,7 @@ class CosineARCriterion(CrossEntropyCriterion):
 
         out = net_output[0][mask]
         target = target[mask]
-        pad_mask = sample["target"].eq(self.padding_idx)
         loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
-        loss.masked_fill_(pad_mask,0)
         loss = loss.mean(-1)
         return loss, None
 
