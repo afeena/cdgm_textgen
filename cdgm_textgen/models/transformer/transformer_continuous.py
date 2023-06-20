@@ -111,8 +111,8 @@ class TransformerModelContinuous(TransformerModelBase):
         return scores
 
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
-                        mixture_out: Optional[Tensor] = None,  n_samples=1) -> Tensor:
-        return self.decoder.sample_output(decoder_out, n_samples)
+                        mixture_out: Optional[Tensor] = None,  n_samples=1, token_mbr=False) -> Tensor:
+        return self.decoder.sample_output(decoder_out, n_samples, token_mbr=token_mbr)
 
     # legacy
     @torch.no_grad()

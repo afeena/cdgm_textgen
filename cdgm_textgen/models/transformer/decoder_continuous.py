@@ -119,7 +119,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return scores
 
-    def sample_output(self, decoder_out: Tensor, n_samples: int = 1) -> Tuple[Tensor, Tensor]:
+    def sample_mbr_string(self, decoder_out: Tensor):
         kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
 
@@ -134,8 +134,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         token_idxs = token_nn_scores.max(-1).indices
 
         return log_probs_samples, token_idxs
-
-    def sample_mbr_token(self, decoder_out: Tensor, n_samples: int = 1) -> Tuple[Tensor, Tensor]:
+    def sample_mbr_token(self, decoder_out: Tensor, n_samples: int = 10) -> Tuple[Tensor, Tensor]:
         """
         main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
         the best token according utility. Then treat it as a greedy search.
@@ -146,13 +145,30 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample((n_samples,))
         log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "ijk, ljk -> lj")
-        dot_prod = torch.zeros()
+
+        dot_prods = samples @ samples.T
 
         s=1.0
-        rbf_utility = torch.exp((dot_prod - 1) / (s ** 2))
+        rbf_utility = ((dot_prods - 1) / (s ** 2))
 
-        #TODO: finish this function
+        #sum log probabilities
+        rbf_utility+= log_probs_samples
+        #choose the best among dim=-1
+        best_utility_token = rbf_utility.sum(dim=-1).max(-1).indices
 
+        # rounding to a target vocab token
+        token_nn_scores: Tensor = samples[best_utility_token] @ self.target_embed_normalized.T
+        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
+
+        token_idxs = token_nn_scores.max(-1).indices
+
+        return log_probs_samples[best_utility_token], token_idxs
+
+    def sample_output(self, decoder_out: Tensor, n_samples: int = 1, token_mbr=False) -> Tuple[Tensor, Tensor]:
+        if token_mbr is False:
+            return self.sample_mbr_string(decoder_out)
+        else:
+            return self.sample_mbr_token(decoder_out, n_samples=n_samples)
 
 class HyperCubeEmbed(nn.Module):
     def __init__(self, embed_dim, num_emb, pad_idx=None, permute=False, dtype=None, **kwargs):

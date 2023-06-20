@@ -85,7 +85,9 @@ class TranslationCountinuousTask(TranslationTask):
             from cdgm_textgen.continuous_sequence_generator import MBRContinuousSequenceGenerator
             seq_gen_cls = MBRContinuousSequenceGenerator
             extra_gen_cls_kwargs = {"n_samples": self.cfg.get("mbr_nsamples", 1),
-                                    "ranker": self.cfg.get("ranking_metric", "bertscore")}
+                                    "ranker": self.cfg.get("ranking_metric", "bertscore"),
+                                    "token_mbr":  self.cfg.get("token_mbr", False),
+                                    }
 
         return seq_gen_cls(
             models,
