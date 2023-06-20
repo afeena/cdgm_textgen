@@ -37,7 +37,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         # build target (reference) emb
         padding_idx = dictionary.pad()
         if cfg.target_embd == 'hypercube':
-            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim,
+            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim, pad_idx=padding_idx,
                                                permute=cfg.target_embd_random_cube)
             self.target_embed.requires_grad_(False)
 
@@ -164,8 +164,9 @@ class HyperCubeEmbed(nn.Module):
             'dtype': dtype,
             'requires_grad': False,
             'device': 'cuda' if torch.cuda.is_available() else 'cpu'}
-        self.weight = self.build_cube_embed()
         self.pad_idx = pad_idx
+        self.weight = self.build_cube_embed()
+
 
     def build_cube_embed(self):
         d = torch.arange(self.num_emb, **self.fac_kwargs)
