@@ -120,8 +120,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         return scores
 
     def sample_mbr_string(self, decoder_out: Tensor):
-        kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
+        kappa = torch.norm(decoder_out, dim=-1)
+        features_idx = F.normalize(decoder_out, p=2.0, dim=-1)
 
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample()
@@ -139,12 +139,12 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
         the best token according utility. Then treat it as a greedy search.
         """
-        kappa = torch.norm(decoder_out, dim=-1).unsqueeze(1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).unsqueeze(1)
+        kappa = torch.norm(decoder_out, dim=-1)
+        features_idx = F.normalize(decoder_out, p=2.0, dim=-1)
 
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample((n_samples,))
-        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "ijk, ljk -> lj")
+        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, ljk -> lj")
 
         dot_prods = samples @ samples.T
 
