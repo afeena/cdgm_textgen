@@ -139,17 +139,18 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
         the best token according utility. Then treat it as a greedy search.
         """
-        kappa = torch.norm(decoder_out, dim=-1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1)
+        # remove token dim but keep batch dim
+        kappa = torch.norm(decoder_out, dim=-1).squeeze(1)
+        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).squeeze(1)
 
         q_dist = power_spherical.PowerSpherical(features_idx, kappa)
         samples = q_dist.sample((n_samples,))
-        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, ljk -> lj")
+        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, sjk -> sj")
 
-        dot_prods = samples @ samples.T
+        dot_prods = samples.movedim(0,1) @ samples.movedim(2,1)
 
         s=1.0
-        rbf_utility = ((dot_prods - 1) / (s ** 2))
+        rbf_utility = ((dot_prods.squeeze(-1) - 1) / (s ** 2))
 
         #sum log probabilities
         rbf_utility+= log_probs_samples
