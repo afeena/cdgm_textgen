@@ -36,6 +36,12 @@ class TranslationContinuousConfig(TranslationConfig):
             "help": "metric to use for ranking. Supported metrics are [google_bleu, meteor]"
         }
     )
+    token_mbr: bool = field(
+        default=False,
+        metadata={
+            "help": "use token-level mbr"
+        }
+    )
 
 
 @register_task("translation_cont", dataclass=TranslationContinuousConfig)
