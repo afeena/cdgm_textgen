@@ -140,6 +140,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         the best token according utility. Then treat it as a greedy search.
         """
         # remove token dim but keep batch dim
+        bsz = decoder_out.shape[0]
         kappa = torch.norm(decoder_out, dim=-1).squeeze(1)
         features_idx = F.normalize(decoder_out, p=2.0, dim=-1).squeeze(1)
 
@@ -149,10 +150,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         dot_prods = samples.movedim(0,1) @ samples.movedim(2,1)
 
-        rbf_utility = ((dot_prods.squeeze(-1) - 1) / (kappa ** 2))
+        dot_prods = dot_prods.view(bsz, n_samples, n_samples)
+        rbf_utility = ((dot_prods - 1) / (kappa ** 2))
 
         #sum log probabilities
-        rbf_utility+= log_probs_samples
+        rbf_utility+= log_probs_samples.T
         #choose the best among dim=-1
         best_utility_token = rbf_utility.sum(dim=-1).max(-1).indices
 
