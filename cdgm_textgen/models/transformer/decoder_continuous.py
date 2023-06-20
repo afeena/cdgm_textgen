@@ -50,7 +50,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 utils.load_embedding(embed_dict, dictionary, self.target_embed)
             self.target_embed.weight.requires_grad = False
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                   dim=-1).cuda()
+                                               dim=-1).cuda()
 
     def forward(
             self,
@@ -155,7 +155,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
 
 class HyperCubeEmbed(nn.Module):
-    def __init__(self, embed_dim, num_emb, permute=False, dtype=None, **kwargs):
+    def __init__(self, embed_dim, num_emb, pad_idx=None, permute=False, dtype=None, **kwargs):
         super().__init__()
         self.embed_dim = embed_dim
         self.permute = permute
@@ -165,6 +165,7 @@ class HyperCubeEmbed(nn.Module):
             'requires_grad': False,
             'device': 'cuda' if torch.cuda.is_available() else 'cpu'}
         self.weight = self.build_cube_embed()
+        self.pad_idx = pad_idx
 
     def build_cube_embed(self):
         d = torch.arange(self.num_emb, **self.fac_kwargs)
@@ -174,6 +175,7 @@ class HyperCubeEmbed(nn.Module):
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
         d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
+        nn.init.constant_(d[self.pad_idx], 0)
         return d.T
 
     def forward(self, x):
