@@ -149,8 +149,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         dot_prods = samples.movedim(0,1) @ samples.movedim(2,1)
 
-        s=1.0
-        rbf_utility = ((dot_prods.squeeze(-1) - 1) / (s ** 2))
+        rbf_utility = ((dot_prods.squeeze(-1) - 1) / (kappa ** 2))
 
         #sum log probabilities
         rbf_utility+= log_probs_samples
