@@ -151,20 +151,18 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         dot_prods = samples.movedim(0,1) @ samples.movedim(2,1)
 
         dot_prods = dot_prods.view(bsz, n_samples, n_samples)
-        rbf_utility = ((dot_prods - 1) / (kappa ** 2))
+        rbf_utility = (((dot_prods - 1) / (.1 ** 2)) + log_probs_samples.T.unsqueeze(-1)).sum(dim=-1)
 
         #sum log probabilities
-        rbf_utility+= log_probs_samples.T
         #choose the best among dim=-1
-        best_utility_token = rbf_utility.sum(dim=-1).max(-1).indices
-
+        best_utility_hyp_id = rbf_utility.max(dim=-1).indices
         # rounding to a target vocab token
-        token_nn_scores: Tensor = samples[best_utility_token] @ self.target_embed_normalized.T
+        token_nn_scores: Tensor = (samples[best_utility_hyp_id] @ self.target_embed_normalized.T).squeeze(0)
         token_nn_scores[:, self.dictionary.pad()] = float("-inf")
 
-        token_idxs = token_nn_scores.max(-1).indices
+        token_idxs = token_nn_scores.max(dim=-1).indices
 
-        return rbf_utility[best_utility_token], token_idxs
+        return rbf_utility[:,best_utility_hyp_id], token_idxs
 
     def sample_output(self, decoder_out: Tensor, n_samples: int = 1, token_mbr=False) -> Tuple[Tensor, Tensor]:
         if token_mbr is False:
@@ -173,7 +171,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             return self.sample_mbr_token(decoder_out, n_samples=n_samples)
 
 class HyperCubeEmbed(nn.Module):
-    def __init__(self, embed_dim, num_emb, pad_idx=None, permute=False, dtype=None, **kwargs):
+    def __init__(self, num_emb, embed_dim, pad_idx=None, permute=False, dtype=None, **kwargs):
         super().__init__()
         self.embed_dim = embed_dim
         self.permute = permute
@@ -194,8 +192,7 @@ class HyperCubeEmbed(nn.Module):
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
         d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
-        nn.init.constant_(d[self.pad_idx], 0)
-        return d.T
+        return d
 
     def forward(self, x):
         with torch.no_grad():
