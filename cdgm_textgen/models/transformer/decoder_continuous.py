@@ -185,7 +185,9 @@ class HyperCubeEmbed(nn.Module):
 
 
     def build_cube_embed(self):
-        d = torch.arange(self.num_emb, **self.fac_kwargs)
+        #stretch embeddings in the cube
+        step = (2 ** (self.embed_dim - 1))//self.num_emb
+        d = torch.arange(0,self.num_emb*step, step, **self.fac_kwargs)
         if self.permute:
             perm = torch.randperm(self.num_emb, **self.fac_kwargs)
             d = d[perm]
