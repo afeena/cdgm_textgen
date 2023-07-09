@@ -186,14 +186,15 @@ class HyperCubeEmbed(nn.Module):
 
     def build_cube_embed(self):
         #stretch embeddings in the cube
-        step = (2 ** (self.embed_dim - 1))//self.num_emb
         if self.permute:
             d = torch.randint(0,2**(self.embed_dim - 1),(self.num_emb*2,), **self.fac_kwargs).unique()[:self.num_emb]
         else:
+            step = (2 ** (self.embed_dim - 1)) // self.num_emb
             d = torch.arange(0,self.num_emb, **self.fac_kwargs)*step
         mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
         d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
         d[d == 0] = -1
+
         return d
 
     def forward(self, x):
