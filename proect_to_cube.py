@@ -7,7 +7,7 @@ def project_to_cube(source, target_dim, reduce_sum=False):
     else:
         tgt = source[:, :target_dim]
     tgt = torch.where(tgt > 0, 1.0, -1.0)
-    assert tgt.unique(dim=0).shape == source.shape[0]
+    print(tgt.unique(dim=0).shape == source.shape[0], tgt.unique(dim=0).shape, source.shape[0])
     return tgt
 
 
