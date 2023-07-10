@@ -42,7 +42,7 @@ def txt_to_pt(embd_path):
 if __name__ == "__main__":
     argp = argparse.ArgumentParser()
     argp.add_argument("-s", "--source", type=str, required=True)
-    argp.add_argument("-d", "--dim", type=str, required=True)
+    argp.add_argument("-d", "--dim", type=int, required=True)
     argp.add_argument("-r", "--reducesum", action="store_true", default=False)
     dict = argp.add_argument("-v", "--vocab", required=True)
     save_fn = argp.add_argument("-t", "--target", required=True)
