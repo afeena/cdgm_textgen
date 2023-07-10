@@ -36,19 +36,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         # build target (reference) emb
         padding_idx = dictionary.pad()
-        if cfg.target_embd == 'hypercube':
-            self.target_embed = HyperCubeEmbed(self.dict_len, self.output_embed_dim, pad_idx=padding_idx,
-                                               permute=cfg.target_embd_random_cube)
-            self.target_embed.requires_grad_(False)
 
-        else:
-            assert cfg.target_embed_path is not None
-            self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
-            if cfg.target_embed_path:
-                logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-                embed_dict = utils.parse_embedding(cfg.target_embed_path)
-                utils.load_embedding(embed_dict, dictionary, self.target_embed)
-            self.target_embed.weight.requires_grad = False
+        assert cfg.target_embed_path is not None
+        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
+        if cfg.target_embed_path:
+            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+            embed_dict = utils.parse_embedding(cfg.target_embed_path)
+            utils.load_embedding(embed_dict, dictionary, self.target_embed)
+        self.target_embed.weight.requires_grad = False
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                dim=-1).cuda()
 
@@ -170,33 +165,4 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         else:
             return self.sample_mbr_token(decoder_out, n_samples=n_samples)
 
-class HyperCubeEmbed(nn.Module):
-    def __init__(self, num_emb, embed_dim, pad_idx=None, permute=False, dtype=None, **kwargs):
-        super().__init__()
-        self.embed_dim = embed_dim
-        self.permute = permute
-        self.num_emb = num_emb
-        self.fac_kwargs = {
-            'dtype': dtype,
-            'requires_grad': False,
-            'device': 'cuda' if torch.cuda.is_available() else 'cpu'}
-        self.pad_idx = pad_idx
-        self.weight = self.build_cube_embed()
 
-
-    def build_cube_embed(self):
-        #stretch embeddings in the cube
-        if self.permute:
-            d = torch.randint(0,2**(self.embed_dim - 1),(self.num_emb*2,), **self.fac_kwargs).unique()[:self.num_emb]
-        else:
-            step = (2 ** (self.embed_dim - 1)) // self.num_emb
-            d = torch.arange(0,self.num_emb, **self.fac_kwargs)*step
-        mask = 2 ** torch.arange(self.embed_dim - 1, -1, -1).to(d.device, d.dtype)
-        d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
-        d[d == 0] = -1
-
-        return d
-
-    def forward(self, x):
-        with torch.no_grad():
-            return self.weight[x]
