@@ -1,11 +1,11 @@
 import argparse
 import torch
 
-def project_to_cube(source, target_dim, reduce_sum=False):
-    if reduce_sum:
-        tgt = source.view(source.shape[0], target_dim, -1).sum(dim=-1)
-    else:
-        tgt = source[:, :target_dim]
+def project_to_cube(source, target_dim):
+    src_dim = source.shape[1]
+    A = torch.randn(target_dim, src_dim)
+    A_star = torch.linalg.qr(A)
+    tgt = A_star * source
     tgt = torch.where(tgt > 0, 1.0, -1.0)
     print(tgt.unique(dim=0).shape == source.shape[0], tgt.unique(dim=0).shape, source.shape[0])
     return tgt
@@ -43,7 +43,6 @@ if __name__ == "__main__":
     argp = argparse.ArgumentParser()
     argp.add_argument("-s", "--source", type=str, required=True)
     argp.add_argument("-d", "--dim", type=int, required=True)
-    argp.add_argument("-r", "--reducesum", action="store_true", default=False)
     dict = argp.add_argument("-v", "--vocab", required=True)
     save_fn = argp.add_argument("-t", "--target", required=True)
 
@@ -63,5 +62,5 @@ if __name__ == "__main__":
             vocab[token] = len(vocab)
     parsed_voc, parsed_embd = txt_to_pt(args.source)
     assert parsed_voc == vocab
-    cube = project_to_cube(source=parsed_embd, target_dim=args.dim, reduce_sum=args.reducesum)
+    cube = project_to_cube(source=parsed_embd, target_dim=args.dim)
     save_cube_embed(cube, args.target, vocab)
