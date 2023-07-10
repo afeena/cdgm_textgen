@@ -32,12 +32,13 @@ def save_cube_embed(cube, fname, dictionary):
 if __name__ == "__main__":
     argp = argparse.ArgumentParser()
     argp.add_argument("-d", "--dim", type=int, required=True)
-    permute = argp.add_argument("-r", "--rand", action="store_true")
-    stretch = argp.add_argument("--stretch", action="store_true")
+    permute = argp.add_argument("-r", "--rand", action="store_true", default=False)
+    stretch = argp.add_argument("--stretch", action="store_true", default=False)
     dict = argp.add_argument("-v", "--vocab", required=True)
     save_fn = argp.add_argument("-s", "--save", required=True)
 
     args = argp.parse_args()
+    print(args)
 
     special_tokens = ["<s>", "<pad>", "</s>", "<unk>"]
 
