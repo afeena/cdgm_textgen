@@ -52,5 +52,5 @@ if __name__ == "__main__":
                 continue
             vocab[token] = len(vocab)
     num_emb = len(vocab)
-    cube = build_cube_embed(num_emb, args.dim, permute=args.permute)
+    cube = build_cube_embed(num_emb, args.dim, permute=args.rand, stretch=args.stretch)
     save_cube_embed(cube, args.save, vocab)
