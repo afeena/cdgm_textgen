@@ -43,6 +43,7 @@ if __name__ == "__main__":
     argp = argparse.ArgumentParser()
     argp.add_argument("-s", "--source", type=str, required=True)
     argp.add_argument("-d", "--dim", type=str, required=True)
+    argp.add_argument("-r", "--reducesum", action="store_true", default=False)
     dict = argp.add_argument("-v", "--vocab", required=True)
     save_fn = argp.add_argument("-t", "--target", required=True)
 
@@ -61,5 +62,6 @@ if __name__ == "__main__":
                 continue
             vocab[token] = len(vocab)
     parsed_voc, parsed_embd = txt_to_pt(args.source)
-    cube = project_to_cube(source=parsed_embd, target_dim=128)
-    save_cube_embed(cube, args.save, vocab)
+    assert parsed_voc == vocab
+    cube = project_to_cube(source=parsed_embd, target_dim=args.dim, reduce_sum=args.reducesum)
+    save_cube_embed(cube, args.target, vocab)
