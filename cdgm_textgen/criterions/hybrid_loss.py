@@ -56,13 +56,12 @@ class HybridLoss(FairseqCriterion):
         target = F.normalize(target, dim=-1)
 
         if torch.rand(1).item() < self.epsilon:
-            dot_true = (out * target).sum(dim=-1)
+            dot_true = (out * target)
             lse = torch.logsumexp(out @ model.decoder.target_embed_normalized.T, dim=-1)
-            loss = lse - dot_true
+            loss = (1.0 - dot_true) + lse
         else:
-            dot_true = (out * target.detach()).sum(dim=-1)
-            # dot_true = (h * emb(y)).sum(dim=-1)
-            loss = -dot_true
+            dot_true = (out * target.detach())
+            loss = 1.0-dot_true
         return loss.mean(), None
 
     @staticmethod
