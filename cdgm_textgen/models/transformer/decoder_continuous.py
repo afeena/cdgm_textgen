@@ -22,6 +22,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                  embed_tokens,
                  no_encoder_attn=False,
                  output_projection=None,
+                 stop_grads_to_target_emb=True,
                  ):
         super().__init__(cfg,
                          dictionary, embed_tokens,
@@ -43,9 +44,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
-        self.target_embed.weight.requires_grad = False
-        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                               dim=-1).cuda()
+
+        if cfg.stop_grads_to_target_emb:
+            self.target_embed.weight.requires_grad = False
+            self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
+                                                       dim=-1).cuda()
+        else:
+            self.target_embed_normalized = F.normalize(self.target_embed.weight.data,
+                                                       dim=-1).cuda()
 
     def forward(
             self,

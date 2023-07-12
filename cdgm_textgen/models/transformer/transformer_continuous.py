@@ -29,15 +29,13 @@ class ContinuousTransformerConfig(TransformerConfig):
         default='pretrained',
         metadata={"help": "TYPE OF EMBEDDINGS TO USE, DEFAULT IS 'PRETRAINED'"},
     )
-    target_embd_random_cube: Optional[bool] = field(
-        default=False,
-        metadata={"help": "shuffle the hypercube embeddings"},
+    stop_grads_to_target_emb: bool = field( default=True,
+        metadata={"help": "stop gradients to target embeddings"},
     )
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
-
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         decoder = ContinuousTransformerDecoder(
