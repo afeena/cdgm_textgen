@@ -40,8 +40,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         assert cfg.target_embed_path is not None
         self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
-        self.target_embed.weight.data = F.normalize(self.target_embed.weight.data,
-                                                    dim=-1).cuda()
         if cfg.target_embed_path:
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
@@ -49,6 +47,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         if cfg.stop_grads_to_target_emb:
             self.target_embed.weight.requires_grad = False
+        self.target_emded_normalized = F.normalize(self.target_embed.weight.detach(),
+                                                       dim=-1).cuda()
 
     def forward(
             self,

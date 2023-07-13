@@ -102,6 +102,9 @@ class TransformerModelContinuous(TransformerModelBase):
             self.decoder.target_embed.weight.requires_grad = True
             return self.decoder.target_embed(sample["target"])
 
+    def get_normalized_emb_matrix(self):
+        return self.decoder.target_embed.weight / torch.norm(self.decoder.target_embed.weight, dim=-1, keepdim=True)
+
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
         scores = None
