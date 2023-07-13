@@ -46,7 +46,12 @@ class HybridLoss(FairseqCriterion):
         return loss, 1, logging_output
 
     def compute_loss(self, model, net_output, sample, reduce=True):
+
+        full_loss = torch.rand(1).item() < self.epsilon
         target = model.get_targets(sample, net_output)
+        
+        if not full_loss:
+            target = target.detach()
         mask = sample["target"].ne(self.padding_idx)
 
         out = net_output[0][mask]
@@ -55,12 +60,12 @@ class HybridLoss(FairseqCriterion):
         out = F.normalize(out, dim=-1)
         target = F.normalize(target, dim=-1)
 
-        if torch.rand(1).item() < self.epsilon:
+        if full_loss:
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             lse = torch.logsumexp(out @ model.decoder.target_embed.weight.T, dim=-1)
-            loss = lse + dot_true.sum(dim=-1)
+            loss = lse.mean(dim=-1) + dot_true.mean(dim=-1)
         else:
-            loss = 1.0 - F.cosine_similarity(out, target.detach(), dim=-1)
+            loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
 
         loss = loss.mean(-1)
         return loss, None
