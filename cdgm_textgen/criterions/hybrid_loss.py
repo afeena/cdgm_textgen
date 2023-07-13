@@ -48,10 +48,8 @@ class HybridLoss(FairseqCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
 
         full_loss = torch.rand(1).item() < self.epsilon
-        target = model.get_targets(sample, net_output)
-        
-        if not full_loss:
-            target = target.detach()
+        target = model.get_targets(sample, net_output, full_loss=full_loss)
+
         mask = sample["target"].ne(self.padding_idx)
 
         out = net_output[0][mask]
