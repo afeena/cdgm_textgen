@@ -62,19 +62,32 @@ class HybridLoss(FairseqCriterion):
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             lse = torch.logsumexp(out @ model.decoder.target_embed.weight.T, dim=-1)
             loss = lse.mean(dim=-1) + dot_true.mean(dim=-1)
+            loss = loss.mean(-1)
+            logging = {"cosine_loss": 0.0, "full_loss": loss.detach().item()}
         else:
             loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
+            loss = loss.mean(-1)
+            logging = {"cosine_loss": loss.detach().item(), "full_loss": 0.0}
 
-        loss = loss.mean(-1)
-        return loss, None
+
+        return loss, logging
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
+        cosine_loss_sum = sum(log.get("cosine_loss", 0) for log in logging_outputs)
+        full_loss_sum = sum(log.get("full_loss", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+        # we divide by log(2) to convert the loss from base e to base 2
+        metrics.log_scalar(
+            "cosine_loss", cosine_loss_sum / sample_size / math.log(2), sample_size, round=3
+        )
+        metrics.log_scalar(
+            "full_loss", full_loss_sum / sample_size / math.log(2), sample_size, round=3
         )
