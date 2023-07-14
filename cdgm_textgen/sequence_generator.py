@@ -771,6 +771,10 @@ class EnsembleModel(nn.Module):
         ):
             self.has_incremental = True
 
+    def set_normalized_tgt_embeddings(self):
+        for model in self.models:
+            if hasattr(model, "set_normalized_tgt_embeddings"):
+                model.set_normalized_tgt_embeddings()
     def forward(self):
         pass
 
