@@ -44,11 +44,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
-
-        if cfg.stop_grads_to_target_emb:
-            self.target_embed.weight.requires_grad = False
-        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                       dim=-1).cuda()
+        self.target_embed.weight.requires_grad = False
 
     def forward(
             self,
@@ -73,6 +69,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    def set_normalized_tgt_embeddings(self):
+        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
+                                                       dim=-1)
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():

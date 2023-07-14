@@ -75,6 +75,9 @@ class TransformerModelContinuous(TransformerModelBase):
         )
         return decoder_out
 
+    def set_normalized_tgt_embeddings(self):
+        self.decoder.set_normalized_tgt_embeddings()
+
     def load_state_dict(
             self,
             state_dict,

@@ -129,6 +129,7 @@ class SequenceGenerator(nn.Module):
             self.lm_model.eval()
         self.metric = metric
 
+        self.model.set_normalized_tgt_embeddings()
         self.model.eval()
 
     def cuda(self):
