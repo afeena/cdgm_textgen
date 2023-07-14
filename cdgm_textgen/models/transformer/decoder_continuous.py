@@ -47,7 +47,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         if cfg.stop_grads_to_target_emb:
             self.target_embed.weight.requires_grad = False
-        self.target_emded_normalized = F.normalize(self.target_embed.weight.detach(),
+        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                        dim=-1).cuda()
 
     def forward(
