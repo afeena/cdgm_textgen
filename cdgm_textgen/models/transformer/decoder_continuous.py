@@ -71,7 +71,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                       dim=-1)
+                                                       dim=-1).cuda()
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
