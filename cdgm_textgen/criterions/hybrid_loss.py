@@ -47,8 +47,8 @@ class HybridLoss(FairseqCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
 
-        full_loss = torch.rand(1).item() < self.epsilon
-        target = model.get_targets(sample, net_output, full_loss=full_loss)
+        apply_full_loss = torch.rand(1).item() < self.epsilon
+        target = model.get_targets(sample, net_output, full_loss=apply_full_loss)
 
         mask = sample["target"].ne(self.padding_idx)
 
@@ -58,17 +58,18 @@ class HybridLoss(FairseqCriterion):
         out = F.normalize(out, dim=-1)
         target = F.normalize(target, dim=-1)
 
-        if full_loss:
+        full_loss = torch.tensor([0.0], device=out.device)
+        cosine_loss = torch.tensor([0.0], device=out.device)
+        if apply_full_loss:
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             emb_mat = model.get_normalized_emb_matrix()
             lse = torch.logsumexp(out @ emb_mat.T, dim=-1)
-            loss = lse + dot_true.sum(dim=-1)
-            loss = loss.mean(-1)
-            logging = {"cosine_loss": 0.0, "full_loss": loss.detach().item()}
+            full_loss = lse + dot_true.sum(dim=-1)
         else:
-            loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
-            loss = loss.mean(-1)
-            logging = {"cosine_loss": loss.detach().item(), "full_loss": 0.0}
+            cosine_loss = 1.0 - F.cosine_similarity(out, target, dim=-1)
+
+        loss = (full_loss+cosine_loss).mean(-1)
+        logging = {"cosine_loss": cosine_loss.detach().item(), "full_loss": full_loss.detach().item()}
 
 
         return loss, logging
