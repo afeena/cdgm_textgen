@@ -62,7 +62,7 @@ class HybridLoss(FairseqCriterion):
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             emb_mat = model.get_normalized_emb_matrix()
             lse = torch.logsumexp(out @ emb_mat.T, dim=-1)
-            loss = lse + dot_true.sum(dim=-1)
+            loss = lse.mean(dim=-1) + dot_true
             loss = loss.mean(-1)
             logging = {"cosine_loss": 0.0, "full_loss": loss.detach().item()}
         else:
