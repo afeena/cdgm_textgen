@@ -44,8 +44,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
-            with torch.no_grad():
-                self.target_embed.weight /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
     def forward(
             self,

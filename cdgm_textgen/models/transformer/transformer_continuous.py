@@ -98,7 +98,10 @@ class TransformerModelContinuous(TransformerModelBase):
         # here allow partial loading from other models
         return super().load_state_dict(state_dict, strict=False)
 
-    def get_targets(self, sample, net_output, full_loss=False, **kwargs):
+    def get_targets(self, sample, net_output, **kwargs):
+        return self.decoder.target_embed(sample["target"]).detach()
+
+    def get_targets_grad(self, sample, net_output, **kwargs):
         return self.decoder.target_embed(sample["target"])
 
     def get_normalized_emb_matrix(self):
