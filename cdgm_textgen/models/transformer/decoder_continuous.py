@@ -39,12 +39,13 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         padding_idx = dictionary.pad()
 
         assert cfg.target_embed_path is not None
-        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx)
+        self.target_embed = Embedding(self.dict_len, self.output_embed_dim, padding_idx=padding_idx)
         if cfg.target_embed_path:
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
-        self.target_embed.weight.requires_grad = False
+            with torch.no_grad():
+                self.target_embed.weight /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
     def forward(
             self,

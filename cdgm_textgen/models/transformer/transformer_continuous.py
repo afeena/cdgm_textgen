@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Dict, List
 import torch
 from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
+import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
@@ -98,15 +99,11 @@ class TransformerModelContinuous(TransformerModelBase):
         return super().load_state_dict(state_dict, strict=False)
 
     def get_targets(self, sample, net_output, full_loss=False, **kwargs):
-        if not full_loss:
-            self.decoder.target_embed.weight.requires_grad = False
-            return self.decoder.target_embed(sample["target"]).detach()
-        else:
-            self.decoder.target_embed.weight.requires_grad = True
-            return self.decoder.target_embed(sample["target"])
+        return self.decoder.target_embed(sample["target"])
 
     def get_normalized_emb_matrix(self):
-        return self.decoder.target_embed.weight / torch.norm(self.decoder.target_embed.weight, dim=-1, keepdim=True)
+        emb = self.decoder.target_embed.weight.clone()
+        return F.normalize(emb, dim=-1)
 
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
