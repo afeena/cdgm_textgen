@@ -104,10 +104,6 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets_grad(self, sample, net_output, **kwargs):
         return self.decoder.target_embed(sample["target"])
 
-    def get_normalized_emb_matrix(self):
-        emb = self.decoder.target_embed.weight.clone()
-        return F.normalize(emb, dim=-1)
-
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
         scores = None

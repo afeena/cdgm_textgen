@@ -44,7 +44,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
-
+        if not cfg.stop_grads_to_target_emb:
+            self.output_projection = torch.nn.utils.weight_norm(nn.Linear(self.output_embed_dim,
+                                                                          self.dict_len, bias=False),
+                                                                name="weight", dim=-1)
+            self.output_projection.weight = self.target_embed.weight
     def forward(
             self,
             prev_output_tokens,
@@ -65,6 +69,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
+        if self.output_projection is not None:
+            x_projected = self.output_projection(x)
+            extra["projected"] = x_projected
 
         return x, extra
 
