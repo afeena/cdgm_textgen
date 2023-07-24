@@ -68,8 +68,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_heads=alignment_heads,
         )
         if self.output_projection is not None:
-            self.output_projection.weight.data = F.normalize(self.output_projection.weight.data, p=2, dim=-1)
             x_projected = self.output_projection(x)
+            x_projected = F.normalize(x_projected, dim=-1)
             extra["projected"] = x_projected
 
         return x, extra
