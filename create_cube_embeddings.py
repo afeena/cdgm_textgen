@@ -4,13 +4,13 @@ import torch.nn.functional as F
 
 
 def build_long_cube(num_emb, embed_dim):
-    d = torch.empty(num_emb, embed_dim)
+    d = torch.zeros(num_emb, embed_dim)
     new = 0
     while new < num_emb:
         cand = torch.rand(embed_dim)
         cand[cand < 0.5] = -1
         cand[cand >= 0.5] = 1
-        if not torch.all(d == cand, 1):
+        if not torch.any(torch.all(d == cand, dim=1)):
             d[new, :] = cand
             new+=1
         if new % 1000 == 0:
