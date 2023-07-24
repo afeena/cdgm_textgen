@@ -1,6 +1,6 @@
 import argparse
 import torch
-
+import torch.nn.functional as F
 
 def build_cube_embed(num_emb, embed_dim, permute=False, stretch=False):
     if permute:
@@ -17,6 +17,8 @@ def build_cube_embed(num_emb, embed_dim, permute=False, stretch=False):
 
     return d
 
+def random_emb(num_emb, embed_dim):
+    return F.normalize(torch.randn(num_emb, embed_dim), dim=-1)
 
 def save_cube_embed(cube, fname, dictionary):
     # cdgm_textgen reuires this format as an input for pre-trained embeddings
@@ -31,6 +33,7 @@ def save_cube_embed(cube, fname, dictionary):
 
 if __name__ == "__main__":
     argp = argparse.ArgumentParser()
+    argp.add_argument("-t", "--type", type=str, required=True, default="cube")
     argp.add_argument("-d", "--dim", type=int, required=True)
     permute = argp.add_argument("-r", "--rand", action="store_true", default=False)
     stretch = argp.add_argument("--stretch", action="store_true", default=False)
@@ -52,5 +55,10 @@ if __name__ == "__main__":
                 continue
             vocab[token] = len(vocab)
     num_emb = len(vocab)
-    cube = build_cube_embed(num_emb, args.dim, permute=args.rand, stretch=args.stretch)
-    save_cube_embed(cube, args.save, vocab)
+
+    if args.type=="cube":
+        emb_new = build_cube_embed(num_emb, args.dim, permute=args.rand, stretch=args.stretch)
+    elif args.type=="random":
+        emb_new = random_emb(num_emb, args.dim)
+
+    save_cube_embed(emb_new, args.save, vocab)

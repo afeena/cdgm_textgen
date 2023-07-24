@@ -353,7 +353,7 @@ class MBRContinuousSequenceGenerator(ContinuousSequenceGenerator):
             torch.full((bsz * self.beam_size, self.max_len + 2), self.pad, device=device, dtype=torch.long)
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
-        scores = torch.zeros((bsz * self.beam_size, self.max_len + 1), device=device, dtype=torch.float)
+        scores = (torch.zeros((bsz * self.beam_size, self.max_len + 1), device=device, dtype=torch.float))
         finished = torch.zeros(bsz * self.beam_size, device=device, dtype=torch.bool)
 
         return tokens, scores, finished

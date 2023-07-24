@@ -45,8 +45,9 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
         if not cfg.stop_grads_to_target_emb:
-            self.output_projection = nn.Linear(self.output_embed_dim,self.dict_len, bias=False)
+            self.output_projection = nn.Linear(self.output_embed_dim, self.dict_len, bias=False)
             self.output_projection.weight = self.target_embed.weight
+
     def forward(
             self,
             prev_output_tokens,
@@ -76,7 +77,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                       dim=-1).cuda()
+                                                   dim=-1).cuda()
+
     def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
         """get likelihood of target tokens based on output PS distribution"""
         with torch.no_grad():
@@ -136,6 +138,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         token_idxs = token_nn_scores.max(-1).indices
 
         return log_probs_samples, token_idxs
+
     def sample_mbr_token(self, decoder_out: Tensor, n_samples: int = 10) -> Tuple[Tensor, Tensor]:
         """
         main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
@@ -150,13 +153,13 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         samples = q_dist.sample((n_samples,))
         log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, sjk -> sj")
 
-        dot_prods = samples.movedim(0,1) @ samples.movedim(2,1)
+        dot_prods = samples.movedim(0, 1) @ samples.movedim(2, 1)
 
         dot_prods = dot_prods.view(bsz, n_samples, n_samples)
         rbf_utility = (((dot_prods - 1) / (.1 ** 2)) + log_probs_samples.T.unsqueeze(-1)).sum(dim=-1)
 
-        #sum log probabilities
-        #choose the best among dim=-1
+        # sum log probabilities
+        # choose the best among dim=-1
         best_utility_hyp_id = rbf_utility.max(dim=-1).indices
         # rounding to a target vocab token
         token_nn_scores: Tensor = (samples[best_utility_hyp_id] @ self.target_embed_normalized.T).squeeze(0)
@@ -164,12 +167,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         token_idxs = token_nn_scores.max(dim=-1).indices
 
-        return rbf_utility[:,best_utility_hyp_id], token_idxs
+        return rbf_utility[:, best_utility_hyp_id], token_idxs
 
     def sample_output(self, decoder_out: Tensor, n_samples: int = 1, token_mbr=False) -> Tuple[Tensor, Tensor]:
         if token_mbr is False:
             return self.sample_mbr_string(decoder_out)
         else:
             return self.sample_mbr_token(decoder_out, n_samples=n_samples)
-
-
