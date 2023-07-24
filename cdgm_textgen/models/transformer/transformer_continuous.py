@@ -35,7 +35,7 @@ class TransformerModelContinuous(TransformerModelBase):
         assert cfg.target_embed_path is not None
         logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
         target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.decoder.target_embed_path
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
         )
         decoder = ContinuousTransformerDecoder(
             cfg,
