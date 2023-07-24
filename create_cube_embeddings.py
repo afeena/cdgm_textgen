@@ -2,6 +2,14 @@ import argparse
 import torch
 import torch.nn.functional as F
 
+
+def build_long_cube(num_emb, embed_dim):
+    d = torch.randint(0, 2 ** (embed_dim - 1), (num_emb * 2,)).unique()[:num_emb]
+    mask = 2 ** torch.arange(embed_dim - 1, -1, -1).to(d.device, d.dtype)
+    d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
+    d[d == 0] = -1
+
+    return d
 def build_cube_embed(num_emb, embed_dim, permute=False, stretch=False):
     if permute:
         d = torch.randint(0, 2 ** (embed_dim - 1), (num_emb * 2,)).unique()[:num_emb]
@@ -60,5 +68,7 @@ if __name__ == "__main__":
         emb_new = build_cube_embed(num_emb, args.dim, permute=args.rand, stretch=args.stretch)
     elif args.type=="random":
         emb_new = random_emb(num_emb, args.dim)
+    elif args.type=="long_cube":
+        emb_new = build_long_cube(num_emb, args.dim)
 
     save_cube_embed(emb_new, args.save, vocab)
