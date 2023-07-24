@@ -45,9 +45,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             embed_dict = utils.parse_embedding(cfg.target_embed_path)
             utils.load_embedding(embed_dict, dictionary, self.target_embed)
         if not cfg.stop_grads_to_target_emb:
-            self.output_projection = torch.nn.utils.weight_norm(nn.Linear(self.output_embed_dim,
-                                                                          self.dict_len, bias=False),
-                                                                name="weight", dim=-1)
+            self.output_projection = nn.Linear(self.output_embed_dim,self.dict_len, bias=False)
             self.output_projection.weight = self.target_embed.weight
     def forward(
             self,
@@ -70,6 +68,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_heads=alignment_heads,
         )
         if self.output_projection is not None:
+            self.output_projection.weight.data = F.normalize(self.output_projection.weight.data, p=2, dim=-1)
             x_projected = self.output_projection(x)
             extra["projected"] = x_projected
 
