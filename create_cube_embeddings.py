@@ -4,11 +4,13 @@ import torch.nn.functional as F
 
 
 def build_long_cube(num_emb, embed_dim):
-    d = torch.randint(0, 2 ** (embed_dim - 1), (num_emb * 2,)).unique()[:num_emb]
-    mask = 2 ** torch.arange(embed_dim - 1, -1, -1).to(d.device, d.dtype)
-    d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
-    d[d == 0] = -1
-
+    d = torch.empty(num_emb, embed_dim)
+    for i in range(num_emb):
+        cand = torch.rand(embed_dim)
+        cand[cand < 0.5] = -1
+        cand[cand >= 0.5] = 1
+        if not torch.all(d == cand, 1):
+            d[i, :] = cand
     return d
 def build_cube_embed(num_emb, embed_dim, permute=False, stretch=False):
     if permute:
