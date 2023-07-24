@@ -5,7 +5,6 @@ from typing import Optional, Tuple, Dict, List
 import torch
 from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
-import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
@@ -26,24 +25,26 @@ class ContinuousTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
-    target_embd: Optional[str] = field(
-        default='pretrained',
-        metadata={"help": "TYPE OF EMBEDDINGS TO USE, DEFAULT IS 'PRETRAINED'"},
-    )
-    stop_grads_to_target_emb: bool = field( default=True,
-        metadata={"help": "stop gradients to target embeddings"},
-    )
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
+
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        assert cfg.target_embed_path is not None
+        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+        target_embed = cls.build_embedding(
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.decoder.target_embed_path
+        )
         decoder = ContinuousTransformerDecoder(
             cfg,
             tgt_dict,
             embed_tokens,
+            target_embed
         )
+
+        decoder.target_embed.weight.requires_grad = False
         return decoder
 
     def forward(
@@ -101,9 +102,6 @@ class TransformerModelContinuous(TransformerModelBase):
     def get_targets(self, sample, net_output, **kwargs):
         return self.decoder.target_embed(sample["target"]).detach()
 
-    def get_targets_grad(self, sample, net_output, **kwargs):
-        return self.decoder.target_embed(sample["target"])
-
     def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
         assert metric is not None
         scores = None
@@ -116,7 +114,7 @@ class TransformerModelContinuous(TransformerModelBase):
         return scores
 
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
-                        mixture_out: Optional[Tensor] = None,  n_samples=1, token_mbr=False) -> Tensor:
+                        mixture_out: Optional[Tensor] = None, n_samples=1, token_mbr=False) -> Tensor:
         return self.decoder.sample_output(decoder_out, n_samples, token_mbr=token_mbr)
 
     # legacy
@@ -149,8 +147,8 @@ class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
                                                       )
     freeze_mixture_clusters: Optional[bool] = field(default=True,
                                                     metadata={"help": "freeze mixture head weights during training"})
-    add_latent_z: Optional[bool]  = field(default=False,
-                                                    metadata={"help": "add z_i to the output of decoder"})
+    add_latent_z: Optional[bool] = field(default=False,
+                                         metadata={"help": "add z_i to the output of decoder"})
     uniform_prior: Optional[bool] = field(default=False,
                                           metadata={"help": "use uniform prior for mixture components"})
 
@@ -186,7 +184,7 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
         return scores
 
     def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
-                        mixtures_out: Optional[Tensor] = None, n_samples=1,) -> Tensor:
+                        mixtures_out: Optional[Tensor] = None, n_samples=1, ) -> Tensor:
         return self.decoder.sample_output_tokens(decoder_out, mixtures_out, n_samples)
 
     def get_normalized_probs(
@@ -197,7 +195,6 @@ class TransformerMixtureModelContinuous(TransformerModelContinuous):
             metric: Optional[str] = "cosine",
             reduce_strategy: Optional[str] = "max",
     ):
-        return self.decoder.get_normalized_probs(net_output, log_probs, sample, 
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample,
                                                  metric,
                                                  reduce_strategy)
-
