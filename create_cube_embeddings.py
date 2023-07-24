@@ -5,12 +5,18 @@ import torch.nn.functional as F
 
 def build_long_cube(num_emb, embed_dim):
     d = torch.empty(num_emb, embed_dim)
-    for i in range(num_emb):
+    new = 0
+    while new < num_emb:
         cand = torch.rand(embed_dim)
         cand[cand < 0.5] = -1
         cand[cand >= 0.5] = 1
         if not torch.all(d == cand, 1):
-            d[i, :] = cand
+            d[new, :] = cand
+            new+=1
+        if new % 1000 == 0:
+            print("generated {} embeddings".format(new))
+    print("generated {} embeddings".format(new))
+    assert new == num_emb
     return d
 def build_cube_embed(num_emb, embed_dim, permute=False, stretch=False):
     if permute:
