@@ -32,8 +32,8 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        w_norm = torch.norm(self.target_embed.weight.T, p=2, dim=1).detach()
+        w_norm = torch.norm(self.target_embed.weight, p=2, dim=-1).detach()
         x_norm = torch.norm(x, p=2, dim=-1).detach()
-        x_projected = x.div(x_norm) @ (self.target_embed.weight.T).div(w_norm)
+        x_projected = x.div(x_norm) @ ((self.target_embed.weight).div(w_norm)).T
         extra["projected"] = x_projected
         return x, extra
