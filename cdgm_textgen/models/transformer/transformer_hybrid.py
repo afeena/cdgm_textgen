@@ -11,6 +11,7 @@ logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_hybrid")
 
 @register_model("hybrid_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelHybrid(TransformerModelContinuous):
+    @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         assert cfg.target_embed_path is not None
         logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
