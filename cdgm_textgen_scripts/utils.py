@@ -1,4 +1,6 @@
+import numpy as np
 import torch
+import sys
 
 def txt_to_pt(embd_path):
     """
@@ -48,6 +50,8 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
         special_tokens = ["<s>", "<pad>", "</s>", "<unk>"]
 
     vocab = {v: i for i, v in enumerate(special_tokens)}
+    idx2word = {i: v for i, v in enumerate(special_tokens)}
+    frequencies = np.array([612000 for _ in special_tokens])
 
     with open(vocab_fn, 'r', encoding="utf-8") as d:
         lines = d.readlines()
@@ -56,4 +60,7 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
             if token in special_tokens:
                 continue
             vocab[token] = len(vocab)
-    return vocab
+            idx2word[len(idx2word)] = token
+            frequencies = np.append(frequencies, np.array([int(field)]))
+    return vocab, idx2word, frequencies
+
