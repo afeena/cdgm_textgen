@@ -9,13 +9,7 @@ from cdgm_textgen.models.transformer.transformer_continuous import ContinuousTra
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_hybrid")
 
 
-@dataclass
-class HybridTransformerConfig(ContinuousTransformerConfig):
-    stop_grads_to_target_emb: bool = field( default=True,
-        metadata={"help": "stop gradients to target embeddings"},
-    )
-
-@register_model("hybrid_transformer", dataclass=HybridTransformerConfig)
+@register_model("hybrid_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelHybrid(TransformerModelContinuous):
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         assert cfg.target_embed_path is not None
@@ -31,5 +25,5 @@ class TransformerModelHybrid(TransformerModelContinuous):
         )
         return decoder
 
-    def get_targets_grad(self, sample, net_output, **kwargs):
+    def get_targets(self, sample, net_output, **kwargs):
         return self.decoder.target_embed(sample["target"])
