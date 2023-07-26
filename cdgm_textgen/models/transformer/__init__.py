@@ -11,6 +11,6 @@ from .transformer_hybrid import TransformerModelHybrid
 __all__ = [
     "TransformerModelContinuous",
     "TransformerMixtureModelContinuous",
+    "TransformerModelHybrid",
     "TransformerModelBase",
-    "TransformerModelHybrid"
 ]
