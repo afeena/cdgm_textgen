@@ -46,7 +46,7 @@ class HybridLoss(FairseqCriterion):
         return loss, 1, logging_output
 
     def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets_grad(sample, net_output)
+        target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
         out = net_output[0][mask]
         target = target[mask]
