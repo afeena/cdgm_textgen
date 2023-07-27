@@ -26,7 +26,7 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
                          output_projection=output_projection,
                          )
         with torch.no_grad():
-            self.target_embed.weigt.data = F.normalize(self.target_embed.weigt.data, dim=-1)
+            self.target_embed.weight.data = F.normalize(self.target_embed.weight.data, dim=-1)
         for pn, p in self.named_parameters():
             if pn.endswith("target_embed") or "target_embed" in pn:
                 p.param_group = "target_embed"
