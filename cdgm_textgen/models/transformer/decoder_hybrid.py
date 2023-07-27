@@ -12,6 +12,23 @@ logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_
 
 
 class HybridTransformerDecoder(ContinuousTransformerDecoder):
+    def __init__(self, cfg,
+                 dictionary,
+                 embed_tokens,
+                 target_embed: Optional[Embedding] = None,
+                 no_encoder_attn=False,
+                 output_projection=torch.nn.Identity(),
+                 ):
+        super().__init__(cfg,
+                         dictionary, embed_tokens,
+                         target_embed=target_embed,
+                         no_encoder_attn=no_encoder_attn,
+                         output_projection=output_projection,
+                         )
+        for pn, p in self.named_parameters():
+            if pn.endswith("target_embed") or "target_embed" in pn:
+                p.param_group = "target_embed"
+
     def forward(
             self,
             prev_output_tokens,
