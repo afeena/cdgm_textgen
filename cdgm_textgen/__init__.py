@@ -10,9 +10,9 @@ import cdgm_textgen.modules  # noqa
 import cdgm_textgen.tasks  # noqa
 import cdgm_textgen.dataclass  # noqa
 import cdgm_textgen.logging  # noqa
+import cdgm_textgen.optim  # noqa
 
 import fairseq.distributed  # noqa
-import fairseq.optim  # noqa
 import fairseq.optim.lr_scheduler  # noqa
 import fairseq.pdb  # noqa
 import fairseq.scoring  # noqa
