@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 #
 @dataclass
 class FairseqRiemannianAdamConfig(FairseqDataclass):
-    stabilaze: bool = field(default=1,
+    stabilize: bool = field(default=1,
                             metadata={"help": "Stabilize parameters if "
                                               "they are off-manifold due to numerical reasons every stabilize steps "})
     riemann_adam_betas: Any = field(
@@ -68,7 +68,7 @@ class RiemannianAdamOptimizer(FairseqOptimizer):
             else OmegaConf.to_container(self.cfg.riemann_adam_betas),
             "eps": self.cfg.riemann_adam_eps,
             "weight_decay": self.cfg.weight_decay,
-            "stabilaze": self.cfg.stabilaze,
+            "stabilize": self.cfg.stabilize,
         }
 
     def average_params(self):
