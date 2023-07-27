@@ -51,15 +51,12 @@ class HybridLoss(FairseqCriterion):
         out = net_output[0][mask]
         target = target[mask]
 
-        out = F.normalize(out, dim=-1)
-        target = F.normalize(target, dim=-1)
-
         if torch.rand(1).item() < self.epsilon:
             hV = net_output[1].get("projected", None)
             assert hV is not None
             hV = hV[mask]
 
-            dot_true = -(out*target).sum(dim=-1)
+            dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             lse = torch.logsumexp(hV, dim=-1)
             loss = lse + dot_true
             loss = loss.mean(-1)
