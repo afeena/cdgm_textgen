@@ -52,9 +52,7 @@ class HybridLoss(FairseqCriterion):
         target = target[mask]
 
         if torch.rand(1).item() < self.epsilon:
-            hV = net_output[1].get("projected", None)
-            assert hV is not None
-            hV = hV[mask]
+            hV = out @ model.decoder.embed_tokens.weight.T
 
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
             lse = torch.logsumexp(hV, dim=-1)
