@@ -25,6 +25,8 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
+        with torch.no_grad():
+            self.target_embed.weigt.data = F.normalize(self.target_embed.weigt.data, dim=-1)
         for pn, p in self.named_parameters():
             if pn.endswith("target_embed") or "target_embed" in pn:
                 p.param_group = "target_embed"
@@ -49,8 +51,5 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        w_norm = torch.norm(self.target_embed.weight, p=2, dim=-1).detach()
-        x_norm = torch.norm(x, p=2, dim=-1).detach()
-        x_projected = x.div(x_norm[...,None].expand_as(x)) @ ((self.target_embed.weight).div(w_norm[...,None].expand_as(self.target_embed.weight))).T
-        extra["projected"] = x_projected
+
         return x, extra

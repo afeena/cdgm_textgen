@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # https://geoopt.readthedocs.io/en/latest/optimizers.html
 #
 @dataclass
-class FairseqAdamConfig(FairseqDataclass):
+class FairseqRiemannAdamConfig(FairseqDataclass):
     stabilaze: bool = field(default=1,
                             metadata={"help": "Stabilize parameters if "
                                               "they are off-manifold due to numerical reasons every stabilize steps "})
@@ -37,7 +37,7 @@ class FairseqAdamConfig(FairseqDataclass):
     lr: List[float] = II("optimization.lr")
 
 
-@register_optimizer("riemannian_adam", dataclass=FairseqAdamConfig)
+@register_optimizer("riemannian_adam", dataclass=FairseqRiemannAdamConfig)
 class FairseqAdam(FairseqOptimizer):
     """Adam optimizer for fairseq.
 
