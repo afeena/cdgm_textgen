@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # https://geoopt.readthedocs.io/en/latest/optimizers.html
 #
 @dataclass
-class FairseqRiemannAdamConfig(FairseqDataclass):
+class FairseqRiemannianAdamConfig(FairseqDataclass):
     stabilaze: bool = field(default=1,
                             metadata={"help": "Stabilize parameters if "
                                               "they are off-manifold due to numerical reasons every stabilize steps "})
@@ -37,8 +37,8 @@ class FairseqRiemannAdamConfig(FairseqDataclass):
     lr: List[float] = II("optimization.lr")
 
 
-@register_optimizer("riemannian_adam", dataclass=FairseqRiemannAdamConfig)
-class FairseqAdam(FairseqOptimizer):
+@register_optimizer("riemannian_adam", dataclass=FairseqRiemannianAdamConfig)
+class RiemannianAdamOptimizer(FairseqOptimizer):
     """Adam optimizer for fairseq.
 
     Important note: this optimizer corresponds to the "AdamW" variant of
@@ -46,7 +46,7 @@ class FairseqAdam(FairseqOptimizer):
     analogous to torch.optim.AdamW from PyTorch.
     """
 
-    def __init__(self, cfg: FairseqAdamConfig, params):
+    def __init__(self, cfg: FairseqRiemannianAdamConfig, params):
         super().__init__(cfg)
 
         self._optimizer = optim.RiemannianAdam(params, **self.optimizer_config)

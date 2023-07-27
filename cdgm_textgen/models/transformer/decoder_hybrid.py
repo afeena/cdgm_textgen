@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
@@ -10,6 +9,7 @@ from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_hybrid")
 
+from geoopt import SphereExact, ManifoldParameter
 
 class HybridTransformerDecoder(ContinuousTransformerDecoder):
     def __init__(self, cfg,
@@ -21,12 +21,22 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
                  ):
         super().__init__(cfg,
                          dictionary, embed_tokens,
-                         target_embed=target_embed,
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
                          )
-        with torch.no_grad():
-            self.target_embed.weight.data = F.normalize(self.target_embed.weight.data, dim=-1)
+
+
+
+        # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
+        if self.project_out_dim is None:
+            self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+        self.target_embed = target_embed
+
+        sphere = SphereExact()
+
+        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=sphere)
+        self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
+
         for pn, p in self.named_parameters():
             if pn.endswith("target_embed") or "target_embed" in pn:
                 p.param_group = "target_embed"
