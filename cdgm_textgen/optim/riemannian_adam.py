@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 #
 @dataclass
 class FairseqRiemannianAdamConfig(FairseqDataclass):
-    stabilize: bool = field(default=1,
+    stabilize: float = field(default=1,
                             metadata={"help": "Stabilize parameters if "
                                               "they are off-manifold due to numerical reasons every stabilize steps "})
     riemann_adam_betas: Any = field(
