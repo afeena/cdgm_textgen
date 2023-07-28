@@ -22,9 +22,18 @@ class TransformerModelHybrid(TransformerModelContinuous):
             cfg,
             tgt_dict,
             embed_tokens,
-            target_embed
+            target_embed=target_embed
         )
         return decoder
-
+    @classmethod
+    def build_model(cls, cfg, task):
+        model = super().build_model(cfg, task)
+        #here set the target_embed to not the optimizer group of riemannian adam
+        for pn, p in model.named_parameters():
+            if pn.endswith("target_embed") or "target_embed" in pn:
+                p.param_group = "riemannian"
+            else:
+                p.param_group = "default"
+        return model
     def get_targets(self, sample, net_output, **kwargs):
         return self.decoder.target_embed(sample["target"])
