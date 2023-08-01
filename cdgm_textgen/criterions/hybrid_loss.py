@@ -56,7 +56,7 @@ class HybridLoss(FairseqCriterion):
             hV = out @ model.decoder.target_embed.weight.T
 
             dot_true = 1.0 - F.cosine_similarity(out, target, dim=-1)
-            lse = torch.logsumexp(hV, dim=-1)
+            lse = torch.logsumexp(F.normalize(hV, dim=-1), dim=-1)
             loss = lse + dot_true
             loss = loss.mean(-1)
             logging = {"cosine_loss": 0.0, "full_loss": loss.detach().item()}
