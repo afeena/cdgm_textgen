@@ -59,11 +59,11 @@ class HybridLoss(FairseqCriterion):
             lse = torch.logsumexp(F.normalize(hV, dim=-1), dim=-1)
             loss = lse + dot_true
             loss = loss.mean(-1)
-            logging = {"cosine_loss": 0.0, "full_loss": loss.detach().item()}
+            logging = {"cosine_loss": 0.0, "full_loss": loss.detach()}
         else:
             loss = 1.0 - F.cosine_similarity(out, target.detach(), dim=-1)
             loss = loss.mean(-1)
-            logging = {"cosine_loss": loss.detach().item(), "full_loss": 0.0}
+            logging = {"cosine_loss": loss.detach(), "full_loss": 0.0}
 
         return loss, logging
 
