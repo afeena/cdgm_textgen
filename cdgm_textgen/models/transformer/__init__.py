@@ -7,10 +7,12 @@
 from .transformer_base import TransformerModelBase
 from .transformer_continuous import TransformerModelContinuous, TransformerMixtureModelContinuous
 from .transformer_hybrid import TransformerModelHybrid
+from .riemannian_transformer import RiemannianTransformerModel
 
 __all__ = [
     "TransformerModelContinuous",
     "TransformerMixtureModelContinuous",
+    "RiemannianTransformerModel",
     "TransformerModelHybrid",
     "TransformerModelBase",
 ]
