@@ -1,8 +1,15 @@
+from dataclasses import field, dataclass
+from typing import Optional
+
 from fairseq.models.transformer import TransformerConfig
 
+import logging
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
 
+
+logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
+@dataclass
 class RiemannianTransformerConfig(TransformerConfig):
     riemannian_enc_inp: Optional[bool] = field(
         default=True,
