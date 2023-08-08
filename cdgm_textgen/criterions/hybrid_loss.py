@@ -86,11 +86,11 @@ class HybridLoss(FairseqCriterion):
             "cosine_loss", cosine_loss_sum / sample_size / math.log(2), sample_size, round=3
         )
         metrics.log_scalar(
-            "full_loss", full_loss_sum / sample_size / math.log(2), sample_size, round=3
+            "full_loss", full_loss_sum / full_loss_updates_sum / math.log(2), sample_size, round=3
         )
         metrics.log_scalar_sum(
             "full_loss_updates", full_loss_updates_sum, 1, round=3
         )
         metrics.log_scalar(
-            "target_emb_sum", target_emb_log_mean / sample_size, 1, round=6
+            "target_emb_sum", target_emb_log_mean / full_loss_updates_sum, 1, round=6
         )
