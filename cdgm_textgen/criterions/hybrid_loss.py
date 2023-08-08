@@ -92,5 +92,5 @@ class HybridLoss(FairseqCriterion):
             "full_loss_updates", full_loss_updates_sum, 1, round=3
         )
         metrics.log_scalar(
-            "target_emb_log_mean", target_emb_log_mean / sample_size, 1, round=6
+            "target_emb_sum", target_emb_log_mean / sample_size, 1, round=6
         )
