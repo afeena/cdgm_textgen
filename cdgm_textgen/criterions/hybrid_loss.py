@@ -59,7 +59,9 @@ class HybridLoss(FairseqCriterion):
             lse = torch.logsumexp(F.normalize(hV, dim=-1), dim=-1)
             loss = lse + dot_true
             loss = loss.mean(-1)
-            logging = {"cosine_loss": 0.0, "full_loss": loss.detach(), "full_loss_updates": 1.0}
+            logging = {"cosine_loss": 0.0, "full_loss": loss.detach(),
+                       "full_loss_updates": 1.0,
+                       "target_emb_log_mean": torch.log(model.decoder.target_embed.weight.detach()).mean()}
         else:
             loss = 1.0 - F.cosine_similarity(out, target.detach(), dim=-1)
             loss = loss.mean(-1)
@@ -74,6 +76,7 @@ class HybridLoss(FairseqCriterion):
         cosine_loss_sum = sum(log.get("cosine_loss", 0) for log in logging_outputs)
         full_loss_sum = sum(log.get("full_loss", 0) for log in logging_outputs)
         full_loss_updates_sum = sum(log.get("full_loss_updates", 0) for log in logging_outputs)
+        target_emb_log_mean = sum(log.get("target_emb_log_mean", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
@@ -89,4 +92,7 @@ class HybridLoss(FairseqCriterion):
         )
         metrics.log_scalar(
             "full_loss_updates", full_loss_updates_sum, 1, round=3
+        )
+        metrics.log_scalar(
+            "target_emb_log_mean", target_emb_log_mean / sample_size, 1, round=3
         )
