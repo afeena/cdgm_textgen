@@ -59,7 +59,7 @@ class HybridLoss(FairseqCriterion):
             loss = loss.mean(-1)
             logging = {"cosine_loss": 0.0, "full_loss": loss.detach(),
                        "full_loss_updates": 1.0,
-                       "target_emb_log_mean": model.decoder.target_embed.weight.detach().sum()}
+                       "target_emb_sum": model.decoder.target_embed.weight.detach().sum()}
         else:
             loss = 1.0 - F.cosine_similarity(out, target.detach(), dim=-1)
             loss = loss.mean(-1)
@@ -74,8 +74,10 @@ class HybridLoss(FairseqCriterion):
         cosine_loss_sum = sum(log.get("cosine_loss", 0) for log in logging_outputs)
         full_loss_sum = sum(log.get("full_loss", 0) for log in logging_outputs)
         full_loss_updates_sum = sum(log.get("full_loss_updates", 0) for log in logging_outputs)
-        target_emb_log_mean = sum(log.get("target_emb_log_mean", 0) for log in logging_outputs)
+        target_emb_sum = sum(log.get("target_emb_sum", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+
+        target_emb_sum = target_emb_sum / full_loss_updates_sum if full_loss_sum !=0 else 0.0
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
@@ -92,5 +94,5 @@ class HybridLoss(FairseqCriterion):
             "full_loss_updates", full_loss_updates_sum, 1, round=3
         )
         metrics.log_scalar(
-            "target_emb_sum", target_emb_log_mean / full_loss_updates_sum, 1, round=6
+            "target_emb_sum",target_emb_sum, 1, round=6
         )
