@@ -3,14 +3,12 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
-import power_spherical
 import torch
 import torch.nn.functional as F
-from fairseq import metrics, utils
+from fairseq import metrics
 from fairseq.criterions import register_criterion, FairseqCriterion
-from fairseq.criterions.cross_entropy import CrossEntropyCriterion, CrossEntropyCriterionConfig
 from fairseq.dataclass import FairseqDataclass
-from torch.distributions import multivariate_normal
+
 
 @dataclass
 class HybridLossConfig(FairseqDataclass):
@@ -61,7 +59,7 @@ class HybridLoss(FairseqCriterion):
             loss = loss.mean(-1)
             logging = {"cosine_loss": 0.0, "full_loss": loss.detach(),
                        "full_loss_updates": 1.0,
-                       "target_emb_log_mean": torch.log(model.decoder.target_embed.weight.detach()).mean()}
+                       "target_emb_log_mean": model.decoder.target_embed.weight.detach().sum()}
         else:
             loss = 1.0 - F.cosine_similarity(out, target.detach(), dim=-1)
             loss = loss.mean(-1)
@@ -90,9 +88,9 @@ class HybridLoss(FairseqCriterion):
         metrics.log_scalar(
             "full_loss", full_loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        metrics.log_scalar(
+        metrics.log_scalar_sum(
             "full_loss_updates", full_loss_updates_sum, 1, round=3
         )
         metrics.log_scalar(
-            "target_emb_log_mean", target_emb_log_mean / sample_size, 1, round=3
+            "target_emb_log_mean", target_emb_log_mean / sample_size, 1, round=6
         )
