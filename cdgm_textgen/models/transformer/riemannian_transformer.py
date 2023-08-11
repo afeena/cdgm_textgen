@@ -46,7 +46,7 @@ class RiemannianTransformerModel(TransformerModelBase):
                 p.param_group = "riemannian"
             if cfg.riemannian_dec_inp and (pn.endswith("decoder.embed_tokens") or "decoder.embed_tokens" in pn):
                 p.param_group = "riemannian"
-            if cfg.riemannian_dec_out and (pn.endswith("output_projection") or "output_projection" in pn):
+            if cfg.riemannian_dec_out and (pn.endswith("decoder.output_projection") or "decoder.output_projection" in pn):
                 p.param_group = "riemannian"
             else:
                 p.param_group = "default"
