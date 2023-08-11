@@ -49,7 +49,7 @@ class RiemannianAdamOptimizer(FairseqOptimizer):
     def __init__(self, cfg: FairseqRiemannianAdamConfig, params):
         super().__init__(cfg)
 
-        self._optimizer = optim.RiemannianAdam(params, **self.optimizer_config)
+        self._optimizer = RiemannianAdam(params, **self.optimizer_config)
 
     @property
     def optimizer_config(self):
@@ -82,4 +82,13 @@ class RiemannianAdamOptimizer(FairseqOptimizer):
             dist.all_reduce(value["exp_avg"], op=dist.ReduceOp.SUM)
             dist.all_reduce(value["exp_avg_sq"], op=dist.ReduceOp.SUM)
 
+
+class RiemannianAdam(optim.RiemannianAdam):
+    @property
+    def supports_flat_params(self):
+        return True
+
+    def state_dict(self):
+        state_dict = super().state_dict()
+        return state_dict
 
