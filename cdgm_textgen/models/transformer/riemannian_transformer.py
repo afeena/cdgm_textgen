@@ -6,7 +6,7 @@ from fairseq.models.transformer import TransformerConfig
 import logging
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
-
+from geoopt import SphereExact, ManifoldParameter
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 @dataclass
@@ -23,13 +23,20 @@ class RiemannianTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "use RiemannianAdam for decoder output embeddings"},
     )
+    manifold: Optional[bool] = field(
+        default='sphere',
+        metadata={"help": "use RiemannianAdam for decoder output embeddings"},
+    )
 
 
 @register_model("riemannian_transformer", dataclass=RiemannianTransformerConfig)
 class RiemannianTransformerModel(TransformerModelBase):
     def __init__(self, cfg, encoder, decoder):
         super().__init__(cfg, encoder, decoder)
-
+        if cfg.manifold=="sphere":
+            self.manifold = SphereExact()
+        else:
+            raise NotImplementedError(f"manifold {cfg.manifold} not implemented")
 
     @classmethod
     def build_model(cls, cfg, task):
@@ -40,6 +47,10 @@ class RiemannianTransformerModel(TransformerModelBase):
         if cfg.share_decoder_input_output_embed:
             assert cfg.riemannian_dec_inp==cfg.riemannian_dec_out, "if share_decoer_input_output_embed, " \
                                                                    "then both embeddings must use RiemannianAdam"
+
+
+
+        #TODO:put parameters on manifold
         #here set the embed to the optimizer group of riemannian adam
         for pn, p in model.named_parameters():
             if cfg.riemannian_enc_inp and (pn.endswith("encoder.embed_tokens") or "encoder.embed_tokens" in pn):
