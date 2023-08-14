@@ -46,9 +46,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         #TODO:put parameters on manifold
         #here set the embed to the optimizer group of riemannian adam
         for pn, p in model.named_parameters():
-            if cfg.all_riemannian:
-                p = ManifoldParameter(p, manifold=model.manifold)
-            else:
+            if p.requires_grad:
                 if cfg.riemannian_enc_inp and (pn.endswith("encoder.embed_tokens") or "encoder.embed_tokens" in pn):
                     p.param_group = "riemannian"
                     p = ManifoldParameter(p, manifold=model.manifold)
