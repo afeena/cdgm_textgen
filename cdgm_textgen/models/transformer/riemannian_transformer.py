@@ -24,7 +24,7 @@ class RiemannianTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "use RiemannianAdam for decoder output embeddings"},
     )
-    manifold: Optional[bool] = field(
+    manifold: Optional[str] = field(
         default='sphere',
         metadata={"help": "use RiemannianAdam for decoder output embeddings"},
     )
