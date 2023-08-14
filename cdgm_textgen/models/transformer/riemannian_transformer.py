@@ -49,13 +49,13 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
             if p.requires_grad:
                 if cfg.riemannian_enc_inp and (pn.endswith("encoder.embed_tokens") or "encoder.embed_tokens" in pn):
                     p.param_group = "riemannian"
-                    p = ManifoldParameter(p, manifold=model.manifold)
+                    model.encoder.embed_tokens.weight = ManifoldParameter(model.encoder.embed_tokens.weight, manifold=model.manifold)
                 if cfg.riemannian_dec_inp and (pn.endswith("decoder.embed_tokens") or "decoder.embed_tokens" in pn):
                     p.param_group = "riemannian"
-                    p = ManifoldParameter(p, manifold=model.manifold)
+                    model.decoder.embed_tokens.weight = ManifoldParameter(model.decoder.embed_tokens.weight, manifold=model.manifold)
                 if cfg.riemannian_dec_out and (pn.endswith("decoder.output_projection") or "decoder.output_projection" in pn):
                     p.param_group = "riemannian"
-                    p = ManifoldParameter(p, manifold=model.manifold)
+                    model.decoder.output_projection.weight = ManifoldParameter(model.decoder.output_projection.weight, manifold=model.manifold)
                 else:
                     p.param_group = "default"
         return model
