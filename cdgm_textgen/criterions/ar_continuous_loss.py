@@ -97,7 +97,7 @@ class ArcDistARCriterion(CrossEntropyCriterion):
         target = F.normalize(target, dim=-1)
         arc_distance = (torch.arccos(out @ target.T) / torch.pi)
         arc_distance = torch.nan_to_num(arc_distance)
-        loss = arc_distance.mean(-1)
+        loss = arc_distance.mean()
         return loss, None
 
     @staticmethod
