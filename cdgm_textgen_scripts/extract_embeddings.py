@@ -9,6 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--dictionary")
     parser.add_argument("--output")
     parser.add_argument("--last", action="store_true")
+    parser.add_argument("--target", action="store_true")
     parser.add_argument("--mbart", action="store_true")
 
     args = parser.parse_args()
@@ -18,6 +19,9 @@ if __name__ == "__main__":
 
     if args.last:
         embed = torch.transpose(model["model"]["decoder.output_projection.weight"], 0, 1)
+
+    if args.target:
+        embed = model["model"]["decoder.target_embed.weight"]
     else:
         embed = model["model"]["decoder.embed_tokens.weight"]
 
