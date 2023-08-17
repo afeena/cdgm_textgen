@@ -32,6 +32,8 @@ class TransformerModelHybrid(TransformerModelContinuous):
         for pn, p in model.named_parameters():
             if pn.endswith("target_embed") or "target_embed" in pn:
                 p.param_group = "riemannian"
+            if pn.endswith("project_out_dim") or "decoder.project_out_dim" in pn:
+                p.param_group = "riemannian"
             else:
                 p.param_group = "default"
         return model

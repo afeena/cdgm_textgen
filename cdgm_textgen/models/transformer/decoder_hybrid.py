@@ -30,7 +30,11 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
             self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
         self.target_embed = target_embed
 
+        #put the target embedding and output projection on the sphere
         sphere = SphereExact()
 
         self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=sphere)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
+
+        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=sphere)
+        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
