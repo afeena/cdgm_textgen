@@ -97,8 +97,13 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
                     p.param_group = "riemannian"
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 if cfg.riemannian_dec_out and (
-                        pn.endswith("decoder.output_projection") or "decoder.output_projection" in pn):
+                        pn.endswith("output_projection") or "output_projection" in pn):
                     p.param_group = "riemannian"
+                    model.decoder.output_projection.weight = ManifoldParameter(model.decoder.output_projection.weight,
+                                                                                manifold=SphereExact())
+                    model.decoder.output_projection.weight.data /= model.decoder.output_projection.weight.data.norm(
+                        dim=-1, keepdim=True)
+
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 else:
                     p.param_group = "default"
