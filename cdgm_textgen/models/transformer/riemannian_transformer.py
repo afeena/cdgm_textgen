@@ -93,22 +93,25 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
                 if cfg.riemannian_enc_inp and (pn.endswith("encoder.embed_tokens") or "encoder.embed_tokens" in pn):
                     p.param_group = "riemannian"
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
-                if cfg.riemannian_dec_inp and (pn.endswith("decoder.embed_tokens") or "decoder.embed_tokens" in pn):
+                elif cfg.riemannian_dec_inp and (pn.endswith("decoder.embed_tokens") or "decoder.embed_tokens" in pn):
                     p.param_group = "riemannian"
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
-                if cfg.riemannian_dec_out and (
+                elif cfg.riemannian_dec_out and (
                         pn.endswith("output_projection") or "output_projection" in pn):
                     p.param_group = "riemannian"
-                    model.decoder.output_projection.weight = ManifoldParameter(model.decoder.output_projection.weight,
-                                                                                manifold=SphereExact())
-                    model.decoder.output_projection.weight.data /= model.decoder.output_projection.weight.data.norm(
-                        dim=-1, keepdim=True)
-
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 else:
                     p.param_group = "default"
         return model
-
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        decoder = super().build_decoder(cfg, tgt_dict, embed_tokens)
+        if cfg.manifold == 'sphere' and not cfg.share_decoder_input_output_embed:
+            decoder.output_projection.weight = ManifoldParameter(decoder.output_projection.weight,
+                                                                   manifold=SphereExact())
+            decoder.output_projection.weight.data /= decoder.output_projection.weight.data.norm(
+            dim=-1, keepdim=True)
+        return decoder
     @classmethod
     def build_embedding(cls, cfg, dictionary, embed_dim, path=None, manifold=None):
         num_embeddings = len(dictionary)
