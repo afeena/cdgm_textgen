@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-import math
+
 import power_spherical
 import torch
 import torch.nn.functional as F

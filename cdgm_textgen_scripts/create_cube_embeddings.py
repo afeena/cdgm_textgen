@@ -72,7 +72,7 @@ def sorted_sim(num_emb, embed_dim):
 def random_emb(num_emb, embed_dim):
     return F.normalize(torch.randn(num_emb, embed_dim), dim=-1)
 
-def save_cube_embed(cube, fname, dictionary):
+def save_embed(cube, fname, dictionary):
     # cdgm_textgen reuires this format as an input for pre-trained embeddings
     with open(f"{fname}.txt", "w") as out:
         out.write("{} {}".format(cube.shape[0], cube.shape[1]))
@@ -108,4 +108,4 @@ if __name__ == "__main__":
     elif args.type=="sorted_sim":
         emb_new = sorted_sim(num_emb, args.dim)
 
-    save_cube_embed(emb_new, args.save, w2idx)
+    save_embed(emb_new, args.save, w2idx)
