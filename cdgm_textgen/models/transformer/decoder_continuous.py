@@ -13,7 +13,7 @@ from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
-from geoopt import ManifoldParameter
+from geoopt import ManifoldParameter, ManifoldTensor
 
 class ContinuousTransformerDecoder(TransformerDecoderBase):
     def __init__(self, cfg,
@@ -58,7 +58,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         return x, extra
 
     def set_target_to_manifold(self, manifold):
-        self.target_embed.weight = ManifoldParameter(self.target_embed.weight.weight, manifold=manifold)
+        self.target_embed.weight = ManifoldTensor(self.target_embed.weight, manifold=manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
     def set_normalized_tgt_embeddings(self):
