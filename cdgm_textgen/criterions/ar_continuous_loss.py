@@ -93,7 +93,7 @@ class SphericalDistanceCriterion(CrossEntropyCriterion):
 
         out = net_output[0][mask]
         target = target[mask]
-        out_m = model.manifold.expmap(target, out)
+        out_m = model.manifold.projx(out)
         loss = model.manifold.dist(target, out_m).mean()
         return loss, None
 

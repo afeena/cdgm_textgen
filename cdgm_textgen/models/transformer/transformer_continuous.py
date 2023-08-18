@@ -146,7 +146,7 @@ class TransformerModelContinuous(TransformerModelBase):
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
     ):
-        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric, manofold=self.manifold)
 
 
 @dataclass

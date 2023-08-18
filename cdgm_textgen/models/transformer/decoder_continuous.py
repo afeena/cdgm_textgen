@@ -78,7 +78,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
-
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
@@ -92,19 +91,11 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
-    def get_arc_distance(self, features: Tensor) -> Tensor:
+    def get_manifold_distances(self, features: Tensor, manifold: Any) -> Tensor:
         with torch.no_grad():
-            kappa = torch.tensor([1.], device=features.device)
-            features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
-            norm_const = _neglogcmk(m, kappa)
-
-            arc_distance_mat = (torch.arccos(features @ self.target_embed_normalized.T) / torch.pi)
-            arc_distance_mat = torch.nan_to_num(arc_distance_mat)
-            if norm_const is not None:
-                arc_distance_mat += norm_const.squeeze()
-
-            return arc_distance_mat
+            features_m = manifold.projx(features)
+            dist = manifold.dist(features_m, self.target_embed.weight.detach())
+            return dist
 
     # legacy. compatible with fairseq translation task
     def get_normalized_probs(
@@ -113,6 +104,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
+            manifold: Optional[Any] = None,
     ):
         with torch.no_grad():
             scores = None
@@ -120,7 +112,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
-            if metric == "arc":
-                scores = self.get_arc_distance(net_output[0])
+            if metric == "manifold_distance" and manifold:
+                scores = self.get_manifold_distances(net_output[0], manifold)
 
         return scores

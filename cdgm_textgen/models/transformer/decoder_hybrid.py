@@ -31,10 +31,10 @@ class HybridTransformerDecoder(ContinuousTransformerDecoder):
         self.target_embed = target_embed
 
         #put the target embedding and output projection on the sphere
-        sphere = SphereExact()
 
-        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=sphere)
+    def set_params_on_manifold(self, manifold):
+        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
-        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=sphere)
+        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
         self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
