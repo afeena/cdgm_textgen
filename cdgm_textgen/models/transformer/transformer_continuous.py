@@ -25,10 +25,22 @@ class ContinuousTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
+    manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
+
+    @classmethod
+    def build_model(cls, cfg, task):
+        model = super().build_model(cfg, task)
+        if cfg.manifold:
+            model.decoder.set_output_to_manifold(cfg.manifold)
+            for pn, p in model.named_parameters():
+                if 'project_out_dim' in pn:
+                    p.param_group = "riemannian"
+                    print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
+
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):

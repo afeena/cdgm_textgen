@@ -14,6 +14,7 @@ from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
+from geoopt import ManifoldParameter
 
 class ContinuousTransformerDecoder(TransformerDecoderBase):
     def __init__(self, cfg,
@@ -56,6 +57,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         )
 
         return x, extra
+
+    def set_output_to_manifold(self, manifold):
+        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
+        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
 
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
@@ -120,55 +125,3 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_arc_distance(net_output[0])
 
         return scores
-
-    def sample_mbr_string(self, decoder_out: Tensor):
-        kappa = torch.norm(decoder_out, dim=-1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1)
-
-        q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-        samples = q_dist.sample()
-        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, ljk -> lj")
-
-        # rounding to a target vocab token
-        token_nn_scores: Tensor = samples.squeeze(0) @ self.target_embed_normalized.T
-        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
-
-        token_idxs = token_nn_scores.max(-1).indices
-
-        return log_probs_samples, token_idxs
-
-    def sample_mbr_token(self, decoder_out: Tensor, n_samples: int = 10) -> Tuple[Tensor, Tensor]:
-        """
-        main idea: sample TOKENS and calculate utility functions based on TOKENS. So the function return
-        the best token according utility. Then treat it as a greedy search.
-        """
-        # remove token dim but keep batch dim
-        bsz = decoder_out.shape[0]
-        kappa = torch.norm(decoder_out, dim=-1).squeeze(1)
-        features_idx = F.normalize(decoder_out, p=2.0, dim=-1).squeeze(1)
-
-        q_dist = power_spherical.PowerSpherical(features_idx, kappa)
-        samples = q_dist.sample((n_samples,))
-        log_probs_samples = log_prob_scriptable(q_dist.loc, q_dist.scale, samples, "jk, sjk -> sj")
-
-        dot_prods = samples.movedim(0, 1) @ samples.movedim(2, 1)
-
-        dot_prods = dot_prods.view(bsz, n_samples, n_samples)
-        rbf_utility = (((dot_prods - 1) / (.1 ** 2)) + log_probs_samples.T.unsqueeze(-1)).sum(dim=-1)
-
-        # sum log probabilities
-        # choose the best among dim=-1
-        best_utility_hyp_id = rbf_utility.max(dim=-1).indices
-        # rounding to a target vocab token
-        token_nn_scores: Tensor = (samples[best_utility_hyp_id] @ self.target_embed_normalized.T).squeeze(0)
-        token_nn_scores[:, self.dictionary.pad()] = float("-inf")
-
-        token_idxs = token_nn_scores.max(dim=-1).indices
-
-        return rbf_utility[:, best_utility_hyp_id], token_idxs
-
-    def sample_output(self, decoder_out: Tensor, n_samples: int = 1, token_mbr=False) -> Tuple[Tensor, Tensor]:
-        if token_mbr is False:
-            return self.sample_mbr_string(decoder_out)
-        else:
-            return self.sample_mbr_token(decoder_out, n_samples=n_samples)
