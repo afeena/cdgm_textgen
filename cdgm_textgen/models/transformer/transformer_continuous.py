@@ -43,11 +43,6 @@ class TransformerModelContinuous(TransformerModelBase):
         if model.manifold is not None:
             if cfg.manifold_target:
                 model.decoder.set_target_to_manifold(model.manifold)
-                for pn, p in model.named_parameters():
-                    if 'target_embed' in pn:
-                        p.param_group = "riemannian"
-                        print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
-
         return model
 
     @classmethod
@@ -146,7 +141,7 @@ class TransformerModelContinuous(TransformerModelBase):
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
     ):
-        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric, manofold=self.manifold)
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric, manifold=self.manifold)
 
 
 @dataclass
