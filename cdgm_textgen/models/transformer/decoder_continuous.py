@@ -58,7 +58,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         return x, extra
 
     def set_target_to_manifold(self, manifold):
-        self.target_embed.weight = ManifoldTensor(self.target_embed.weight, manifold=manifold)
+        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
     def set_normalized_tgt_embeddings(self):

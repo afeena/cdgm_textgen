@@ -26,7 +26,6 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
     manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
-    manifold_out: Optional[bool] = field(default=False, metadata={"help": "set output of the model to manifold"})
     manifold_target: Optional[bool] = field(default=False, metadata={"help": "set target of the model to manifold"})
 
 
