@@ -26,21 +26,35 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
     manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
+    manifold_out: Optional[bool] = field(default=False, metadata={"help": "set output of the model to manifold"})
+    manifold_target: Optional[bool] = field(default=False, metadata={"help": "set target of the model to manifold"})
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
+    def __init__(self, cfg, encoder, decoder):
+        super().__init__(cfg, encoder, decoder)
+        self.manifold = None
+        if cfg.manifold == "sphere":
+            self.manifold = SphereExact()
 
     @classmethod
     def build_model(cls, cfg, task):
         model = super().build_model(cfg, task)
-        if cfg.manifold is not None:
-            manifold = SphereExact()
-            model.decoder.set_output_to_manifold(manifold)
-            for pn, p in model.named_parameters():
-                if 'project_out_dim' in pn:
-                    p.param_group = "riemannian"
-                    print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
+        if model.manifold is not None:
+            if cfg.manifold_out:
+                model.decoder.set_output_to_manifold(model.manifold)
+                for pn, p in model.named_parameters():
+                    if 'project_out_dim' in pn:
+                        p.param_group = "riemannian"
+                        print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
+            if cfg.manifold_target:
+                model.decoder.set_target_to_manifold(model.manifold)
+                for pn, p in model.named_parameters():
+                    if 'target_embed' in pn:
+                        p.param_group = "riemannian"
+                        print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
+
 
 
     @classmethod

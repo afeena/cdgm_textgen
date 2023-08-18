@@ -58,6 +58,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
+    def set_target_to_manifold(self, manifold):
+        self.target_embed.weight = ManifoldParameter(self.target_embed.weight.weight, manifold=manifold)
+        self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
+
     def set_output_to_manifold(self, manifold):
         self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
         self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
