@@ -49,7 +49,7 @@ class TransformerModelContinuous(TransformerModelBase):
                         p.param_group = "riemannian"
                         print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
 
-
+        return model
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
