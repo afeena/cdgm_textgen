@@ -62,8 +62,8 @@ class CosineARCriterion(CrossEntropyCriterion):
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
 
-@register_criterion("arcdistance_criterion")
-class ArcDistARCriterion(CrossEntropyCriterion):
+@register_criterion("spherical_distance_criterion")
+class SpherecalDistanceCriterion(CrossEntropyCriterion):
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -88,16 +88,12 @@ class ArcDistARCriterion(CrossEntropyCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
+        assert torch.norm(target, dim=-1).allclose(torch.ones_like(target[:, 0]))
         mask = sample["target"].ne(self.padding_idx)
 
         out = net_output[0][mask]
-        target = target[mask]
-        out = F.normalize(out, dim=-1)
-
-        target = F.normalize(target, dim=-1)
-        arc_distance = torch.arccos(out @ target.T) / torch.pi
-        arc_distance = torch.nan_to_num(arc_distance)
-        loss = arc_distance.mean()
+        out_m = model.manifold.expmap(target, out)
+        loss = model.manifold.dist(target, out_m).mean()
         return loss, None
 
     @staticmethod

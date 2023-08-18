@@ -9,7 +9,6 @@ from fairseq.models.transformer import TransformerDecoderBase
 from torch import Tensor
 
 from cdgm_textgen.models.transformer.transformer_base import Embedding
-from cdgm_textgen.modules import log_prob_scriptable
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
@@ -61,10 +60,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     def set_target_to_manifold(self, manifold):
         self.target_embed.weight = ManifoldParameter(self.target_embed.weight.weight, manifold=manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
-
-    def set_output_to_manifold(self, manifold):
-        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
-        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
 
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),

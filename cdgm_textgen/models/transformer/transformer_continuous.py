@@ -42,12 +42,6 @@ class TransformerModelContinuous(TransformerModelBase):
     def build_model(cls, cfg, task):
         model = super().build_model(cfg, task)
         if model.manifold is not None:
-            if cfg.manifold_out:
-                model.decoder.set_output_to_manifold(model.manifold)
-                for pn, p in model.named_parameters():
-                    if 'project_out_dim' in pn:
-                        p.param_group = "riemannian"
-                        print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
             if cfg.manifold_target:
                 model.decoder.set_target_to_manifold(model.manifold)
                 for pn, p in model.named_parameters():
