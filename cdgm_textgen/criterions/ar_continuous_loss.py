@@ -63,7 +63,7 @@ class CosineARCriterion(CrossEntropyCriterion):
         )
 
 @register_criterion("spherical_distance_criterion")
-class SpherecalDistanceCriterion(CrossEntropyCriterion):
+class SphericalDistanceCriterion(CrossEntropyCriterion):
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
