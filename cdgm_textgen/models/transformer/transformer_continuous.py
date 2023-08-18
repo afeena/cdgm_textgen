@@ -11,7 +11,7 @@ from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransfo
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
-
+from geoopt.manifolds import SphereExact
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous")
 
 
@@ -34,8 +34,9 @@ class TransformerModelContinuous(TransformerModelBase):
     @classmethod
     def build_model(cls, cfg, task):
         model = super().build_model(cfg, task)
-        if cfg.manifold:
-            model.decoder.set_output_to_manifold(cfg.manifold)
+        if cfg.manifold is not None:
+            manifold = SphereExact()
+            model.decoder.set_output_to_manifold(manifold)
             for pn, p in model.named_parameters():
                 if 'project_out_dim' in pn:
                     p.param_group = "riemannian"
