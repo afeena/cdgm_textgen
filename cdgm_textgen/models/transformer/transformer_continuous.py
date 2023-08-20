@@ -11,7 +11,6 @@ from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransfo
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
-from geoopt.manifolds import SphereExact
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous")
 
 
@@ -32,28 +31,6 @@ class ContinuousTransformerConfig(TransformerConfig):
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
-    def __init__(self, cfg, encoder, decoder):
-        super().__init__(cfg, encoder, decoder)
-        self.manifold = None
-        if cfg.manifold == "sphere":
-            self.manifold = SphereExact()
-        self.project_out_to_manifold = False
-        self.project_target_to_manifold = False
-        if cfg.manifold_target and not cfg.manifold_out:
-            self.project_out_to_manifold = True
-        if cfg.manifold_out and not cfg.manifold_target:
-            self.project_target_to_manifold = True
-
-    @classmethod
-    def build_model(cls, cfg, task):
-        model = super().build_model(cfg, task)
-        if model.manifold is not None:
-            if cfg.manifold_target:
-                model.decoder.set_target_to_manifold(model.manifold)
-            if cfg.manifold_out:
-                model.decoder.set_out_to_manifold(model.manifold)
-        return model
-
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         assert cfg.target_embed_path is not None

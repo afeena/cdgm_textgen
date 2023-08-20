@@ -88,16 +88,12 @@ class SphericalDistanceCriterion(CrossEntropyCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
-       
+
         mask = sample["target"].ne(self.padding_idx)
 
         out = net_output[0][mask]
         target = target[mask]
-        if model.project_out_to_manifold:
-            out = model.manifold.projx(out)
-        if model.project_target_to_manifold:
-            target = model.manifold.projx(target)
-        loss = model.manifold.dist(target, out).mean()
+        loss = model.decoder.manifold.dist(target, out).mean()
         return loss, None
 
     @staticmethod

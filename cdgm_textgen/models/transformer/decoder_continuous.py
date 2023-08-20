@@ -12,7 +12,7 @@ from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
-from geoopt import ManifoldParameter
+from geoopt import ManifoldParameter, SphereExact, Stereographic
 
 
 class ContinuousTransformerDecoder(TransformerDecoderBase):
@@ -29,10 +29,20 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          output_projection=output_projection,
                          )
 
-        # make sure there is always a projection from hidden state after layer_norm to output_embeddings_dim
-        if self.project_out_dim is None:
-            self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+        # before we can project, we need to map to the manifold
+
         self.target_embed = target_embed
+
+        self.manifold = None
+        if cfg.manifold == "Sphere":
+            self.manifold = SphereExact()
+            self.project_out_dim = None
+            self.manifold_projection = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+            self.set_params_to_manifold()
+        if self.manifold is None:
+            self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
+            self.manifold_projection = None
+
 
     def forward(
             self,
@@ -55,15 +65,19 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_heads=alignment_heads,
         )
 
+        # project to a manifold
+        x = self.manifold.projx(x)
+        if self.manifold_projection is not None:
+            x = self.manifold_projection(x)
+
         return x, extra
 
-    def set_target_to_manifold(self, manifold):
-        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=manifold)
+    def set_params_to_manifold(self):
+        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=self.manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
-    def set_out_to_manifold(self, manifold):
-        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
-        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
+        self.manifold_projection.weight = ManifoldParameter(self.project_out_dim.weight, manifold=self.manifold)
+        self.manifold_projection.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
 
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
