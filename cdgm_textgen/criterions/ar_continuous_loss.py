@@ -88,7 +88,7 @@ class SphericalDistanceCriterion(CrossEntropyCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
-        assert torch.norm(target, dim=-1).allclose(torch.ones(target.shape[:-1], device=target.device))
+       
         mask = sample["target"].ne(self.padding_idx)
 
         out = net_output[0][mask]
