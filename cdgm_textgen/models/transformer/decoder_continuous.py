@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import power_spherical
 import torch
 import torch.nn.functional as F
-
 from fairseq.models.transformer import TransformerDecoderBase
 from torch import Tensor
 
@@ -13,7 +12,8 @@ from cdgm_textgen.modules.cmk_approx import _neglogcmk
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
-from geoopt import ManifoldParameter, ManifoldTensor
+from geoopt import ManifoldParameter
+
 
 class ContinuousTransformerDecoder(TransformerDecoderBase):
     def __init__(self, cfg,
@@ -61,6 +61,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
         self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=manifold)
         self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
 
+    def set_out_to_manifold(self, manifold):
+        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
+        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
+
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                    dim=-1).cuda()
@@ -78,6 +82,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
+
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
