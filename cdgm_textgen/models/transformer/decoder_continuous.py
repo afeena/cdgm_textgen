@@ -57,14 +57,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
         return x, extra
 
-    def set_target_to_manifold(self, manifold):
-        self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=manifold)
-        self.target_embed.weight.data /= self.target_embed.weight.norm(dim=-1, keepdim=True)
-
-    def set_out_to_manifold(self, manifold):
-        self.project_out_dim.weight = ManifoldParameter(self.project_out_dim.weight, manifold=manifold)
-        self.project_out_dim.weight.data /= self.project_out_dim.weight.norm(dim=-1, keepdim=True)
-
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                    dim=-1).cuda()
@@ -96,12 +88,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
             return output_proj
 
-    def get_manifold_distances(self, features: Tensor, manifold: Any) -> Tensor:
-        with torch.no_grad():
-            features_m = manifold.projx(features)
-            dist = manifold.dist(features_m, self.target_embed.weight.detach())
-            return dist
-
     # legacy. compatible with fairseq translation task
     def get_normalized_probs(
             self,
@@ -109,7 +95,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
-            manifold: Optional[Any] = None,
     ):
         with torch.no_grad():
             scores = None
@@ -117,7 +102,5 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
-            if metric == "manifold_distance" and manifold:
-                scores = self.get_manifold_distances(net_output[0], manifold)
 
         return scores
