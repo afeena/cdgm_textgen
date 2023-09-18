@@ -1,12 +1,15 @@
 import logging
 from dataclasses import field, dataclass
-from typing import Optional
+from typing import Optional, Dict, List, Any
 
+import geoopt.manifolds.stereographic.math as pmath
 import torch
 import torch.nn as nn
 from fairseq import utils
-from fairseq.models.transformer import TransformerConfig
-from geoopt import SphereExact, ManifoldParameter
+from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
+from geoopt import SphereExact, ManifoldParameter, StereographicExact, Euclidean, Lorentz
+from cdgm_textgen.modules.utils import stereographic_poincare_dist
+from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
@@ -14,6 +17,13 @@ from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 
+
+_MANIFOLDS = {"euclidean": Euclidean(),
+              "sphere": SphereExact(),
+              "poincare": StereographicExact(k=-1.0),
+              "hyperbolic": StereographicExact(k=-1.0),
+              'lorentz': Lorentz(),
+              }
 
 @dataclass
 class RiemannianTransformerConfig(TransformerConfig):
@@ -87,7 +97,6 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         decoder = cls.build_decoder(cfg, tgt_dict, decoder_embed_tokens)
         model = cls(cfg, encoder, decoder)
 
-        # here set the embed to the optimizer group of riemannian adam
         for pn, p in model.named_parameters():
             if p.requires_grad:
                 if cfg.riemannian_enc_inp and (pn.endswith("encoder.embed_tokens") or "encoder.embed_tokens" in pn):
@@ -102,28 +111,20 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 else:
                     p.param_group = "default"
+
         return model
+
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        decoder = super().build_decoder(cfg, tgt_dict, embed_tokens)
-        if cfg.manifold == 'sphere' and not cfg.share_decoder_input_output_embed:
-            decoder.output_projection.weight = ManifoldParameter(decoder.output_projection.weight,
-                                                                   manifold=SphereExact())
-            decoder.output_projection.weight.data /= decoder.output_projection.weight.data.norm(
-            dim=-1, keepdim=True)
+        decoder = ManifoldDecoder(cfg, tgt_dict, embed_tokens)
         return decoder
+
     @classmethod
     def build_embedding(cls, cfg, dictionary, embed_dim, path=None, manifold=None):
         num_embeddings = len(dictionary)
         padding_idx = dictionary.pad()
 
-        if not manifold:
-            emb = Embedding(num_embeddings, embed_dim, padding_idx)
-        elif manifold == 'sphere':
-            emb = SphericalEmbedding(num_embeddings, embed_dim, padding_idx)
-        else:
-            raise NotImplementedError(f"{manifold} embeddings are not implemented")
-
+        emb = ManifoldEmbedding(num_embeddings, embed_dim, padding_idx, manifold_name=manifold)
         # if provided, load from preloaded dictionaries
         if path:
             embed_dict = utils.parse_embedding(path)
@@ -131,17 +132,80 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         if manifold == 'sphere':
             # make sure after loading embeddings are on the sphere
             emb.weight.data /= emb.weight.data.norm(dim=-1, keepdim=True)
+        elif manifold == 'poincare':
+            # make sure after loading embeddings are on the sphere
+            emb.weight.data = _MANIFOLDS[manifold].expmap0(emb.weight.data)
         return emb
 
 
-def SphericalEmbedding(num_embeddings, embedding_dim, padding_idx):
-    w_ = torch.randn(num_embeddings, embedding_dim)
-    w_[padding_idx, :] = 1
-    w_ /= w_.norm(dim=-1, keepdim=True)
-    w = ManifoldParameter(data=w_, manifold=SphereExact())
-    m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
+def ManifoldEmbedding(num_embeddings, embedding_dim, padding_idx, manifold_name=None):
+    if manifold_name is None:
+        return Embedding(num_embeddings, embedding_dim, padding_idx)
+    else:
+        manifold = _MANIFOLDS[manifold_name]
+        w_ = torch.randn(num_embeddings, embedding_dim)
+        w_[padding_idx, :] = 1
+        if manifold_name == 'sphere':
+            w_ /= w_.norm(dim=-1, keepdim=True)
+        elif manifold_name == 'poincare' or manifold_name == 'lorentz':
+            w_ = manifold.expmap0(w_)
+        w = ManifoldParameter(data=w_, manifold=manifold)
+        m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
 
-    # have to force the type here
-    del m.weight
-    m.weight = w
-    return m
+        del m.weight
+        m.weight = w
+        return m
+
+class ManifoldDecoder(TransformerDecoderBase):
+    def __init__(
+            self,
+            cfg,
+            dictionary,
+            embed_tokens,
+            no_encoder_attn=False,
+            output_projection=None,
+    ):
+        super().__init__(cfg, dictionary, embed_tokens, no_encoder_attn, output_projection)
+        self.manifold = _MANIFOLDS[cfg.manifold]
+        if (cfg.manifold == 'sphere' or  cfg.manifold == 'sphereproduct') and not cfg.share_decoder_input_output_embed:
+            self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
+                                                              manifold=_MANIFOLDS[cfg.manifold])
+            self.output_projection.weight.data /= self.output_projection.weight.data.norm(
+                dim=-1, keepdim=True)
+        if (cfg.manifold == 'poincare' or cfg.manifold == 'lorentz') and not cfg.share_decoder_input_output_embed:
+            self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
+                                                              manifold=_MANIFOLDS[cfg.manifold])
+            self.output_projection.weight.data = _MANIFOLDS[cfg.manifold].expmap0(
+                self.output_projection.weight.data)
+
+    def forward(
+            self,
+            prev_output_tokens,
+            encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+            incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+            features_only: bool = False,
+            full_context_alignment: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+            src_lengths: Optional[Any] = None,
+            return_all_hiddens: bool = False,
+    ):
+        x, extra = self.extract_features(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_state,
+            full_context_alignment=full_context_alignment,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+        )
+
+        if not isinstance(self.manifold, StereographicExact):
+            x = self.output_projection(x)
+        else:
+            k = self.manifold.k
+            denom = 2.0*(pmath.dist0(x,k=k).pow(2)[...,None]+pmath.dist0(self.output_projection.weight,k=k)[None,None,:])
+            x = pmath.project(self.manifold.expmap0(x), k=k).unsqueeze(-2)
+            x = -stereographic_poincare_dist(x, self.output_projection.weight, k=k).pow(2)
+            x=x/denom
+
+        return x, extra

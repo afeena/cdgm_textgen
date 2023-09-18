@@ -30,7 +30,7 @@ class ContinuousSequenceGenerator(nn.Module):
             min_len=1,
             eos=None,
             search_strategy="beam",
-            metric="cosine",
+            metric="manifold_distance",
     ):
         """Generates translations of a given source sentence.
 
@@ -137,7 +137,7 @@ class ContinuousSequenceGenerator(nn.Module):
 
     @torch.no_grad()
     def get_topk_model_scores(self, decoder_out):
-        model_scores = self.model.forward_decoder_scores(decoder_out, self.metricx)
+        model_scores = self.model.forward_decoder_scores(decoder_out, self.metric)
         topk_token_score, topk_token_idx = torch.topk(model_scores.squeeze(), self.beam_size, dim=-1)
         return topk_token_score, topk_token_idx
 

@@ -26,7 +26,6 @@ fairseq.tasks.translation.TranslationTask.build_generator = cdgm_utils.build_gen
 # train.tasks.translation_lev.TranslationLevenshteinTask.build_generator = cdgm_utils.build_generator
 # train.tasks.translation_lev.TranslationLevenshteinTask.valid_step = cdgm_utils.valid_step
 
-
 def main(cfg: CDGMTextgenConfig) -> None:
     train.main(cfg)
 

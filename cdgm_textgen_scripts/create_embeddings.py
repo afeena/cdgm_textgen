@@ -37,40 +37,8 @@ def build_cube_embed(num_emb, embed_dim, random=False, stretch=False, range_dim=
 
     return d
 
-def dirichlet_emb(num_emb, embed_dim, freq_vocab):
-    x = freq_vocab.max() / (freq_vocab + 1)
-    x = ((x - x.min()) / (x.max() - x.min())) * (10 - 0.1) + 0.01
-    d = torch.distributions.Dirichlet(torch.tensor(x, dtype=torch.float))
-    emb = d.sample(sample_shape=torch.Size([embed_dim])).T
-    return emb
-
-def sorted_sim(num_emb, embed_dim):
-    emb_ranges = [16,32,48,63]
-    probs = [0.2, 0.3, 0.3, 0.2]
-    categorical = torch.distributions.Categorical(torch.tensor(probs))
-    vals = torch.tensor([], dtype=torch.long)
-    while len(vals) < num_emb:
-        r = emb_ranges[categorical.sample().item()]
-        print(r)
-        d = torch.randint((2**(r-1)), (1000,)).unique()
-        vals = torch.cat([vals,d], dim=0).unique()
-
-    mask = 2 ** torch.arange(embed_dim - 1, -1, -1)
-    d = vals.unsqueeze(-1).bitwise_and(mask).ne(0).float()
-    d[d == 0] = -1
-    sim_mat = cosine_similarity(d, d)
-    mean_sims = np.mean(sim_mat, axis=-1)
-    print(np.max(mean_sims), np.mean(mean_sims))
-    sorted_idx = np.argsort(mean_sims)
-    return d[sorted_idx]
-
-# def gaussian_emb(embed_dim, vocab_file):
-#     vocab_orig, idx2word, freq_vocab = read_mt_vocab(vocab_file)
-#
-#     emb = d.sample()
-#     return emb
 def random_emb(num_emb, embed_dim):
-    return F.normalize(torch.randn(num_emb, embed_dim), dim=-1)
+    return torch.randn(num_emb, embed_dim)
 
 def save_embed(cube, fname, dictionary):
     # cdgm_textgen reuires this format as an input for pre-trained embeddings
@@ -82,30 +50,37 @@ def save_embed(cube, fname, dictionary):
             vals = " ".join([str(x) for x in cube[ind, :].cpu().data.numpy()])
             out.write(f"{tok} {vals}\n")
 
+def create_hyperbolic_emb(num_emb, embed_dim):
+    import geoopt
+
+    manifold = geoopt.manifolds.Stereographic(k=-1.0)
+    return manifold.random((num_emb, embed_dim)).detach()
+
 
 if __name__ == "__main__":
     argp = argparse.ArgumentParser()
     argp.add_argument("-t", "--type", type=str, required=True, default="cube")
     argp.add_argument("-d", "--dim", type=int, required=True)
-    permute = argp.add_argument("-r", "--rand", action="store_true", default=False)
-    stretch = argp.add_argument("--stretch", action="store_true", default=False)
-    dict = argp.add_argument("-v", "--vocab", required=True)
-    save_fn = argp.add_argument("-s", "--save", required=True)
+    argp.add_argument("-r", "--rand", action="store_true", default=False)
+    argp.add_argument("--stretch", action="store_true", default=False)
+    argp.add_argument("-v", "--vocab", required=True)
+    argp.add_argument("-s", "--save", required=True)
 
     args = argp.parse_args()
 
     w2idx, idx2v, freq_vocab = read_mt_vocab(args.vocab)
     num_emb = len(w2idx)
 
+    emb_new = None
     if args.type=="cube":
         emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, stretch=args.stretch)
     elif args.type=="random":
         emb_new = random_emb(num_emb, args.dim)
+        emb_new_norm = F.normalize(emb_new, p=2, dim=-1)
+        save_embed(emb_new, args.save+"norm1", w2idx)
     elif args.type=="long_cube":
         emb_new = build_long_cube(num_emb, args.dim)
-    elif args.type=="dirichlet":
-        emb_new = dirichlet_emb(num_emb, args.dim, freq_vocab)
-    elif args.type=="sorted_sim":
-        emb_new = sorted_sim(num_emb, args.dim)
+    elif args.type=="hyperbolic":
+        emb_new = create_hyperbolic_emb(num_emb, args.dim)
 
     save_embed(emb_new, args.save, w2idx)

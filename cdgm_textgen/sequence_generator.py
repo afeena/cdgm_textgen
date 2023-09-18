@@ -817,7 +817,7 @@ class EnsembleModel(nn.Module):
             encoder_outs: List[Dict[str, List[Tensor]]],
             incremental_states: List[Dict[str, Dict[str, Optional[Tensor]]]],
             temperature: float = 1.0,
-            metric: Optional[str] = None,
+            metric: Optional[str] = "cosine",
     ):
         log_probs = []
         avg_attn: Optional[Tensor] = None
@@ -864,7 +864,7 @@ class EnsembleModel(nn.Module):
                     None if decoder_len <= 1 else decoder_out[1],
                 )
             probs = model.get_normalized_probs(
-                decoder_out_tuple, log_probs=True, sample=None
+                decoder_out_tuple, log_probs=True, sample=None, metric=metric
             )
             probs = probs[:, -1, :]
             if self.models_size == 1:
