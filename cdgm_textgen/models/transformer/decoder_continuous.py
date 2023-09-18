@@ -84,7 +84,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
 
     def set_params_to_manifold(self):
         if not self.manifold.check_point_on_manifold(self.target_embed.weight):
-            self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=self.manifold)
+            self.target_embed.weight = ManifoldParameter(self.target_embed.weight, manifold=self.manifold, requires_grad=False)
             if isinstance(self.manifold, SphereExact) or isinstance(self.manifold, ProductManifold):
                 self.target_embed.weight.data /= torch.norm(self.target_embed.weight.data, dim=-1, keepdim=True)
             elif isinstance(self.manifold, StereographicExact) or isinstance(self.manifold, Lorentz):
