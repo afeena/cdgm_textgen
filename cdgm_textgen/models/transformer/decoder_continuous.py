@@ -91,6 +91,14 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 self.target_embed.weight.data = pmath.project(self.manifold.expmap0(self.target_embed.weight.data),
                                                               k=self.manifold.k)
 
+    def _check_and_project_on_manifold(self, x):
+        if not self.manifold.check_point_on_manifold(x):
+            if isinstance(self.manifold, StereographicExact):
+                x = pmath.project(self.manifold.expmap0(x), k=self.manifold.k)
+            elif isinstance(self.manifold, SphereExact):
+                x = x/torch.norm(x, dim=-1, keepdim=True)
+        return x
+
     def set_normalized_tgt_embeddings(self):
         self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
                                                    dim=-1).cuda()
@@ -118,6 +126,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     def get_poincare_distance(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
+            assert self.manifold.check_point_on_manifold(features)
+            assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
             dist = -stereographic_poincare_dist(features, self.target_embed.weight.detach())
             dist = dist.view(bsz, -1, self.dict_len)
             return dist
@@ -125,6 +135,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     def get_poincare_distance2(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
+            assert self.manifold.check_point_on_manifold(features)
+            assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
             dist = -stereographic_poincare_dist(features, self.target_embed.weight.detach()).pow(2)
             dist = dist.view(bsz, -1, self.dict_len)
             return dist
