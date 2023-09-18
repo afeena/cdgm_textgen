@@ -5,7 +5,10 @@
 """isort:skip_file"""
 
 from .transformer_base import TransformerModelBase
-from .transformer_continuous import TransformerModelContinuous, TransformerMixtureModelContinuous
+from .transformer_continuous import TransformerModelContinuous, \
+    TransformerMixtureModelContinuous, \
+    PseudoContTransformer, \
+    TransformerModelProba
 from .transformer_hybrid import TransformerModelHybrid
 from .riemannian_transformer import RiemannianEmbeddingsTransformerModel
 
@@ -15,4 +18,6 @@ __all__ = [
     "RiemannianEmbeddingsTransformerModel",
     "TransformerModelHybrid",
     "TransformerModelBase",
+    "PseudoContTransformer",
+    "TransformerModelProba"
 ]

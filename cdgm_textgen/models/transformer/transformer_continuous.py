@@ -7,10 +7,14 @@ from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
-from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.decoder_continuous import \
+    ContinuousTransformerDecoder, \
+    ProbaTransformerDecoder, \
+    PseudoContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
+
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous")
 
 
@@ -25,8 +29,6 @@ class ContinuousTransformerConfig(TransformerConfig):
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
     manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
-    manifold_target: Optional[bool] = field(default=False, metadata={"help": "set target of the model to manifold"})
-    manifold_out: Optional[bool] = field(default=False, metadata={"help": "set out of the model to manifold"})
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
@@ -110,13 +112,8 @@ class TransformerModelContinuous(TransformerModelBase):
 
         if metric == "cosine":
             scores = self.decoder.get_cosine_similarity_scores(model_out)
-        if metric == "ps":
-            scores = self.decoder.get_ps_likelihood_scores(model_out)
-        return scores
 
-    def forward_samples(self, decoder_out: Tuple[Tensor, Dict],
-                        mixture_out: Optional[Tensor] = None, n_samples=1, token_mbr=False) -> Tensor:
-        return self.decoder.sample_output(decoder_out, n_samples, token_mbr=token_mbr)
+        return scores
 
     # legacy
     @torch.no_grad()
@@ -127,8 +124,78 @@ class TransformerModelContinuous(TransformerModelBase):
             sample: Optional[Dict[str, Tensor]] = None,
             metric: Optional[str] = "cosine",
     ):
-        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric, manifold=self.manifold)
+        return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
 
+@register_model("continuous_transformer_trained", dataclass=ContinuousTransformerConfig)
+class TransformerModelContinuousTrained(TransformerModelContinuous):
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        assert cfg.target_embed_path is not None
+        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+        target_embed = cls.build_embedding(
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
+        )
+        decoder = ContinuousTransformerDecoder(
+            cfg,
+            tgt_dict,
+            embed_tokens,
+            target_embed
+        )
+
+        return decoder
+    def get_targets(self, sample, net_output, **kwargs):
+        return self.decoder.target_embed(sample["target"])
+
+@dataclass
+class ProbaTransformerConfig(ContinuousTransformerConfig):
+    kappa: str = field(default="norm", metadata={"help": "kappa to use"})
+@register_model("proba_transformer", dataclass=ProbaTransformerConfig)
+class TransformerModelProba(TransformerModelContinuous):
+    def forward_kappa(self, decoder_out: Tuple[Tensor, Dict]) -> Tensor:
+        return self.decoder.forward_kappa(decoder_out)
+
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        assert cfg.target_embed_path is not None
+        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+        target_embed = cls.build_embedding(
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
+        )
+        decoder = ProbaTransformerDecoder(
+            cfg,
+            tgt_dict,
+            embed_tokens,
+            target_embed
+        )
+
+        decoder.target_embed.weight.requires_grad = False
+        return decoder
+
+    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
+        assert metric is not None
+        scores = None
+        model_out = decoder_out[0]
+
+        scores = self.decoder.get_ps_likelihood_scores(model_out)
+        return scores
+
+
+@register_model("pseudo_cont_transformer", dataclass=ContinuousTransformerConfig)
+class PseudoContTransformer(TransformerModelContinuous):
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        assert cfg.target_embed_path is not None
+        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+        target_embed = cls.build_embedding(
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
+        )
+        decoder = PseudoContinuousTransformerDecoder( cfg,
+            tgt_dict,
+            embed_tokens,
+            target_embed)
+
+        decoder.target_embed.weight.requires_grad = False
+        return decoder
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
