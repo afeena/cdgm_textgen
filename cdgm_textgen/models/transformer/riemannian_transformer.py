@@ -202,10 +202,6 @@ class ManifoldDecoder(TransformerDecoderBase):
         if not isinstance(self.manifold, StereographicExact):
             x = self.output_projection(x)
         else:
-            k = self.manifold.k
-            denom = 2.0*(pmath.dist0(x,k=k).pow(2)[...,None]+pmath.dist0(self.output_projection.weight,k=k)[None,None,:])
-            x = pmath.project(self.manifold.expmap0(x), k=k).unsqueeze(-2)
-            x = -stereographic_poincare_dist(x, self.output_projection.weight, k=k).pow(2)
-            x=x/denom
+            x = x @ self.manifold.logmap0(self.output_projection.weight).T
 
         return x, extra
