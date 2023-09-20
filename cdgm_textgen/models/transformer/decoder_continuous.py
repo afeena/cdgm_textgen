@@ -119,34 +119,34 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
     def get_manifold_distance(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
-            dist = -self.manifold.dist(features, self.target_embed.weight.detach())
-            dist = dist.view(bsz, -1, self.dict_len)
-            return dist
+            scores = 1.0-self.manifold.dist(features, self.target_embed.weight.detach())
+            scores = scores.view(bsz, -1, self.dict_len)
+            return scores
 
     def get_poincare_distance(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
             assert self.manifold.check_point_on_manifold(features)
             assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
-            dist = -stereographic_poincare_dist(features, self.target_embed.weight.detach())
-            dist = dist.view(bsz, -1, self.dict_len)
-            return dist
+            scores = 1.0-stereographic_poincare_dist(features, self.target_embed.weight.detach())
+            scores = scores.view(bsz, -1, self.dict_len)
+            return scores
 
     def get_poincare_distance2(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
             assert self.manifold.check_point_on_manifold(features)
             assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
-            dist = -stereographic_poincare_dist(features, self.target_embed.weight.detach()).pow(2)
-            dist = dist.view(bsz, -1, self.dict_len)
-            return dist
+            scores = 1.0-stereographic_poincare_dist(features, self.target_embed.weight.detach()).pow(2)
+            scores = scores.view(bsz, -1, self.dict_len)
+            return scores
 
     def get_manifold_distance2(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bsz = features.shape[0]
-            dist = -self.manifold.dist2(features, self.target_embed.weight.detach())
-            dist = dist.view(bsz, -1, self.dict_len)
-            return dist
+            scores = 1.0-self.manifold.dist2(features, self.target_embed.weight.detach())
+            scores = scores.view(bsz, -1, self.dict_len)
+            return scores
 
     # legacy. compatible with fairseq translation task
     def get_normalized_probs(
@@ -166,6 +166,10 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_manifold_distance(net_output[0])
             if metric == "manifold_dist2" and self.manifold:
                 scores = self.get_manifold_distance2(net_output[0])
+            if metric == "poincare" and self.manifold:
+                scores = self.get_poincare_distance(net_output[0])
+            if metric == "poincare2" and self.manifold:
+                scores = self.get_poincare_distance2(net_output[0])
 
         return scores
 
