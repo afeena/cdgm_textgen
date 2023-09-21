@@ -22,14 +22,35 @@ def build_long_cube(num_emb, embed_dim):
     print("generated {} embeddings".format(new))
     assert new == num_emb
     return d
-def build_cube_embed(num_emb, embed_dim, random=False, stretch=False, range_dim=None):
+
+def lse_cube(num_emb, embed_dim):
+    d = torch.rand(num_emb, embed_dim)
+    src_dim = d.shape[1]
+    A = torch.randn(embed_dim, src_dim)
+    _, R = torch.linalg.qr(A, mode='r')
+    tgt = R * d
+    tgt = torch.where(tgt > 0, 1.0, -1.0)
+    print(tgt.unique(dim=0).shape == d.shape[0], tgt.unique(dim=0).shape, d.shape[0])
+    return tgt
+
+def build_cube_128(num_emb, embed_dim, step=None):
+    v1 = build_cube_embed(num_emb, 64, step=step)
+    v2 = build_cube_embed(num_emb, 64, step=step)
+    return torch.cat((v1,v2), dim=-1)
+
+def build_cube_embed(num_emb, embed_dim, random=False, range_dim=None, step=None):
+    if embed_dim==128:
+        build_cube_128(num_emb, 128, step=step)
     if random:
+        if range_dim is None:
+            range_dim = num_emb
         d = torch.randint(0, 2 ** (range_dim - 1), (num_emb * 2,)).unique()[:num_emb]
     else:
-        step = 1
-        if stretch:
-            # stretch embeddings in the cube
+        if step=="max":
             step = (2 ** (embed_dim - 1)) // num_emb
+        else:
+            step = 1 if step is None else int(step)
+
         d = torch.arange(0, num_emb) * step
     mask = 2 ** torch.arange(embed_dim - 1, -1, -1).to(d.device, d.dtype)
     d = d.unsqueeze(-1).bitwise_and(mask).ne(0).float()
@@ -63,6 +84,7 @@ if __name__ == "__main__":
     argp.add_argument("-d", "--dim", type=int, required=True)
     argp.add_argument("-r", "--rand", action="store_true", default=False)
     argp.add_argument("--stretch", action="store_true", default=False)
+    argp.add_argument("--cube-step", type=str)
     argp.add_argument("-v", "--vocab", required=True)
     argp.add_argument("-s", "--save", required=True)
 
@@ -73,11 +95,13 @@ if __name__ == "__main__":
 
     emb_new = None
     if args.type=="cube":
-        emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, stretch=args.stretch)
+        emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, step=args.cube_step)
     elif args.type=="random":
         emb_new = random_emb(num_emb, args.dim)
         emb_new_norm = F.normalize(emb_new, p=2, dim=-1)
         save_embed(emb_new, args.save+"norm1", w2idx)
+    elif args.type=="lse":
+        emb_new = lse_cube(num_emb, args.dim)
     elif args.type=="long_cube":
         emb_new = build_long_cube(num_emb, args.dim)
     elif args.type=="hyperbolic":
