@@ -176,6 +176,8 @@ class TransformerModelBaseRandom(TransformerModelBase):
         assert cfg.share_decoder_input_output_embed==False
         decoder = super().build_decoder(cfg, tgt_dict, embed_tokens)
         decoder.output_projection.require_grad = False
+        
+        return decoder
 def Embedding(num_embeddings, embedding_dim, padding_idx, **kwargs):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, **kwargs)
     nn.init.normal_(m.weight, mean=0, std=embedding_dim ** -0.5)
