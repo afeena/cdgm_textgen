@@ -60,22 +60,24 @@ def build_cube_embed(num_emb, embed_dim, random=False, range_dim=None, step=None
 
 def random_emb(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.randn(num_emb, embed_dim)
+    res_emb_normed = F.normalize(res_emb, dim=-1)
     if pad_idx is not None:
-        torch.nn.init.constant_(res_emb[1], 0) #padding
-    return res_emb
+        torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
+        torch.nn.init.constant_(res_emb_normed[pad_idx],0)
+    return res_emb, res_emb_normed
 
 def trafo_init(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.zeros(num_emb, embed_dim)
     torch.nn.init.normal_(res_emb, mean=0, std=embed_dim**-0.5)
 
     if pad_idx is not None:
-        torch.nn.init.constant_(res_emb[1], 0) #padding
+        torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
     return res_emb
 def orthogonal(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.zeros(num_emb, embed_dim)
     torch.nn.init.orthogonal_(res_emb)
     if pad_idx is not None:
-        torch.nn.init.constant_(res_emb[1], 0)  # padding
+        torch.nn.init.constant_(res_emb[pad_idx], 0)  # padding
     return res_emb
 
 def save_embed(cube, fname, dictionary):
@@ -116,9 +118,9 @@ if __name__ == "__main__":
     if args.type=="cube":
         emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, step=args.cube_step)
     elif args.type=="random":
-        emb_new = random_emb(num_emb, args.dim)
-        emb_new_norm = F.normalize(emb_new, p=2, dim=-1)
-        save_embed(emb_new, args.save+"norm1", w2idx)
+        emb_new, emb_new_norm = random_emb(num_emb, args.dim)
+        save_embed(emb_new, args.save, w2idx)
+        save_embed(emb_new_norm, args.save+"norm1", w2idx)
     elif args.type=="lse":
         emb_new = lse_cube(num_emb, args.dim)
     elif args.type=="long_cube":
