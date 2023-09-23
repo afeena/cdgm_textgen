@@ -171,6 +171,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
 
 @register_model("transformer_base_random", dataclass=TransformerConfig)
 class TransformerModelBaseRandom(TransformerModelBase):
+    @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         assert cfg.share_decoder_input_output_embed==False
         decoder = super().build_decoder(cfg, tgt_dict, embed_tokens)
