@@ -115,12 +115,16 @@ if __name__ == "__main__":
     num_emb = len(w2idx)
 
     emb_new = None
+    import hashlib
+    import time
+
+    hashlib.sha1().update(str(time.time()).encode("utf-8"))
+
     if args.type=="cube":
         emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, step=args.cube_step)
     elif args.type=="random":
         emb_new, emb_new_norm = random_emb(num_emb, args.dim)
-        save_embed(emb_new, args.save, w2idx)
-        save_embed(emb_new_norm, args.save+"norm1", w2idx)
+        save_embed(emb_new_norm, args.save+f".norm1.{hashlib.sha1().hexdigest()[:6]}", w2idx)
     elif args.type=="lse":
         emb_new = lse_cube(num_emb, args.dim)
     elif args.type=="long_cube":
@@ -132,4 +136,4 @@ if __name__ == "__main__":
     elif args.type=="orthogonal":
         emb_new = orthogonal(num_emb, args.dim, pad_idx=args.pad)
 
-    save_embed(emb_new, args.save, w2idx)
+    save_embed(emb_new, f"args.save.{hashlib.sha1().hexdigest()[:6]}", w2idx)
