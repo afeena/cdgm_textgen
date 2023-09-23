@@ -58,8 +58,25 @@ def build_cube_embed(num_emb, embed_dim, random=False, range_dim=None, step=None
 
     return d
 
-def random_emb(num_emb, embed_dim):
-    return torch.randn(num_emb, embed_dim)
+def random_emb(num_emb, embed_dim, pad_idx=None):
+    res_emb = torch.randn(num_emb, embed_dim)
+    if pad_idx is not None:
+        torch.nn.init.constant_(res_emb[1], 0) #padding
+    return res_emb
+
+def trafo_init(num_emb, embed_dim, pad_idx=None):
+    res_emb = torch.zeros(num_emb, embed_dim)
+    torch.nn.init.normal_(res_emb, mean=0, std=embed_dim**-0.5)
+
+    if pad_idx is not None:
+        torch.nn.init.constant_(res_emb[1], 0) #padding
+    return res_emb
+def orthogonal(num_emb, embed_dim, pad_idx=None):
+    res_emb = torch.zeros(num_emb, embed_dim)
+    torch.nn.init.orthogonal_(res_emb)
+    if pad_idx is not None:
+        torch.nn.init.constant_(res_emb[1], 0)  # padding
+    return res_emb
 
 def save_embed(cube, fname, dictionary):
     # cdgm_textgen reuires this format as an input for pre-trained embeddings
@@ -87,10 +104,12 @@ if __name__ == "__main__":
     argp.add_argument("--cube-step", type=str)
     argp.add_argument("-v", "--vocab", required=True)
     argp.add_argument("-s", "--save", required=True)
+    argp.add_argument("--pad", type=int, default=None)
 
     args = argp.parse_args()
 
     w2idx, idx2v, freq_vocab = read_mt_vocab(args.vocab)
+    print(freq_vocab.shape)
     num_emb = len(w2idx)
 
     emb_new = None
@@ -106,5 +125,9 @@ if __name__ == "__main__":
         emb_new = build_long_cube(num_emb, args.dim)
     elif args.type=="hyperbolic":
         emb_new = create_hyperbolic_emb(num_emb, args.dim)
+    elif args.type=="trafo_init":
+        emb_new = trafo_init(num_emb, args.dim, pad_idx=args.pad)
+    elif args.type=="orthogonal":
+        emb_new = orthogonal(num_emb, args.dim, pad_idx=args.pad)
 
     save_embed(emb_new, args.save, w2idx)

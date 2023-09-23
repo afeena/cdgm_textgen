@@ -43,7 +43,7 @@ def main():
             i = i.item()
             print(f"{w:02.2f} {inv_vocab[i]}")
 
-    def knns(ix, k=15):
+    def knns(ix, k=5):
         # euclidean KNN original
 
         eucl_orig = ((X_orig - X_orig[ix].unsqueeze(0))
