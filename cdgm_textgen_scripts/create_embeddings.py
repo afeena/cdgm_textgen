@@ -24,13 +24,13 @@ def build_long_cube(num_emb, embed_dim):
     return d
 
 def lse_cube(num_emb, embed_dim):
-    d = torch.rand(num_emb, embed_dim)
+    d = torch.rand(num_emb, 1024)
     src_dim = d.shape[1]
     A = torch.randn(embed_dim, src_dim)
     _, R = torch.linalg.qr(A, mode='r')
-    tgt = R * d
+    tgt = d @ R.T
     tgt = torch.where(tgt > 0, 1.0, -1.0)
-    print(tgt.unique(dim=0).shape == d.shape[0], tgt.unique(dim=0).shape, d.shape[0])
+    print(tgt.shape[0]==torch.unique(tgt, dim=0).shape[0], torch.unique(tgt, dim=0).shape[0], tgt.shape[0])
     return tgt
 
 def build_cube_128(num_emb, embed_dim, step=None):
