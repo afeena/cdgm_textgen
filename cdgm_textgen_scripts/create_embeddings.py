@@ -76,8 +76,13 @@ def trafo_init(num_emb, embed_dim, pad_idx=None):
     return res_emb
 
 def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
-    freq_vocab = torch.tensor(freq_vocab)
-    freq_vocab = freq_vocab.max() / freq_vocab
+    freq_vocab = torch.tensor(freq_vocab)+1
+    # new_rng = (10000 - 50)
+    # old_rng = (freq_vocab.max() - freq_vocab.min())
+    # freq_vocab = (((freq_vocab - freq_vocab.min()) * new_rng) / old_rng) + 50
+    freq_vocab = freq_vocab.flip(0)
+
+    print(freq_vocab)
 
     with torch.no_grad():
         ps_dist = power_spherical.PowerSpherical(F.normalize(torch.full((num_emb,embed_dim),embed_dim**-0.5), dim=-1),
@@ -133,7 +138,7 @@ if __name__ == "__main__":
     import time
 
     hashlib.sha1().update(str(time.time()).encode("utf-8"))
-    hash_str = hashlib.sha1().hexdigest()[:8]
+    hash_str = hashlib.sha1().hexdigest()[-1:-7:-1]
 
     if args.type=="cube":
         emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, step=args.cube_step)
@@ -153,4 +158,4 @@ if __name__ == "__main__":
     elif args.type=="ps_init":
         emb_new = ps_init(num_emb, args.dim, freq_vocab, pad_idx=args.pad)
 
-    save_embed(emb_new, f"args.save.{hash_str}", w2idx)
+    save_embed(emb_new, f"{args.save}.{hash_str}", w2idx)
