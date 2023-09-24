@@ -14,6 +14,8 @@ from fairseq.models.transformer import (
     TransformerDecoderBase,
     TransformerEncoderBase,
 )
+from typing import Any, Dict, List, Optional, Tuple
+
 from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
