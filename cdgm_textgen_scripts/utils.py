@@ -51,7 +51,7 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
 
     vocab = {v: i for i, v in enumerate(special_tokens)}
     idx2word = {i: v for i, v in enumerate(special_tokens)}
-    frequencies = np.array([612000 for _ in special_tokens])
+    frequencies = np.array([1444724 for _ in special_tokens])
 
     with open(vocab_fn, 'r', encoding="utf-8") as d:
         lines = d.readlines()
