@@ -79,12 +79,13 @@ def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
     freq_vocab = torch.tensor(freq_vocab)
     freq_vocab = freq_vocab.max() / freq_vocab
 
-    ps_dist = power_spherical.PowerSpherical(torch.norm(torch.full((num_emb,embed_dim),embed_dim**-0.5), dim=-1),
-                                             scale=freq_vocab)
-    res_emb = ps_dist.sample()
+    with torch.no_grad():
+        ps_dist = power_spherical.PowerSpherical(F.normalize(torch.full((num_emb,embed_dim),embed_dim**-0.5), dim=-1),
+                                                 scale=freq_vocab)
+        res_emb = ps_dist.sample()
 
-    if pad_idx is not None:
-        torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
+        if pad_idx is not None:
+            torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
     return res_emb
 def orthogonal(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.zeros(num_emb, embed_dim)
@@ -149,5 +150,7 @@ if __name__ == "__main__":
         emb_new = trafo_init(num_emb, args.dim, pad_idx=args.pad)
     elif args.type=="orthogonal":
         emb_new = orthogonal(num_emb, args.dim, pad_idx=args.pad)
+    elif args.type=="ps_init":
+        emb_new = ps_init(num_emb, args.dim, freq_vocab, pad_idx=args.pad)
 
     save_embed(emb_new, f"args.save.{hash_str}", w2idx)
