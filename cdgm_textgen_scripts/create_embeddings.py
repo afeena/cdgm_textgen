@@ -1,6 +1,7 @@
 import argparse
 
 import numpy as np
+import power_spherical
 import torch
 import torch.nn.functional as F
 from sklearn.metrics.pairwise import cosine_similarity
@@ -69,6 +70,15 @@ def random_emb(num_emb, embed_dim, pad_idx=None):
 def trafo_init(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.zeros(num_emb, embed_dim)
     torch.nn.init.normal_(res_emb, mean=0, std=embed_dim**-0.5)
+
+    if pad_idx is not None:
+        torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
+    return res_emb
+
+def ps_init(num_emb, embed_dim, pad_idx=None):
+    ps_dist = power_spherical.PowerSpherical(torch.zeros(num_emb, embed_dim),
+                                             scale=torch.full((num_emb,), embed_dim**-0.5))
+    res_emb = ps_dist.sample()
 
     if pad_idx is not None:
         torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
