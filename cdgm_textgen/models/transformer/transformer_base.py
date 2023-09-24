@@ -173,11 +173,36 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
 class TransformerModelBaseRandom(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.share_decoder_input_output_embed==False
-        decoder = super().build_decoder(cfg, tgt_dict, embed_tokens)
-        decoder.output_projection.require_grad = False
+        return TransformerDecoderRandomOut(cfg, tgt_dict, embed_tokens)
 
-        return decoder
+class TransformerDecoderRandomOut(TransformerDecoderBase):
+    def __init__(self, cfg, dictionary, embed_tokens, no_encoder_attn=False):
+        super().__init__(cfg, dictionary, embed_tokens, no_encoder_attn)
+        self.output_projection.require_grad = False
+
+    def forward(
+            self,
+            prev_output_tokens,
+            encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+            incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+            features_only: bool = True,
+            full_context_alignment: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+            src_lengths: Optional[Any] = None,
+            return_all_hiddens: bool = False,
+    ):
+        x, extra = self.extract_features(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_state,
+            full_context_alignment=full_context_alignment,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+        )
+
+        x = x @ self.output_projection.weight.t().detach()
+        return x, extra
 def Embedding(num_embeddings, embedding_dim, padding_idx, **kwargs):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, **kwargs)
     nn.init.normal_(m.weight, mean=0, std=embedding_dim ** -0.5)
