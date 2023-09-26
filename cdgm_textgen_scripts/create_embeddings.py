@@ -33,6 +33,11 @@ def lse_cube(num_emb, embed_dim):
     tgt = torch.where(tgt > 0, 1.0, -1.0)
     print(tgt.shape[0]==torch.unique(tgt, dim=0).shape[0], torch.unique(tgt, dim=0).shape[0], tgt.shape[0])
     return tgt
+def build_random_cube(num_emb, embed_dim):
+    a = torch.full((num_emb,embed_dim), 0.5)
+    res_emb = 2 * torch.bernoulli(a) - 1
+    print(num_emb, torch.unique(res_emb, dim=0).shape[0])
+    return F.normalize(res_emb, dim=-1)
 
 def build_cube_128(num_emb, embed_dim, step=None):
     v1 = build_cube_embed(num_emb, 64, step=step)
@@ -80,7 +85,7 @@ def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
     # new_rng = (10000 - 50)
     # old_rng = (freq_vocab.max() - freq_vocab.min())
     # freq_vocab = (((freq_vocab - freq_vocab.min()) * new_rng) / old_rng) + 50
-    freq_vocab = freq_vocab.flip(0)
+    freq_vocab = (1/freq_vocab)*1000
 
     print(freq_vocab)
 
@@ -145,6 +150,8 @@ if __name__ == "__main__":
     elif args.type=="random":
         emb_new, emb_new_norm = random_emb(num_emb, args.dim)
         save_embed(emb_new_norm, args.save+f".norm1.{hash_str}", w2idx)
+    elif args.type=="random_cube":
+        emb_new = build_random_cube(num_emb, args.dim)
     elif args.type=="lse":
         emb_new = lse_cube(num_emb, args.dim)
     elif args.type=="long_cube":
