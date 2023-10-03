@@ -134,8 +134,7 @@ if __name__ == "__main__":
 
     args = argp.parse_args()
 
-    w2idx, idx2v, freq_vocab = read_mt_vocab(args.vocab, special_tokens= ['[START]','[END]','[UNK]','[PAD]'])
-    print(freq_vocab.shape)
+    w2idx, idx2v = read_mt_vocab(args.vocab, special_tokens= ['[START]','[END]','[UNK]','[PAD]'])
     num_emb = len(w2idx)
 
     emb_new = None
