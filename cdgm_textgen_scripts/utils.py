@@ -82,7 +82,7 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
     with open(vocab_fn, 'r', encoding="utf-8") as d:
         lines = d.readlines()
         for line in lines:
-            token = line.rstrip().rsplit(" ", 1)
+            token = line.rstrip()
             if token in special_tokens:
                 continue
             vocab[token] = len(vocab)
