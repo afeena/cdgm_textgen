@@ -41,7 +41,7 @@ def save_embed(emb, fname, dictionary):
             out.write(f"{tok} {vals}\n")
 
 
-def read_mt_vocab(vocab_fn, special_tokens=()):
+def read_mt_vocab_with_freq(vocab_fn, special_tokens=()):
     """
     read fairseq vocabulary file
     add special tokens for translation task
@@ -51,7 +51,7 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
 
     vocab = {v: i for i, v in enumerate(special_tokens)}
     idx2word = {i: v for i, v in enumerate(special_tokens)}
-    frequencies = np.array([1444724 for _ in special_tokens])
+    frequencies = np.array([1 for _ in special_tokens])
 
     with open(vocab_fn, 'r', encoding="utf-8") as d:
         lines = d.readlines()
@@ -62,5 +62,29 @@ def read_mt_vocab(vocab_fn, special_tokens=()):
             vocab[token] = len(vocab)
             idx2word[len(idx2word)] = token
             frequencies = np.append(frequencies, np.array([int(field)]))
+
+    for i in range(len(special_tokens)):
+        frequencies[i] = max(frequencies)
+
     return vocab, idx2word, frequencies
 
+def read_mt_vocab(vocab_fn, special_tokens=()):
+    """
+    read fairseq vocabulary file
+    add special tokens for translation task
+    """
+    if not special_tokens:
+        special_tokens = ["<s>", "<pad>", "</s>", "<unk>"]
+
+    vocab = {v: i for i, v in enumerate(special_tokens)}
+    idx2word = {i: v for i, v in enumerate(special_tokens)}
+
+    with open(vocab_fn, 'r', encoding="utf-8") as d:
+        lines = d.readlines()
+        for line in lines:
+            token = line.rstrip().rsplit(" ", 1)
+            if token in special_tokens:
+                continue
+            vocab[token] = len(vocab)
+            idx2word[len(idx2word)] = token
+    return vocab, idx2word
