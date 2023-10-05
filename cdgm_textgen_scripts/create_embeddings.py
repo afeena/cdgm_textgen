@@ -6,7 +6,8 @@ import torch
 import torch.nn.functional as F
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import txt_to_pt, read_mt_vocab
+from utils import txt_to_pt, read_mt_vocab, read_mt_vocab_with_freq
+
 
 def build_long_cube(num_emb, embed_dim):
     d = torch.zeros(num_emb, embed_dim)
@@ -81,11 +82,14 @@ def trafo_init(num_emb, embed_dim, pad_idx=None):
     return res_emb
 
 def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
-    freq_vocab = torch.tensor(freq_vocab)+1
+    freq_vocab = torch.tensor(freq_vocab)+0.1
+
     # new_rng = (10000 - 50)
     # old_rng = (freq_vocab.max() - freq_vocab.min())
     # freq_vocab = (((freq_vocab - freq_vocab.min()) * new_rng) / old_rng) + 50
-    freq_vocab = (1/freq_vocab)*1000
+    freq_vocab = (1/freq_vocab)*np.linspace(1000, 5000, num=len(freq_vocab))
+    for i in [0,1,3]:
+        freq_vocab[i] = freq_vocab[-1]
 
     print(freq_vocab)
 
@@ -94,9 +98,20 @@ def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
                                                  scale=freq_vocab)
         res_emb = ps_dist.sample()
 
-        if pad_idx is not None:
-            torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
+        # if pad_idx is not None:
+        #     torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
     return res_emb
+
+def ps_init_fixed_kappa(num_emb, embed_dim, kappa, pad_idx=None):
+    with torch.no_grad():
+        ps_dist = power_spherical.PowerSpherical(F.normalize(torch.full((num_emb,embed_dim),embed_dim**-0.5), dim=-1),
+                                                 scale=torch.tensor(kappa).repeat(num_emb))
+        res_emb = ps_dist.sample()
+
+        # if pad_idx is not None:
+        #     torch.nn.init.constant_(res_emb[pad_idx], 0) #padding
+    return res_emb
+
 def orthogonal(num_emb, embed_dim, pad_idx=None):
     res_emb = torch.zeros(num_emb, embed_dim)
     torch.nn.init.orthogonal_(res_emb)
@@ -130,19 +145,19 @@ if __name__ == "__main__":
     argp.add_argument("--cube-step", type=str)
     argp.add_argument("-v", "--vocab", required=True)
     argp.add_argument("-s", "--save", required=True)
-    argp.add_argument("--pad", type=int, default=None)
+    argp.add_argument("--pad", type=int, default=1)
+    argp.add_argument("--kappa", type=int, default=1)
 
     args = argp.parse_args()
 
-    w2idx, idx2v = read_mt_vocab(args.vocab, special_tokens= ['[START]','[END]','[UNK]','[PAD]'])
+    w2idx, idx2v,  freq_vocab= read_mt_vocab_with_freq(args.vocab)
     num_emb = len(w2idx)
 
     emb_new = None
     import hashlib
     import time
 
-    hashlib.sha1().update(str(time.time()).encode("utf-8"))
-    hash_str = hashlib.sha1().hexdigest()[-1:-7:-1]
+    hash_str = str(time.time()).replace(".", "")
 
     if args.type=="cube":
         emb_new = build_cube_embed(num_emb, args.dim, random=args.rand, step=args.cube_step)
@@ -163,5 +178,7 @@ if __name__ == "__main__":
         emb_new = orthogonal(num_emb, args.dim, pad_idx=args.pad)
     elif args.type=="ps_init":
         emb_new = ps_init(num_emb, args.dim, freq_vocab, pad_idx=args.pad)
+    elif args.type=="ps_init_kappa":
+        emb_new = ps_init_fixed_kappa(num_emb, args.dim, args.kappa, pad_idx=args.pad)
 
     save_embed(emb_new, f"{args.save}.{hash_str}", w2idx)

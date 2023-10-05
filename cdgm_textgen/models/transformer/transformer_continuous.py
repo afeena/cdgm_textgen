@@ -126,6 +126,32 @@ class TransformerModelContinuous(TransformerModelBase):
     ):
         return self.decoder.get_normalized_probs(net_output, log_probs, sample, metric)
 
+@dataclass
+class ContinuousTransformerScheduleConfig(ContinuousTransformerConfig):
+    freeze_after_update: int = field(
+        default=-1,
+        metadata={"help": "freeze target embeddings after N number of update"},
+    )
+    freeze_before_update: int = field(
+        default=-1,
+        metadata={"help": "freeze target embeddings before N number of updates"},
+    )
+@register_model("continuous_transformer_schedule", dataclass=ContinuousTransformerScheduleConfig)
+class TransformerModelContinuousSchedule(TransformerModelContinuous):
+    def __init__(self, cfg, encoder, decoder):
+        super().__init__(cfg, encoder, decoder)
+        self.freeze_after_update = cfg.freeze_after_update
+        self.freeze_before_update = cfg.freeze_before_update
+        assert (not self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
+                                                                                 "cannot be both positive"
+    def get_targets(self, sample, net_output, **kwargs):
+        if self.num_updates < self.freeze_after_update or self.num_updates > self.freeze_before_update:
+            self.decoder.target_embed.weight.requires_grad = True
+            return self.decoder.target_embed(sample["target"])
+        else:
+            self.decoder.target_embed.weight.requires_grad = False
+        return self.decoder.target_embed(sample["target"]).detach()
+
 @register_model("continuous_transformer_trained", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuousTrained(TransformerModelContinuous):
     @classmethod
