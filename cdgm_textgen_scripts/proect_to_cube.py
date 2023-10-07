@@ -5,7 +5,7 @@ def project_to_cube(source, target_dim):
     src_dim = source.shape[1]
     A = torch.randn(target_dim, src_dim)
     _, R = torch.linalg.qr(A, mode='r')
-    tgt = R * source
+    tgt = source @ R
     tgt = torch.where(tgt > 0, 1.0, -1.0)
     print(tgt.unique(dim=0).shape == source.shape[0], tgt.unique(dim=0).shape, source.shape[0])
     return tgt
