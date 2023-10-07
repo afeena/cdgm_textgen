@@ -142,7 +142,7 @@ class TransformerModelContinuousSchedule(TransformerModelContinuous):
         super().__init__(cfg, encoder, decoder)
         self.freeze_after_update = cfg.freeze_after_update
         self.freeze_before_update = cfg.freeze_before_update
-        assert (not self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
+        assert not (self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
                                                                                  "cannot be both positive"
     def get_targets(self, sample, net_output, **kwargs):
         if self.num_updates < self.freeze_after_update or self.num_updates > self.freeze_before_update:
