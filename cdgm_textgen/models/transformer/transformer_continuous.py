@@ -145,13 +145,14 @@ class TransformerModelContinuousSchedule(TransformerModelContinuous):
         assert not (self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
                                                                                  "cannot be both positive"
     def get_targets(self, sample, net_output, **kwargs):
-        if self.encoder.num_updates < self.freeze_after_update or self.encoder.num_updates > self.freeze_before_update:
+        if self.num_updates < self.freeze_after_update or self.num_updates > self.freeze_before_update:
             self.decoder.target_embed.weight.requires_grad = True
             return self.decoder.target_embed(sample["target"])
         else:
             self.decoder.target_embed.weight.requires_grad = False
         return self.decoder.target_embed(sample["target"]).detach()
-
+    def set_num_updates(self, num_updates):
+        self.num_updates = num_updates
 @register_model("continuous_transformer_trained", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuousTrained(TransformerModelContinuous):
     @classmethod
