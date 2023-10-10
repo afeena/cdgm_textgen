@@ -144,28 +144,15 @@ class TransformerModelContinuousSchedule(TransformerModelContinuous):
         self.freeze_before_update = cfg.freeze_before_update
         assert not (self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
                                                                                  "cannot be both positive"
-
-    @classmethod
-    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.target_embed_path is not None
-        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-        target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
-        )
-        decoder = ContinuousTransformerDecoder(
-            cfg,
-            tgt_dict,
-            embed_tokens,
-            target_embed
-        )
-        return decoder
+        self.num_updates = 0
     def get_targets(self, sample, net_output, **kwargs):
+        self.num_updates+=1
         if self.num_updates < self.freeze_after_update or self.num_updates > self.freeze_before_update:
-            return self.decoder.target_embed(sample["target"])
+            return self.decoder.target_embed(sample["target"]).requires_grad_()
         else:
             return self.decoder.target_embed(sample["target"]).detach()
-    def set_num_updates(self, num_updates):
-        self.num_updates = num_updates
+    # def set_num_updates(self, num_updates):
+    #     self.num_updates = num_updates
 @register_model("continuous_transformer_trained", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuousTrained(TransformerModelContinuous):
     @classmethod
