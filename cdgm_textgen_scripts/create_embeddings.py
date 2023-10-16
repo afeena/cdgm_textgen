@@ -83,11 +83,11 @@ def trafo_init(num_emb, embed_dim, pad_idx=None):
 
 def ps_init(num_emb, embed_dim, freq_vocab, pad_idx=None):
     freq_vocab = torch.tensor(freq_vocab)+0.1
-
-    # new_rng = (10000 - 50)
-    # old_rng = (freq_vocab.max() - freq_vocab.min())
-    # freq_vocab = (((freq_vocab - freq_vocab.min()) * new_rng) / old_rng) + 50
-    freq_vocab = (1/freq_vocab)*np.linspace(1000, 5000, num=len(freq_vocab))
+    freq_vocab = 1/freq_vocab
+    new_rng = (100000 - 100)
+    old_rng = (freq_vocab.max() - freq_vocab.min())
+    freq_vocab = (((freq_vocab - freq_vocab.min()) * new_rng) / old_rng) + 100
+   # freq_vocab = (freq_vocab.max()/freq_vocab)
     for i in [0,1,3]:
         freq_vocab[i] = freq_vocab[-1]
 

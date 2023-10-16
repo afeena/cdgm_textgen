@@ -22,9 +22,13 @@ def disentangle_rare_emb(emb):
     average_sims = np.mean(sims, axis=-1)
     for i,avg_sim in enumerate(average_sims):
         print(i, avg_sim)
-        if i>15000 and avg_sim > 0.5:
+        if i>20000:
             new_emb[i,:] = torch.rand(emb.shape[-1])
     return new_emb
+
+def sum_random_and_pretrained(emb):
+    re = torch.rand(emb.shape)
+    return torch.nn.functional.normalize(0.9*emb+0.1*re, dim =-1)
 
 vocab, emb = txt_to_pt(sys.argv[1])
 
@@ -40,5 +44,8 @@ if sys.argv[2] == "norm":
     save_embed(emb, sys.argv[1]+".norm1", vocab)
 if sys.argv[2]=="disent":
     emb = disentangle_rare_emb(emb)
-    save_embed(emb, sys.argv[1]+".disent", vocab)
+    save_embed(emb, sys.argv[1]+".disent20k", vocab)
+if sys.argv[2]=="sum_emb":
+    emb = sum_random_and_pretrained(emb)
+    save_embed(emb, sys.argv[1]+".1random.add.9pretrained", vocab)
 

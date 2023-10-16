@@ -18,13 +18,13 @@ if __name__ == "__main__":
     print(model.keys())
 
     if args.last:
-        embed = torch.transpose(model["model"]["decoder.output_projection.weight"], 0, 1)
-
-    if args.target:
+        embed = model["model"]["decoder.output_projection.weight"]
+    elif args.target:
         embed = model["model"]["decoder.target_embed.weight"]
     else:
         embed = model["model"]["decoder.embed_tokens.weight"]
 
+    print(embed.shape)
     # save embedding matrix alone
     torch.save(embed, f'{args.output}.pt')
 
