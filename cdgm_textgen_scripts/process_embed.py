@@ -18,17 +18,14 @@ def save_embed(emb, fname, dictionary):
 
 def disentangle_rare_emb(emb):
     new_emb = emb.clone()
-    sims = cosine_similarity(emb, emb)
-    average_sims = np.mean(sims, axis=-1)
-    for i,avg_sim in enumerate(average_sims):
-        print(i, avg_sim)
-        if i>20000:
-            new_emb[i,:] = torch.rand(emb.shape[-1])
+    thr = 20000
+    shape_rare = new_emb[thr:, :].shape
+    new_emb[thr:, :] = torch.nn.functional.normalize(torch.randn(*shape_rare), dim=-1)
     return new_emb
 
 def sum_random_and_pretrained(emb):
-    re = torch.rand(emb.shape)
-    return torch.nn.functional.normalize(0.9*emb+0.1*re, dim =-1)
+    re = torch.nn.functional.normalize(torch.randn(emb.shape), dim=-1)
+    return torch.nn.functional.normalize(0.5*emb+0.5*re, dim =-1)
 
 vocab, emb = txt_to_pt(sys.argv[1])
 
