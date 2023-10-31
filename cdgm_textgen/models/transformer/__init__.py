@@ -5,8 +5,8 @@
 """isort:skip_file"""
 
 from .transformer_base import TransformerModelBase, TransformerModelBaseRandom
-from .transformer_continuous import TransformerModelContinuous, \
-    TransformerMixtureModelContinuous, \
+from .transformer_continuous_base import TransformerModelContinuous
+from .transformer_continuous import  TransformerMixtureModelContinuous, \
     PseudoContTransformer, \
     TransformerModelProba, \
     TransformerModelContinuousSchedule
