@@ -23,9 +23,10 @@ def disentangle_rare_emb(emb):
     new_emb[thr:, :] = torch.nn.functional.normalize(torch.randn(*shape_rare), dim=-1)
     return new_emb
 
-def sum_random_and_pretrained(emb):
+def sum_random_and_pretrained(emb, lambda_rand=0.5):
     re = torch.nn.functional.normalize(torch.randn(emb.shape), dim=-1)
-    return torch.nn.functional.normalize(0.5*emb+0.5*re, dim =-1)
+    resulting_emb = (1-lambda_rand)*emb+lambda_rand*re
+    return torch.nn.functional.normalize(resulting_emb, dim =-1)
 
 vocab, emb = txt_to_pt(sys.argv[1])
 
@@ -43,6 +44,7 @@ if sys.argv[2]=="disent":
     emb = disentangle_rare_emb(emb)
     save_embed(emb, sys.argv[1]+".disent20k", vocab)
 if sys.argv[2]=="sum_emb":
+    lambda_rand = float(sys.argv[3])
     emb = sum_random_and_pretrained(emb)
-    save_embed(emb, sys.argv[1]+".1random.add.9pretrained", vocab)
+    save_embed(emb, sys.argv[1]+f".{lambda_rand}_rand", vocab)
 
