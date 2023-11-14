@@ -7,8 +7,7 @@ import torch
 import torch.nn as nn
 from fairseq import utils
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
-from geoopt import SphereExact, ManifoldParameter, StereographicExact, Euclidean, Lorentz
-from cdgm_textgen.modules.utils import stereographic_poincare_dist
+from geoopt import SphereExact, ManifoldParameter, StereographicExact
 from torch import Tensor
 
 from cdgm_textgen.models import register_model

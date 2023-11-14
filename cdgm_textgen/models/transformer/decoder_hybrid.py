@@ -4,14 +4,14 @@ from typing import Any, Dict, List, Optional
 import torch
 from torch import Tensor
 
-from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoderBase
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_hybrid")
 
 from geoopt import SphereExact, ManifoldParameter
 
-class HybridTransformerDecoder(ContinuousTransformerDecoder):
+class HybridTransformerDecoder(ContinuousTransformerDecoderBase):
     def __init__(self, cfg,
                  dictionary,
                  embed_tokens,
