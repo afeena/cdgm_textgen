@@ -7,14 +7,14 @@ import torch.nn.functional as F
 from functorch import vmap, combine_state_for_ensemble
 from torch import Tensor
 
-from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoderBase
 from cdgm_textgen.modules import parse_cluster_means, triple_sum_scriptable, log_prob_scriptable
 from cdgm_textgen.modules.riemannian_clustering import cluster_embeddings_riemannian
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
 
-class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoder):
+class MixtureContinuousTransformerDecoder(ContinuousTransformerDecoderBase):
     def __init__(self,
                  cfg,
                  dictionary,
