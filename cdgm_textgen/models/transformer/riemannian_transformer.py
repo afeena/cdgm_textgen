@@ -285,7 +285,7 @@ class ManifoldDecoder(TransformerDecoderBase):
         x = self.embed_scale * self.embed_tokens(prev_output_tokens)
 
         #here if manifold is not None, we project the input from manifold
-        if self.manifold is not None:
+        if self.manifold is not None and isinstance(self.manifold, StereographicExact):
             x = pmath.project(pmath.logmap0(x, k=self.manifold.k), k=self.manifold.k)
 
         if self.quant_noise is not None:
