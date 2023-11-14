@@ -7,9 +7,7 @@
 from .transformer_base import TransformerModelBase, TransformerModelBaseRandom
 from .transformer_continuous_base import TransformerModelContinuous
 from .transformer_continuous import  TransformerMixtureModelContinuous, \
-    PseudoContTransformer, \
-    TransformerModelProba, \
-    TransformerModelContinuousSchedule
+    TransformerModelProba
 from .transformer_hybrid import TransformerModelHybrid
 from .riemannian_transformer import RiemannianEmbeddingsTransformerModel
 
@@ -19,8 +17,6 @@ __all__ = [
     "RiemannianEmbeddingsTransformerModel",
     "TransformerModelHybrid",
     "TransformerModelBase",
-    "PseudoContTransformer",
     "TransformerModelProba",
     "TransformerModelBaseRandom",
-    "TransformerModelContinuousSchedule"
 ]
