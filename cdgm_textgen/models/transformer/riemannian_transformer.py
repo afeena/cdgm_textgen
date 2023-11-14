@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from fairseq import utils
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
-from geoopt import SphereExact, ManifoldParameter, StereographicExact
+from geoopt import SphereExact, ManifoldParameter, StereographicExact, Lorentz
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
@@ -20,7 +20,7 @@ logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer"
 _MANIFOLDS = {
               "sphere": SphereExact(),
               "poincare": StereographicExact(k=-1.0),
-              'lorentz': StereographicExact(k=1.0),
+              'lorentz': Lorentz(),
               }
 
 @dataclass
