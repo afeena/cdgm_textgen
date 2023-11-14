@@ -7,8 +7,8 @@ from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
-from cdgm_textgen.models.transformer.decoder_continuous import \
-    ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.decoder_continuous_base import \
+    ContinuousTransformerDecoderBase
 from cdgm_textgen.models.transformer.transformer_base import TransformerModelBase
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous_base")
@@ -24,7 +24,6 @@ class ContinuousTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
-    manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
@@ -36,7 +35,7 @@ class TransformerModelContinuous(TransformerModelBase):
         target_embed = cls.build_embedding(
             cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
         )
-        decoder = ContinuousTransformerDecoder(
+        decoder = ContinuousTransformerDecoderBase(
             cfg,
             tgt_dict,
             embed_tokens,

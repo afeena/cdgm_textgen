@@ -18,11 +18,10 @@ from cdgm_textgen.models.transformer.transformer_base import Embedding
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 
 
-_MANIFOLDS = {"euclidean": Euclidean(),
+_MANIFOLDS = {
               "sphere": SphereExact(),
               "poincare": StereographicExact(k=-1.0),
-              "hyperbolic": StereographicExact(k=-1.0),
-              'lorentz': Lorentz(),
+              'lorentz': StereographicExact(k=1.0),
               }
 
 @dataclass
@@ -198,10 +197,155 @@ class ManifoldDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-
-        if not isinstance(self.manifold, StereographicExact):
-            x = self.output_projection(x)
+        if isinstance(self.manifold, StereographicExact):
+            x = pmath.mobius_matvec(self.output_projection.weight, x, k=self.manifold.k)
         else:
-            x = x @ self.manifold.logmap0(self.output_projection.weight).T
+            if isinstance(self.manifold, SphereExact):
+                x = torch.nn.functional.normalize(x, dim=-1, p=2)
+            x = self.output_projection(x)
 
         return x, extra
+    def extract_features(
+        self,
+        prev_output_tokens,
+        encoder_out: Optional[Dict[str, List[Tensor]]],
+        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        full_context_alignment: bool = False,
+        alignment_layer: Optional[int] = None,
+        alignment_heads: Optional[int] = None,
+    ):
+        return self.extract_features_scriptable(
+            prev_output_tokens,
+            encoder_out,
+            incremental_state,
+            full_context_alignment,
+            alignment_layer,
+            alignment_heads,
+        )
+
+    """
+    A scriptable subclass of this class has an extract_features method and calls
+    super().extract_features, but super() is not supported in torchscript. A copy of
+    this function is made to be used in the subclass instead.
+    """
+    def extract_features_scriptable(
+        self,
+        prev_output_tokens,
+        encoder_out: Optional[Dict[str, List[Tensor]]],
+        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        full_context_alignment: bool = False,
+        alignment_layer: Optional[int] = None,
+        alignment_heads: Optional[int] = None,
+    ):
+        """
+        Similar to *forward* but only return features.
+
+        Includes several features from "Jointly Learning to Align and
+        Translate with Transformer Models" (Garg et al., EMNLP 2019).
+
+        Args:
+            full_context_alignment (bool, optional): don't apply
+                auto-regressive mask to self-attention (default: False).
+            alignment_layer (int, optional): return mean alignment over
+                heads at this layer (default: last layer).
+            alignment_heads (int, optional): only average alignment over
+                this many heads (default: all heads).
+
+        Returns:
+            tuple:
+                - the decoder's features of shape `(batch, tgt_len, embed_dim)`
+                - a dictionary with any model-specific outputs
+        """
+        bs, slen = prev_output_tokens.size()
+        if alignment_layer is None:
+            alignment_layer = self.num_layers - 1
+
+        enc: Optional[Tensor] = None
+        padding_mask: Optional[Tensor] = None
+        if encoder_out is not None and len(encoder_out["encoder_out"]) > 0:
+            enc = encoder_out["encoder_out"][0]
+        if encoder_out is not None and len(encoder_out["encoder_padding_mask"]) > 0:
+            padding_mask = encoder_out["encoder_padding_mask"][0]
+
+        # embed positions
+        positions = None
+        if self.embed_positions is not None:
+            positions = self.embed_positions(
+                prev_output_tokens, incremental_state=incremental_state
+            )
+
+        if incremental_state is not None:
+            prev_output_tokens = prev_output_tokens[:, -1:]
+            if positions is not None:
+                positions = positions[:, -1:]
+
+        # Prevent torchscript exporting issue for dynamic quant embedding
+        prev_output_tokens = prev_output_tokens.contiguous()
+        # embed tokens and positions
+        x = self.embed_scale * self.embed_tokens(prev_output_tokens)
+
+        #here if manifold is not None, we project the input from manifold
+        if self.manifold is not None:
+            x = pmath.project(pmath.logmap0(x, k=self.manifold.k), k=self.manifold.k)
+
+        if self.quant_noise is not None:
+            x = self.quant_noise(x)
+
+        if self.project_in_dim is not None:
+            x = self.project_in_dim(x)
+
+        if positions is not None:
+            x += positions
+
+        if self.layernorm_embedding is not None:
+            x = self.layernorm_embedding(x)
+
+        x = self.dropout_module(x)
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        self_attn_padding_mask: Optional[Tensor] = None
+        if self.cross_self_attention or prev_output_tokens.eq(self.padding_idx).any():
+            self_attn_padding_mask = prev_output_tokens.eq(self.padding_idx)
+
+        # decoder layers
+        attn: Optional[Tensor] = None
+        inner_states: List[Optional[Tensor]] = [x]
+        for idx, layer in enumerate(self.layers):
+            if incremental_state is None and not full_context_alignment:
+                self_attn_mask = self.buffered_future_mask(x)
+            else:
+                self_attn_mask = None
+
+            x, layer_attn, _ = layer(
+                x,
+                enc,
+                padding_mask,
+                incremental_state,
+                self_attn_mask=self_attn_mask,
+                self_attn_padding_mask=self_attn_padding_mask,
+                need_attn=bool((idx == alignment_layer)),
+                need_head_weights=bool((idx == alignment_layer)),
+            )
+            inner_states.append(x)
+            if layer_attn is not None and idx == alignment_layer:
+                attn = layer_attn.float().to(x)
+
+        if attn is not None:
+            if alignment_heads is not None:
+                attn = attn[:alignment_heads]
+
+            # average probabilities over heads
+            attn = attn.mean(dim=0)
+
+        if self.layer_norm is not None:
+            x = self.layer_norm(x)
+
+        # T x B x C -> B x T x C
+        x = x.transpose(0, 1)
+
+        if self.project_out_dim is not None:
+            x = self.project_out_dim(x)
+
+        return x, {"attn": [attn], "inner_states": inner_states}

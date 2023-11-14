@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 import torch
 from torch import Tensor
 
-from cdgm_textgen.models.transformer.decoder_continuous import ContinuousTransformerDecoder
+from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_hybrid")

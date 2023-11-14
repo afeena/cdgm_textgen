@@ -5,19 +5,17 @@ import geoopt.manifolds.stereographic.math as pmath
 import power_spherical
 import torch
 import torch.nn.functional as F
-from fairseq.models.transformer import TransformerDecoderBase
 from torch import Tensor
 
+from cdgm_textgen.models.transformer.decoder_continuous_base import ContinuousTransformerDecoderBase
 from cdgm_textgen.models.transformer.transformer_base import Embedding
-from cdgm_textgen.modules.cmk_approx import _neglogcmk
 from cdgm_textgen.modules.utils import stereographic_poincare_dist
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_decoder_continuous")
 
 from geoopt import ManifoldParameter, SphereExact, StereographicExact, Euclidean, Lorentz, ProductManifold
 
-
-class ContinuousTransformerDecoder(TransformerDecoderBase):
+class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
     def __init__(self, cfg,
                  dictionary,
                  embed_tokens,
@@ -29,14 +27,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                          dictionary, embed_tokens,
                          no_encoder_attn=no_encoder_attn,
                          output_projection=output_projection,
+                         target_embed=target_embed,
                          )
-
-        self.dict_len = len(dictionary)
-        self.target_embed = target_embed
-
-        if self.project_out_dim is None:
-            self.project_out_dim = torch.nn.Linear(self.embed_dim, self.output_embed_dim, bias=False)
-
         self.manifold = None
         if cfg.manifold == "poincare":
             self.manifold = StereographicExact(k=-1)
@@ -53,7 +45,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             self.manifold = Lorentz()
         if self.manifold is not None:
             self.set_params_to_manifold()
-
     def forward(
             self,
             prev_output_tokens,
@@ -74,7 +65,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-
         # project to a manifold
         if isinstance(self.manifold, StereographicExact) or isinstance(self.manifold, Lorentz):
             x = pmath.project(self.manifold.expmap0(x), k=self.manifold.k)
@@ -96,25 +86,8 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             if isinstance(self.manifold, StereographicExact):
                 x = pmath.project(self.manifold.expmap0(x), k=self.manifold.k)
             elif isinstance(self.manifold, SphereExact):
-                x = x/torch.norm(x, dim=-1, keepdim=True)
+                x = x / torch.norm(x, dim=-1, keepdim=True)
         return x
-
-    def set_normalized_tgt_embeddings(self):
-        self.target_embed_normalized = F.normalize(self.target_embed.weight.detach(),
-                                                   dim=-1).cuda()
-
-    def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            kappa = torch.tensor([1.], device=features.device)
-            features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
-            norm_const = _neglogcmk(m, kappa)
-
-            output_proj = features @ (self.target_embed_normalized.T).to(features.dtype)
-            if norm_const is not None:
-                output_proj += norm_const.squeeze()
-
-            return output_proj
 
     def get_manifold_distance(self, features: Tensor) -> Tensor:
         with torch.no_grad():
@@ -148,7 +121,6 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
             scores = scores.view(bsz, -1, self.dict_len)
             return scores
 
-    # legacy. compatible with fairseq translation task
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -172,9 +144,7 @@ class ContinuousTransformerDecoder(TransformerDecoderBase):
                 scores = self.get_poincare_distance2(net_output[0])
 
         return scores
-
-
-class ProbaTransformerDecoder(ContinuousTransformerDecoder):
+class ProbaTransformerDecoder(ContinuousTransformerDecoderBase):
     def __init__(self, cfg,
                  dictionary,
                  embed_tokens,
@@ -219,7 +189,7 @@ class ProbaTransformerDecoder(ContinuousTransformerDecoder):
             return output_proj
 
 
-class PseudoContinuousTransformerDecoder(ContinuousTransformerDecoder):
+class PseudoContinuousTransformerDecoder(ContinuousTransformerDecoderBase):
     def __init__(self, dictionary,
                  embed_tokens,
                  target_embed: Optional[Embedding] = None,

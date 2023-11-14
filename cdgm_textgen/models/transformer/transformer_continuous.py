@@ -6,14 +6,34 @@ from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous import \
-    ContinuousTransformerDecoder, \
-    ProbaTransformerDecoder, \
-    PseudoContinuousTransformerDecoder
+    ManifoldDecoderContinuous, \
+    ProbaTransformerDecoder
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_continuous_base import TransformerModelContinuous, ContinuousTransformerConfig
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuous")
+@dataclass
+class ContinuousTransformerManifoldConfig(ContinuousTransformerConfig):
+    manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
+
+class ContinuousTransformerManifold(TransformerModelContinuous):
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        assert cfg.target_embed_path is not None
+        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+        target_embed = cls.build_embedding(
+            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
+        )
+        decoder = ManifoldDecoderContinuous(
+            cfg,
+            tgt_dict,
+            embed_tokens,
+            target_embed
+        )
+
+        decoder.target_embed.weight.requires_grad = False
+        return decoder
 
 @dataclass
 class ContinuousTransformerScheduleConfig(ContinuousTransformerConfig):
@@ -25,43 +45,6 @@ class ContinuousTransformerScheduleConfig(ContinuousTransformerConfig):
         default=-1,
         metadata={"help": "freeze target embeddings before N number of updates"},
     )
-@register_model("continuous_transformer_schedule", dataclass=ContinuousTransformerScheduleConfig)
-class TransformerModelContinuousSchedule(TransformerModelContinuous):
-    def __init__(self, cfg, encoder, decoder):
-        super().__init__(cfg, encoder, decoder)
-        self.freeze_after_update = cfg.freeze_after_update
-        self.freeze_before_update = cfg.freeze_before_update
-        assert not (self.freeze_after_update>0 and self.freeze_before_update>0), "freeze_after_update and freeze_before_update " \
-                                                                                 "cannot be both positive"
-        self.num_updates = 0
-    def get_targets(self, sample, net_output, **kwargs):
-        self.num_updates+=1
-        if self.num_updates < self.freeze_after_update or self.num_updates > self.freeze_before_update:
-            return self.decoder.target_embed(sample["target"]).requires_grad_()
-        else:
-            return self.decoder.target_embed(sample["target"]).detach()
-    # def set_num_updates(self, num_updates):
-    #     self.num_updates = num_updates
-@register_model("continuous_transformer_trained", dataclass=ContinuousTransformerConfig)
-class TransformerModelContinuousTrained(TransformerModelContinuous):
-    @classmethod
-    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.target_embed_path is not None
-        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-        target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
-        )
-        decoder = ContinuousTransformerDecoder(
-            cfg,
-            tgt_dict,
-            embed_tokens,
-            target_embed
-        )
-
-        return decoder
-    def get_targets(self, sample, net_output, **kwargs):
-        return self.decoder.target_embed(sample["target"])
-
 @dataclass
 class ProbaTransformerConfig(ContinuousTransformerConfig):
     kappa: str = field(default="norm", metadata={"help": "kappa to use"})
@@ -94,24 +77,6 @@ class TransformerModelProba(TransformerModelContinuous):
 
         scores = self.decoder.get_ps_likelihood_scores(model_out)
         return scores
-
-
-@register_model("pseudo_cont_transformer", dataclass=ContinuousTransformerConfig)
-class PseudoContTransformer(TransformerModelContinuous):
-    @classmethod
-    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.target_embed_path is not None
-        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-        target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
-        )
-        decoder = PseudoContinuousTransformerDecoder( cfg,
-            tgt_dict,
-            embed_tokens,
-            target_embed)
-
-        decoder.target_embed.weight.requires_grad = False
-        return decoder
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):
