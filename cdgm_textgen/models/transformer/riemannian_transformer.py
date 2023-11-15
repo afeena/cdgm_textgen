@@ -196,29 +196,39 @@ class ManifoldDecoder(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        #here: map output x to manifold and perform linear projection on manifold
-        if isinstance(self.manifold, Lorentz):
-            #https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
 
-            x = self.manifold.expmap0(x)
+        if self.manifold is None:
             x = self.output_projection(x)
-
-            x_narrow = x.narrow(0, 1, x.shape[0] - 1)
-
-            time = x.narrow(0, 0, 1).sigmoid() * self.scale.exp() + 1.1
-            scale = (time * time - self.manifold.k) / \
-            (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
-            x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
-
-        if isinstance(self.manifold, StereographicExact):
-            x = pmath.mobius_matvec(self.output_projection.weight, self.manifold.expmap0(x), k=self.manifold.k)
+            return x, extra
         else:
-            x = self.output_projection(x)
-            if isinstance(self.manifold, SphereExact):
-                x = torch.nn.functional.normalize(x, dim=0)
+            # here: map output x to manifold and perform linear projection on manifold
+            # better to work with the float64 precision
+            x = x.float64()
 
-        return x, extra
-    
+            if isinstance(self.manifold, Lorentz):
+                #https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
+
+                x = self.manifold.expmap0(x)
+                x = self.output_projection(x)
+
+                x_narrow = x.narrow(1, 1, x.shape[0] - 1)
+
+                time = x.narrow(1, 0, 1).sigmoid() + 1.1
+                scale = (time * time - self.manifold.k) / \
+                (x_narrow * x_narrow).sum(dim=1, keepdim=True)
+                x = torch.cat([time, x_narrow * scale.sqrt()], dim=1)
+
+            if isinstance(self.manifold, StereographicExact):
+                x = pmath.mobius_matvec(self.output_projection.weight,
+                                        self.manifold.expmap0(x),
+                                        k=self.manifold.k)
+
+            if isinstance(self.manifold, SphereExact):
+                x = self.output_projection(x)
+                x = torch.nn.functional.normalize(x, dim=1)
+            x = x.float()
+            return x, extra
+
     def extract_features(
         self,
         prev_output_tokens,
