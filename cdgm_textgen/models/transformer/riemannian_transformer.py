@@ -203,7 +203,7 @@ class ManifoldDecoder(TransformerDecoderBase):
         else:
             # here: map output x to manifold and perform linear projection on manifold
             # better to work with the float64 precision
-            x = x.float64()
+            x = x.double()
 
             if isinstance(self.manifold, Lorentz):
                 #https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
