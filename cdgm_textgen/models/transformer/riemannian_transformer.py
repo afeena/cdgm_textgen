@@ -133,6 +133,8 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         elif manifold == 'poincare':
             # make sure after loading embeddings are on the sphere
             emb.weight.data = pmath.project(_MANIFOLDS[manifold].expmap0(emb.weight.data), k=_MANIFOLDS[manifold].k)
+        elif manifold == 'lorentz':
+            emb.weight.data = _MANIFOLDS[manifold].expmap0(emb.weight.data)
         return emb
 
 
@@ -148,7 +150,7 @@ def ManifoldEmbedding(num_embeddings, embedding_dim, padding_idx, manifold_name=
         elif manifold_name == 'poincare' or manifold_name == 'lorentz':
             w_ = pmath.project(manifold.expmap0(w_), k=manifold.k)
         w = ManifoldParameter(data=w_, manifold=manifold)
-        m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
+        m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, dtype=torch.double)
 
         del m.weight
         m.weight = w
@@ -165,16 +167,16 @@ class ManifoldDecoder(TransformerDecoderBase):
     ):
         super().__init__(cfg, dictionary, embed_tokens, no_encoder_attn, output_projection)
         self.manifold = _MANIFOLDS[cfg.manifold]
-        if (cfg.manifold == 'sphere' or  cfg.manifold == 'sphereproduct') and not cfg.share_decoder_input_output_embed:
-            self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
-                                                              manifold=_MANIFOLDS[cfg.manifold])
-            self.output_projection.weight.data /= self.output_projection.weight.data.norm(
-                dim=-1, keepdim=True)
-        if (cfg.manifold == 'poincare' or cfg.manifold == 'lorentz') and not cfg.share_decoder_input_output_embed:
-            self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
-                                                              manifold=_MANIFOLDS[cfg.manifold])
-            self.output_projection.weight.data = pmath.project(_MANIFOLDS[cfg.manifold].expmap0(
-                self.output_projection.weight.data), k=_MANIFOLDS[cfg.manifold].k)
+        # if (cfg.manifold == 'sphere' or  cfg.manifold == 'sphereproduct') and not cfg.share_decoder_input_output_embed:
+        #     self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
+        #                                                       manifold=_MANIFOLDS[cfg.manifold])
+        #     self.output_projection.weight.data /= self.output_projection.weight.data.norm(
+        #         dim=-1, keepdim=True)
+        # if (cfg.manifold == 'poincare' or cfg.manifold == 'lorentz') and not cfg.share_decoder_input_output_embed:
+        #     self.output_projection.weight = ManifoldParameter(self.output_projection.weight,
+        #                                                       manifold=_MANIFOLDS[cfg.manifold])
+        #     self.output_projection.weight.data = pmath.project(_MANIFOLDS[cfg.manifold].expmap0(
+        #         self.output_projection.weight.data), k=_MANIFOLDS[cfg.manifold].k)
 
     def forward(
             self,
