@@ -214,12 +214,12 @@ class ManifoldDecoder(TransformerDecoderBase):
                 x = self.manifold.expmap0(x)
                 x = x @ self.output_projection.weight.T.double()
 
-                x_narrow = x.narrow(1, 1, x.shape[0] - 1)
+                x_narrow = x.narrow(-1, 1, x.shape[-1] - 1)
 
-                time = x.narrow(1, 0, 1).sigmoid() + 1.1
+                time = x.narrow(-1, 0, 1).sigmoid() + 1.1
                 scale = (time * time - self.manifold.k) / \
-                (x_narrow * x_narrow).sum(dim=1, keepdim=True)
-                x = torch.cat([time, x_narrow * scale.sqrt()], dim=1)
+                (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
+                x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
 
             if isinstance(self.manifold, StereographicExact):
                 x = pmath.mobius_matvec(self.output_projection.weight.double(),
