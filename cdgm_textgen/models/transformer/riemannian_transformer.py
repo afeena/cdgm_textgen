@@ -149,6 +149,7 @@ def ManifoldEmbedding(num_embeddings, embedding_dim, padding_idx, manifold_name=
             w_ /= w_.norm(dim=-1, keepdim=True)
         elif manifold_name == 'poincare' or manifold_name == 'lorentz':
             w_ = pmath.project(manifold.expmap0(w_), k=manifold.k)
+        w_ = w_.double()
         w = ManifoldParameter(data=w_, manifold=manifold)
         m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, dtype=torch.double)
 
