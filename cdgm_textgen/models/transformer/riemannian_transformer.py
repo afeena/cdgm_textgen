@@ -149,7 +149,7 @@ def ManifoldEmbedding(num_embeddings, embedding_dim, padding_idx, manifold_name=
             w_ /= w_.norm(dim=-1, keepdim=True)
         elif manifold_name == 'poincare' or manifold_name == 'lorentz':
             w_ = pmath.project(manifold.expmap0(w_), k=manifold.k)
-        w_ = w_.double()
+
         w = ManifoldParameter(data=w_, manifold=manifold)
         m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, dtype=torch.double)
 
@@ -212,7 +212,7 @@ class ManifoldDecoder(TransformerDecoderBase):
                 #https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
 
                 x = self.manifold.expmap0(x)
-                x = self.output_projection(x)
+                x = self.output_projection.weight.double() @ x
 
                 x_narrow = x.narrow(1, 1, x.shape[0] - 1)
 
@@ -222,7 +222,7 @@ class ManifoldDecoder(TransformerDecoderBase):
                 x = torch.cat([time, x_narrow * scale.sqrt()], dim=1)
 
             if isinstance(self.manifold, StereographicExact):
-                x = pmath.mobius_matvec(self.output_projection.weight,
+                x = pmath.mobius_matvec(self.output_projection.weight.double(),
                                         self.manifold.expmap0(x),
                                         k=self.manifold.k)
 
