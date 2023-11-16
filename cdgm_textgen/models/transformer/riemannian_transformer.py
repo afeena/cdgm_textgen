@@ -212,7 +212,7 @@ class ManifoldDecoder(TransformerDecoderBase):
                 #https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
 
                 x = self.manifold.expmap0(x)
-                x = self.output_projection.weight.double() @ x
+                x = x @ self.output_projection.weight.double()
 
                 x_narrow = x.narrow(1, 1, x.shape[0] - 1)
 
