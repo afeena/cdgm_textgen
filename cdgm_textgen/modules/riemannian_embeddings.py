@@ -24,13 +24,15 @@ class ManifoldEmbeddings(nn.Embedding):
                  padding_idx,
                  manifold
                  ):
-        self.manifold = manifold
+
         super().__init__(n_in, n_out, padding_idx)
-        
+        self.manifold = manifold
+        self.reset_manifold_parameters()
+
     def forward(self, x):
         raise NotImplementedError
 
-    def reset_parameters(self):
+    def reset_manifold_parameters(self):
         raise NotImplementedError
 
 
@@ -43,7 +45,7 @@ class LorentzEmbeddings(ManifoldEmbeddings):
         super().__init__(n_in, n_out, padding_idx, manifold)
         assert isinstance(self.manifold, geoopt.Lorentz), "Manifold must be Lorentz"
 
-    def reset_parameters(self):
+    def reset_manifold_parameters(self):
         self.weight.copy_(self.manifold.expmap0(self.weight.data))
 
     def forward(self, x):
@@ -83,7 +85,7 @@ class PoincareEmbeddings(ManifoldEmbeddings):
         assert (isinstance(self.manifold,
                            geoopt.StereographicExact) and self.manifold.k == -1), "Manifold must be StereographicExact with k=-1"
 
-    def reset_parameters(self):
+    def reset_manifold_parameters(self):
         self.weight.copy_(self.manifold.expmap0(self.weight.data))
 
     def forward(self, x):
@@ -117,7 +119,7 @@ class SphereEmbeddings(ManifoldEmbeddings):
         super().__init__(n_in, n_out, padding_idx, manifold)
         assert isinstance(self.manifold, geoopt.SphereExact), "Manifold must be SphereExact"
 
-    def reset_parameters(self):
+    def reset_manifold_parameters(self):
         self.weight.copy_(self.weight.data / self.weight.data.norm(dim=-1, keepdim=True))
 
     def forward(self, x):
