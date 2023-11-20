@@ -1,9 +1,13 @@
+from typing import Optional
+
 import geoopt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from fairseq import utils
+from torch import Tensor
+
 
 def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=None):
     if isinstance(manifold, geoopt.Lorentz):
@@ -13,26 +17,59 @@ def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=N
     elif isinstance(manifold, geoopt.SphereExact):
         emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=manifold)
     else:
-        emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=None)
+        emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
 
     return emb
 
 
-class ManifoldEmbeddings(nn.Embedding):
-    def __init__(self, n_in,
-                 n_out,
+class ManifoldEmbeddings(nn.Module):
+    def __init__(self, num_embeddings,
+                 embedding_dim,
                  padding_idx,
-                 manifold
+                 manifold,
+                 _weight: Optional[Tensor] = None,
+                 _freeze: bool = False,
+                 device=None,
+                 dtype=None
                  ):
 
-        super().__init__(n_in, n_out, padding_idx)
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super().__init__()
         self.manifold = manifold
-        self.reset_manifold_parameters()
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
+        if padding_idx is not None:
+            if padding_idx > 0:
+                assert padding_idx < self.num_embeddings, 'Padding_idx must be within num_embeddings'
+            elif padding_idx < 0:
+                assert padding_idx >= -self.num_embeddings, 'Padding_idx must be within num_embeddings'
+                padding_idx = self.num_embeddings + padding_idx
+        self.padding_idx = padding_idx
+
+        if _weight is None:
+            self.weight = geoopt.ManifoldParameter(
+                torch.empty((num_embeddings, embedding_dim), **factory_kwargs),
+                manifold=self.manifold, requires_grad=not _freeze
+            )
+        else:
+            assert list(_weight.shape) == [num_embeddings, embedding_dim], \
+                'Shape of weight does not match num_embeddings and embedding_dim'
+            self.weight = geoopt.ManifoldParameter(self.to_manifold(_weight), requires_grad=not _freeze)
+
+
 
     def forward(self, x):
         raise NotImplementedError
 
+    @torch.no_grad()
     def reset_manifold_parameters(self):
+        self.weight.copy_(self.manifold.random((self.num_embeddings, self.embedding_dim),
+                                               dtype=self.weight.dtype, device=self.weight.device))
+
+    def to_manifold(self, x):
+        raise NotImplementedError
+
+    def to_tangent_space(self, x):
         raise NotImplementedError
 
 
@@ -44,9 +81,6 @@ class LorentzEmbeddings(ManifoldEmbeddings):
                  ):
         super().__init__(n_in, n_out, padding_idx, manifold)
         assert isinstance(self.manifold, geoopt.Lorentz), "Manifold must be Lorentz"
-
-    def reset_manifold_parameters(self):
-        self.weight.copy_(self.manifold.expmap0(self.weight.data))
 
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
@@ -85,9 +119,6 @@ class PoincareEmbeddings(ManifoldEmbeddings):
         assert (isinstance(self.manifold,
                            geoopt.StereographicExact) and self.manifold.k == -1), "Manifold must be StereographicExact with k=-1"
 
-    def reset_manifold_parameters(self):
-        self.weight.copy_(self.manifold.expmap0(self.weight.data))
-
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
         if not self.manifold.check_point_on_manifold(x):
@@ -119,8 +150,6 @@ class SphereEmbeddings(ManifoldEmbeddings):
         super().__init__(n_in, n_out, padding_idx, manifold)
         assert isinstance(self.manifold, geoopt.SphereExact), "Manifold must be SphereExact"
 
-    def reset_manifold_parameters(self):
-        self.weight.copy_(self.weight.data / self.weight.data.norm(dim=-1, keepdim=True))
 
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
