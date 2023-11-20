@@ -12,5 +12,6 @@ from .riemannian_embeddings import *
 __all__ = [
     "neg_log_cmk_approx",
     "cluster_embeddings_riemannian",
-    "build_manifold_embeddings"
+    "build_manifold_embeddings",
+    "build_manifold_linear",
 ]
