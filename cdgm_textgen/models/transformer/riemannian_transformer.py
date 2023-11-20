@@ -2,15 +2,12 @@ import logging
 from dataclasses import field, dataclass
 from typing import Optional, Dict, List, Any
 
-import geoopt.manifolds.stereographic.math as pmath
-import torch
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
-from geoopt import SphereExact, StereographicExact, Lorentz
 from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
-from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings
+from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings, build_manifold_linear
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 
@@ -134,7 +131,7 @@ class ManifoldDecoder(TransformerDecoderBase):
 
     def build_manifold_output_projection(self, dictionary):
         if self.share_input_output_embed:
-            self.output_projection = build_manifold_embeddings(
+            self.output_projection = build_manifold_linear(
                 self.embed_tokens.weight.shape[1],
                 self.embed_tokens.weight.shape[0],
                 self.manifold,
@@ -142,7 +139,7 @@ class ManifoldDecoder(TransformerDecoderBase):
             )
             self.output_projection.weight = self.embed_tokens.weight
         else:
-            self.output_projection = build_manifold_embeddings(
+            self.output_projection = build_manifold_linear(
                 self.output_embed_dim, len(dictionary), self.manifold, padding_idx=self.padding_idx
             )
 
