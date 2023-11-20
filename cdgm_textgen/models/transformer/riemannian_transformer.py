@@ -43,8 +43,6 @@ class RiemannianTransformerConfig(TransformerConfig):
 
 @register_model("riemannian_emb_transformer", dataclass=RiemannianTransformerConfig)
 class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
-    def __init__(self, cfg, encoder, decoder, manifold):
-        super().__init__(cfg, encoder, decoder)
     @classmethod
     def build_model(cls, cfg, task):
         """Build a new model instance."""
@@ -94,7 +92,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         encoder = cls.build_encoder(cfg, src_dict, encoder_embed_tokens)
         decoder = cls.build_decoder(cfg, tgt_dict, decoder_embed_tokens, manifold)
 
-        model = cls(cfg, encoder, decoder, manifold)
+        model = cls(cfg, encoder, decoder)
 
         for pn, p in model.named_parameters():
             if p.requires_grad:

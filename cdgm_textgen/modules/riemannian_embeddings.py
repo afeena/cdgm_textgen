@@ -13,7 +13,7 @@ def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=N
     elif isinstance(manifold, geoopt.SphereExact):
         emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=manifold)
     else:
-        emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx)
+        emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=None)
 
     return emb
 
@@ -24,9 +24,9 @@ class ManifoldEmbeddings(nn.Embedding):
                  padding_idx,
                  manifold
                  ):
-        super().__init__(n_in, n_out, padding_idx)
         self.manifold = manifold
-
+        super().__init__(n_in, n_out, padding_idx)
+        
     def forward(self, x):
         raise NotImplementedError
 
@@ -139,7 +139,7 @@ class SphereEmbeddings(ManifoldEmbeddings):
         self.weight.copy_(self.weight.data / self.weight.data.norm(dim=-1, keepdim=True))
 
 
-class ManifoldEmbeddings(ManifoldEmbeddings):
+class EuclideanEmbeddings(ManifoldEmbeddings):
     @torch.no_grad()
     def load_embeddings(self, path, dictionary):
         embed_dict = utils.parse_embedding(path)
