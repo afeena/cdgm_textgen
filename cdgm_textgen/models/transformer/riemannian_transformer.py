@@ -14,12 +14,6 @@ from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 
-_MANIFOLDS = {
-    "sphere": SphereExact(),
-    "poincare": StereographicExact(k=-1.0),
-    'lorentz': Lorentz(),
-}
-
 
 @dataclass
 class RiemannianTransformerConfig(TransformerConfig):
@@ -51,7 +45,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         cfg.decoder.input_dim = int(cfg.decoder.input_dim)
         cfg.decoder.output_dim = int(cfg.decoder.output_dim)
         # --
-        manifold = _MANIFOLDS.get(cfg.manifold, None)
+        manifold = cfg.manifold
         if cfg.encoder.layers_to_keep:
             cfg.encoder.layers = len(cfg.encoder.layers_to_keep.split(","))
         if cfg.decoder.layers_to_keep:
@@ -135,7 +129,7 @@ class ManifoldDecoder(TransformerDecoderBase):
     ):
         super(ManifoldDecoder, self).__init__(cfg, dictionary, embed_tokens, no_encoder_attn, output_projection)
         self.manifold = manifold
-        if manifold is not None:
+        if manifold is not None and cfg.riemannian_dec_out:
             self.build_manifold_output_projection(dictionary)
 
     def build_manifold_output_projection(self, dictionary):

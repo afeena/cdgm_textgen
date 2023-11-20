@@ -10,15 +10,16 @@ from torch import Tensor
 
 
 def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=None):
-    if isinstance(manifold, geoopt.Lorentz):
-        emb = LorentzEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=manifold)
-    elif (isinstance(manifold, geoopt.StereographicExact) and manifold.k == -1):
-        emb = PoincareEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=manifold)
-    elif isinstance(manifold, geoopt.SphereExact):
-        emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=manifold)
+    torch.set_default_dtype(torch.double)
+    if manifold=="lorentz":
+        emb = LorentzEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Lorentz())
+    elif manifold=="poincare":
+        emb = PoincareEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.StereographicExact(k=-1.0))
+    elif manifold=="sphere":
+        emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.SphereExact())
     else:
         emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
-
+    torch.set_default_dtype(torch.float)
     return emb
 
 
