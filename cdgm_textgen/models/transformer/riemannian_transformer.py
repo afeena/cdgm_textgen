@@ -135,8 +135,10 @@ class ManifoldDecoder(TransformerDecoderBase):
     ):
         super(ManifoldDecoder, self).__init__(cfg, dictionary, embed_tokens, no_encoder_attn, output_projection)
         self.manifold = manifold
+        if manifold is not None:
+            self.build_manifold_output_projection(dictionary)
 
-    def build_output_projection(self, cfg, dictionary, embed_tokens):
+    def build_manifold_output_projection(self, dictionary):
         if self.share_input_output_embed:
             self.output_projection = build_manifold_embeddings(
                 self.embed_tokens.weight.shape[1],
