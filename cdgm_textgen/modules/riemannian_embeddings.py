@@ -10,7 +10,6 @@ from torch import Tensor
 
 
 def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=None):
-    torch.set_default_dtype(torch.double)
     if manifold=="lorentz":
         emb = LorentzEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Lorentz())
     elif manifold=="poincare":
@@ -19,11 +18,11 @@ def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=N
         emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.SphereExact())
     else:
         emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
-    torch.set_default_dtype(torch.float)
+
     return emb
 
 def build_manifold_linear(num_embeddings, embed_dim, manifold, padding_idx=None):
-    torch.set_default_dtype(torch.double)
+
     if manifold=="lorentz":
         emb = LorentzLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Lorentz())
     elif manifold=="poincare":
@@ -32,7 +31,7 @@ def build_manifold_linear(num_embeddings, embed_dim, manifold, padding_idx=None)
         emb = SphereLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.SphereExact())
     else:
         emb = EuclideanLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
-    torch.set_default_dtype(torch.float)
+
     return emb
 
 
@@ -47,7 +46,7 @@ class ManifoldEmbeddings(nn.Module):
                  dtype=None
                  ):
 
-        factory_kwargs = {'device': device, 'dtype': torch.double}
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.manifold = manifold
         self.num_embeddings = num_embeddings
@@ -108,7 +107,7 @@ class LorentzEmbeddings(ManifoldEmbeddings):
 class LorentzLinear(LorentzEmbeddings):
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
-        x = x.double()
+        x = x
         if not self.manifold.check_point_on_manifold(x):
             x = self.manifold.expmap0(x)
         x = x @ self.weight.T
@@ -148,8 +147,8 @@ class PoincareLinear(PoincareEmbeddings):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
         if not self.manifold.check_point_on_manifold(x):
             x = self.manifold.expmap0(x)
-        x = x.double()
-        x = self.manifold.mobius_matvec(self.weight.double(), x)
+        x = x
+        x = self.manifold.mobius_matvec(self.weight, x)
 
         return x.float()
 
