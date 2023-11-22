@@ -3,10 +3,8 @@ from typing import Optional
 import geoopt
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from fairseq import utils
 from torch import Tensor
-from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=None):
     emb = None
@@ -17,10 +15,6 @@ def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=N
     elif manifold == "sphere":
         emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx)
     return emb
-
-
-
-
 
 class ManifoldEmbeddings(nn.Embedding):
     def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
