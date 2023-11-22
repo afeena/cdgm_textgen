@@ -4,79 +4,48 @@ import geoopt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from fairseq import utils
 from torch import Tensor
-
+from cdgm_textgen.models.transformer.transformer_base import Embedding
 
 def build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=None):
-    if manifold=="lorentz":
-        emb = LorentzEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Lorentz())
-    elif manifold=="poincare":
-        emb = PoincareEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.StereographicExact(k=-1.0))
-    elif manifold=="sphere":
-        emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.SphereExact())
-    else:
-        emb = EuclideanEmbeddings(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
-
-    return emb
-
-def build_manifold_linear(num_embeddings, embed_dim, manifold, padding_idx=None):
-
-    if manifold=="lorentz":
-        emb = LorentzLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Lorentz())
-    elif manifold=="poincare":
-        emb = PoincareLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.StereographicExact(k=-1.0))
-    elif manifold=="sphere":
-        emb = SphereLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.SphereExact())
-    else:
-        emb = EuclideanLinear(num_embeddings, embed_dim, padding_idx, manifold=geoopt.Euclidean())
-
+    emb = None
+    if manifold == "lorentz":
+        emb = LorentzEmbeddings(num_embeddings, embed_dim, padding_idx)
+    elif manifold == "poincare":
+        emb = PoincareEmbeddings(num_embeddings, embed_dim, padding_idx)
+    elif manifold == "sphere":
+        emb = SphereEmbeddings(num_embeddings, embed_dim, padding_idx)
     return emb
 
 
-class ManifoldEmbeddings(nn.Module):
-    def __init__(self, num_embeddings,
-                 embedding_dim,
-                 padding_idx,
-                 manifold,
-                 _weight: Optional[Tensor] = None,
-                 _freeze: bool = False,
-                 device=None,
-                 dtype=None
-                 ):
 
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super().__init__()
+
+
+class ManifoldEmbeddings(nn.Embedding):
+    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
+                 max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
+                 sparse: bool = False, _weight: Optional[Tensor] = None, _freeze: bool = False,
+                 device=None, dtype=None, manifold=None) -> None:
+
+        super().__init__(num_embeddings, embedding_dim,
+                         padding_idx, max_norm, norm_type,
+                         scale_grad_by_freq, sparse,
+                         _weight, _freeze, device, dtype)
         self.manifold = manifold
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
-        if padding_idx is not None:
-            if padding_idx > 0:
-                assert padding_idx < self.num_embeddings, 'Padding_idx must be within num_embeddings'
-            elif padding_idx < 0:
-                assert padding_idx >= -self.num_embeddings, 'Padding_idx must be within num_embeddings'
-                padding_idx = self.num_embeddings + padding_idx
-        self.padding_idx = padding_idx
-
-        if _weight is None:
-            self.weight = geoopt.ManifoldParameter(
-                torch.empty((num_embeddings, embedding_dim), **factory_kwargs),
-                manifold=self.manifold, requires_grad=not _freeze
-            )
-        else:
-            assert list(_weight.shape) == [num_embeddings, embedding_dim], \
-                'Shape of weight does not match num_embeddings and embedding_dim'
-            self.weight = geoopt.ManifoldParameter(self.to_manifold(_weight), requires_grad=not _freeze)
-
-    def forward(self, x):
-        size = x.size()+(self.embedding_dim,)
-        return torch.index_select(self.weight, 0, x.view(-1)).view(size)
+        self.reset_manifold_parameters()
 
     @torch.no_grad()
     def reset_manifold_parameters(self):
         self.weight.copy_(self.manifold.random((self.num_embeddings, self.embedding_dim),
                                                dtype=self.weight.dtype, device=self.weight.device))
+        self.weight = geoopt.ManifoldParameter(self.weight, manifold=self.manifold)
+
+    @torch.no_grad()
+    def load_embeddings(self, path, dictionary):
+        embed_dict = utils.parse_embedding(path)
+        utils.load_embedding(embed_dict, dictionary, self.weight)
+        self.weight.copy_(self.to_manifold(self.weight.data))
 
     def to_manifold(self, x):
         raise NotImplementedError
@@ -86,49 +55,14 @@ class ManifoldEmbeddings(nn.Module):
 
 
 class LorentzEmbeddings(ManifoldEmbeddings):
-    def __init__(self, n_in,
-                 n_out,
-                 padding_idx,
-                 manifold
-                 ):
-        super().__init__(n_in, n_out, padding_idx, manifold)
-        assert isinstance(self.manifold, geoopt.Lorentz), "Manifold must be Lorentz"
+    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
+                 max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
+                 sparse: bool = False, _weight: Optional[Tensor] = None, _freeze: bool = False,
+                 device=None, dtype=None, manifold=None):
+        manifold = geoopt.Lorentz()
+        super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
+                         scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
-    def load_embeddings(self, path, dictionary):
-        embed_dict = utils.parse_embedding(path)
-        utils.load_embedding(embed_dict, dictionary, self.weight)
-
-    def to_manifold(self, x):
-        return self.manifold.expmap0(x)
-
-    def to_tangent_space(self,x):
-        return self.manifold.logmap0(x)
-
-class LorentzLinear(LorentzEmbeddings):
-    def forward(self, x):
-        # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
-        x = x
-        if not self.manifold.check_point_on_manifold(x):
-            x = self.manifold.expmap0(x)
-        x = x @ self.weight.T
-
-        x_narrow = x.narrow(-1, 1, x.shape[-1] - 1)
-
-        time = x.narrow(-1, 0, 1).sigmoid() + 1.1
-        scale = (time * time - self.manifold.k) / \
-                (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
-        x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
-
-        return x.float()
-class PoincareEmbeddings(ManifoldEmbeddings):
-    def __init__(self, n_in,
-                 n_out,
-                 padding_idx,
-                 manifold
-                 ):
-        super().__init__(n_in, n_out, padding_idx, manifold)
-        assert (isinstance(self.manifold,
-                           geoopt.StereographicExact) and self.manifold.k == -1), "Manifold must be StereographicExact with k=-1"
 
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
@@ -136,66 +70,33 @@ class PoincareEmbeddings(ManifoldEmbeddings):
     def to_tangent_space(self, x):
         return self.manifold.logmap0(x)
 
-    @torch.no_grad()
-    def load_embeddings(self, path, dictionary):
-        embed_dict = utils.parse_embedding(path)
-        utils.load_embedding(embed_dict, dictionary, self.weight)
-        self.weight.copy_(self.manifold.expmap0(self.weight))
+class PoincareEmbeddings(ManifoldEmbeddings):
+    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
+                 max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
+                 sparse: bool = False, _weight: Optional[Tensor] = None, _freeze: bool = False,
+                 device=None, dtype=None, manifold=None):
+        manifold = geoopt.StereographicExact(k=-1.0)
+        super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
+                         scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
-class PoincareLinear(PoincareEmbeddings):
-    def forward(self, x):
-        # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
-        if not self.manifold.check_point_on_manifold(x):
-            x = self.manifold.expmap0(x)
-        x = x
-        x = self.manifold.mobius_matvec(self.weight, x)
+    def to_manifold(self, x):
+        return self.manifold.expmap0(x)
 
-        return x.float()
+    def to_tangent_space(self, x):
+        return self.manifold.logmap0(x)
+
 
 class SphereEmbeddings(ManifoldEmbeddings):
-    def __init__(self, n_in,
-                 n_out,
-                 padding_idx,
-                 manifold
-                 ):
-        super().__init__(n_in, n_out, padding_idx, manifold)
-        assert isinstance(self.manifold, geoopt.SphereExact), "Manifold must be SphereExact"
+    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
+                 max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
+                 sparse: bool = False, _weight: Optional[Tensor] = None, _freeze: bool = False,
+                 device=None, dtype=None, manifold=None):
+        manifold = geoopt.SphereExact()
+        super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
+                         scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
     def to_manifold(self, x):
-        x = x/x.norm(dim=-1, keepdim=True)
-        return x
-
-    def to_tangent_space(self, x):
-        return x
-
-    @torch.no_grad()
-    def load_embeddings(self, path, dictionary):
-        embed_dict = utils.parse_embedding(path)
-        utils.load_embedding(embed_dict, dictionary, self.weight)
-        self.weight.copy_(self.weight.data / self.weight.data.norm(dim=-1, keepdim=True))
-
-class SphereLinear(SphereEmbeddings):
-    def forward(self, x):
-        # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
-        x = F.normalize(x @ self.weight.T)
-        return x
-
-class EuclideanEmbeddings(ManifoldEmbeddings):
-    @torch.no_grad()
-    def load_embeddings(self, path, dictionary):
-        embed_dict = utils.parse_embedding(path)
-        utils.load_embedding(embed_dict, dictionary, self.weight)
-
-    def to_manifold(self, x):
-        return x
-
-    def to_tangent_space(self, x):
-        return x
-
-class EuclideanLinear(ManifoldEmbeddings):
-    def forward(self, x):
-        return x @ self.weight.T
-    def to_manifold(self, x):
+        x = x / x.norm(dim=-1, keepdim=True)
         return x
 
     def to_tangent_space(self, x):

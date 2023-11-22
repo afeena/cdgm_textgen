@@ -7,7 +7,10 @@ from torch import Tensor
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
-from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings, build_manifold_linear
+from cdgm_textgen.models.transformer.transformer_base import Embedding
+from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings
+from cdgm_textgen.modules.riemannian_linear import build_manifold_linear
+
 
 logger = logging.getLogger("cdgm_textgen.models.transformer.riemann_transformer")
 
@@ -67,16 +70,16 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
                 "--share-all-embeddings requires all embedding layers to be Riemannian"
             )
             encoder_embed_tokens = cls.build_embedding(
-                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path, manifold
+                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path, manifold if cfg.riemannian_enc_inp else None
             )
             decoder_embed_tokens = encoder_embed_tokens
             cfg.share_decoder_input_output_embed = True
         else:
             encoder_embed_tokens = cls.build_embedding(
-                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path, manifold
+                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path, manifold if cfg.riemannian_enc_inp else None
             )
             decoder_embed_tokens = cls.build_embedding(
-                cfg, tgt_dict, cfg.decoder.embed_dim, cfg.decoder.embed_path, manifold
+                cfg, tgt_dict, cfg.decoder.embed_dim, cfg.decoder.embed_path, manifold if cfg.riemannian_dec_inp else None
             )
         if cfg.offload_activations:
             cfg.checkpoint_activations = True  # offloading implies checkpointing
@@ -108,9 +111,13 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
     def build_embedding(cls, cfg, dictionary, embed_dim, path=None, manifold=None):
         num_embeddings = len(dictionary)
         padding_idx = dictionary.pad()
-        embeddings = build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=padding_idx)
-        if path:
-            embeddings.load_embeddings(path, dictionary)
+
+        if manifold is not None:
+            return build_manifold_embeddings(num_embeddings, embed_dim, manifold, padding_idx=padding_idx)
+        else:
+            embeddings = Embedding(num_embeddings, embed_dim, padding_idx)
+            if path:
+                embeddings.load_embeddings(path, dictionary)
         return embeddings
 
 
@@ -126,10 +133,10 @@ class ManifoldDecoder(TransformerDecoderBase):
     ):
         super(ManifoldDecoder, self).__init__(cfg, dictionary, embed_tokens, no_encoder_attn, output_projection)
         self.manifold = manifold
-        if manifold is not None and cfg.riemannian_dec_out:
-            self.build_manifold_output_projection(dictionary)
+        if cfg.riemannian_dec_out is True and self.manifold is not None:
+            self.build_manifold_output_projection(cfg, dictionary, embed_tokens)
 
-    def build_manifold_output_projection(self, dictionary):
+    def build_manifold_output_projection(self, cfg, dictionary, embed_tokens):
         if self.share_input_output_embed:
             self.output_projection = build_manifold_linear(
                 self.embed_tokens.weight.shape[1],
