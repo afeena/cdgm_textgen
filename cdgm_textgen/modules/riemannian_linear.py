@@ -25,7 +25,7 @@ class ManifoldLinear(nn.Linear):
 
     @torch.no_grad()
     def reset_manifold_parameters(self):
-        self.weight.copy_(self.random_init((self.in_features, self.out_features),
+        self.weight.copy_(self.random_init(self.weight.shape,
                                                dtype=self.weight.dtype, device=self.weight.device))
         self.weight = geoopt.ManifoldParameter(self.weight, manifold=self.manifold)
 
@@ -46,6 +46,7 @@ class LorentzLinear(ManifoldLinear):
 
     def random_init(self, shape, dtype, device):
         return self.manifold.random_normal(shape, dtype=dtype, device=device)
+
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
         if not self.manifold.check_point_on_manifold(x):
