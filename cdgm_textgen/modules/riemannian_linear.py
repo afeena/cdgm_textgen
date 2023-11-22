@@ -25,10 +25,12 @@ class ManifoldLinear(nn.Linear):
 
     @torch.no_grad()
     def reset_manifold_parameters(self):
-        self.weight.copy_(self.manifold.random((self.in_features, self.out_features),
+        self.weight.copy_(self.random_init((self.in_features, self.out_features),
                                                dtype=self.weight.dtype, device=self.weight.device))
         self.weight = geoopt.ManifoldParameter(self.weight, manifold=self.manifold)
 
+    def random_init(self, shape, dtype, device):
+        raise NotImplementedError
     def to_manifold(self, x):
         raise NotImplementedError
 
@@ -42,6 +44,8 @@ class LorentzLinear(ManifoldLinear):
         manifold = geoopt.Lorentz()
         super().__init__(in_features, out_features, bias, manifold=manifold)
 
+    def random_init(self, shape, dtype, device):
+        return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
         if not self.manifold.check_point_on_manifold(x):
@@ -70,6 +74,8 @@ class PoincareLinear(ManifoldLinear):
         manifold = geoopt.StereographicExact(k=1.0)
         super().__init__(in_features, out_features, bias, manifold=manifold)
 
+    def random_init(self, shape, dtype, device):
+        return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def forward(self, x):
         if not self.manifold.check_point_on_manifold(x):
             x = self.manifold.expmap0(x)
@@ -93,6 +99,8 @@ class SphereLinear(ManifoldLinear):
         x = F.normalize(x @ self.weight.T)
         return x
 
+    def random_init(self, shape, dtype, device):
+        return self.manifold.random_uniform(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
         x = x / x.norm(dim=-1, keepdim=True)
         return x

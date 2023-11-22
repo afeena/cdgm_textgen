@@ -30,6 +30,7 @@ class ManifoldEmbeddings(nn.Embedding):
         self.manifold = manifold
         self.reset_manifold_parameters()
 
+    @torch.no_grad()
     def random_init(self, shape, dtype, device):
         raise NotImplementedError
     @torch.no_grad()
@@ -61,6 +62,7 @@ class LorentzEmbeddings(ManifoldEmbeddings):
         super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
+    @torch.no_grad()
     def random_init(self, shape, dtype, device):
         return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
@@ -78,6 +80,7 @@ class PoincareEmbeddings(ManifoldEmbeddings):
         super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
+    @torch.no_grad()
     def random_init(self, shape, dtype, device):
         return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
@@ -96,6 +99,7 @@ class SphereEmbeddings(ManifoldEmbeddings):
         super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
+    @torch.no_grad()
     def random_init(self, shape, dtype, device):
         return self.manifold.random_uniform(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
