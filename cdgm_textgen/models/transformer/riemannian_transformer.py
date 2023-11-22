@@ -104,7 +104,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens, manifold=None):
-        decoder = ManifoldDecoder(cfg, tgt_dict, embed_tokens, manifold)
+        decoder = ManifoldDecoder(cfg, tgt_dict, embed_tokens, manifold=manifold)
         return decoder
 
     @classmethod

@@ -25,7 +25,7 @@ class ManifoldLinear(nn.Linear):
 
     @torch.no_grad()
     def reset_manifold_parameters(self):
-        self.weight.copy_(self.manifold.random((self.num_embeddings, self.embedding_dim),
+        self.weight.copy_(self.manifold.random((self.in_features, self.out_features),
                                                dtype=self.weight.dtype, device=self.weight.device))
         self.weight = geoopt.ManifoldParameter(self.weight, manifold=self.manifold)
 
