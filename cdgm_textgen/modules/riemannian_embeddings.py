@@ -62,7 +62,7 @@ class LorentzEmbeddings(ManifoldEmbeddings):
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
     def random_init(self, shape, dtype, device):
-        raise self.manifold.random_normal(shape, dtype=dtype, device=device)
+        return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
 
@@ -79,7 +79,7 @@ class PoincareEmbeddings(ManifoldEmbeddings):
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
     def random_init(self, shape, dtype, device):
-        raise self.manifold.random_normal(shape, dtype=dtype, device=device)
+        return self.manifold.random_normal(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
 
@@ -97,7 +97,7 @@ class SphereEmbeddings(ManifoldEmbeddings):
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
 
     def random_init(self, shape, dtype, device):
-        raise self.manifold.random_uniform(shape, dtype=dtype, device=device)
+        return self.manifold.random_uniform(shape, dtype=dtype, device=device)
     def to_manifold(self, x):
         x = x / x.norm(dim=-1, keepdim=True)
         return x
