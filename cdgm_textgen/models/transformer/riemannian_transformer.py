@@ -90,7 +90,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
 
         for pn, p in model.named_parameters():
             if p.requires_grad:
-                if p.manifold is not None:
+                if hasattr(p, "manifold"):
                     p.param_group = "riemannian"
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 else:
