@@ -90,16 +90,11 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
 
         for pn, p in model.named_parameters():
             if p.requires_grad:
-                if cfg.riemannian_dec_inp and (pn.endswith("decoder.embed_tokens") or "decoder.embed_tokens" in pn):
-                    p.param_group = "riemannian"
-                    print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
-                elif cfg.riemannian_dec_out and (
-                        pn.endswith("output_projection") or "output_projection" in pn):
+                if p.manifold is not None:
                     p.param_group = "riemannian"
                     print(f"{pn} optimizer is set to RiemannianAdam, manifold: {p.manifold}")
                 else:
                     p.param_group = "default"
-
         return model
 
     @classmethod
