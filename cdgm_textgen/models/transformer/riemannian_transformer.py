@@ -1,7 +1,8 @@
 import logging
 from dataclasses import field, dataclass
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 
+import torch
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 from torch import Tensor
 
@@ -290,3 +291,26 @@ class ManifoldDecoder(TransformerDecoderBase):
             x = self.project_out_dim(x)
 
         return x, {"attn": [attn], "inner_states": inner_states}
+
+
+    @torch.jit.export
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            **kwargs
+    ):
+        """Get normalized probabilities (or log probs) from a net's output."""
+        return self.get_normalized_probs_scriptable(net_output, log_probs, sample)
+
+    def get_normalized_probs_scriptable(
+        self,
+        net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+        log_probs: bool,
+        sample: Optional[Dict[str, Tensor]] = None,
+    ):
+        """Get normalized probabilities (or log probs) from a net's output."""
+
+        logits = net_output[0]
+        return torch.exp(logits)

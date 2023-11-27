@@ -83,12 +83,14 @@ class PoincareLinear(ManifoldLinear):
     def forward(self, x):
         if not self.manifold.check_point_on_manifold(x):
             x = self.manifold.expmap0(x)
+        a_k = self.manifold.logmap0(self.weight),
         dist2hyp = dist2plane(
             x=x,
-            a=self.manifold.logmap0(self.weight),
+            a=a_k,
             p=self.weight
         )
-        return dist2hyp
+        mult_fac = 2*torch.norm(a_k, dim=-1, keepdim=True)/(1-torch.norm(self.weight, dim=-1, keepdim=True)**2)
+        return mult_fac*dist2hyp
 
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
