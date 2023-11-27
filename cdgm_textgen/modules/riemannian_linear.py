@@ -1,4 +1,5 @@
 import geoopt
+import geoopt.manifolds.stereographic.math.dist2plane as dist2plane
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -26,11 +27,12 @@ class ManifoldLinear(nn.Linear):
     @torch.no_grad()
     def reset_manifold_parameters(self):
         self.weight.copy_(self.random_init(self.weight.shape,
-                                               dtype=self.weight.dtype, device=self.weight.device))
+                                           dtype=self.weight.dtype, device=self.weight.device))
         self.weight = geoopt.ManifoldParameter(self.weight, manifold=self.manifold)
 
     def random_init(self, shape, dtype, device):
         raise NotImplementedError
+
     def to_manifold(self, x):
         raise NotImplementedError
 
@@ -77,11 +79,16 @@ class PoincareLinear(ManifoldLinear):
 
     def random_init(self, shape, dtype, device):
         return self.manifold.random_normal(shape, dtype=dtype, device=device)
+
     def forward(self, x):
         if not self.manifold.check_point_on_manifold(x):
             x = self.manifold.expmap0(x)
-        x = self.manifold.mobius_matvec(self.weight, x)
-        return x
+        dist2hyp = dist2plane(
+            x=x,
+            a=self.manifold.logmap0(self.weight),
+            p=self.weight
+        )
+        return dist2hyp
 
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
@@ -102,6 +109,7 @@ class SphereLinear(ManifoldLinear):
 
     def random_init(self, shape, dtype, device):
         return self.manifold.random_uniform(shape, dtype=dtype, device=device)
+
     def to_manifold(self, x):
         x = x / x.norm(dim=-1, keepdim=True)
         return x

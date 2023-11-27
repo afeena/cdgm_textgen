@@ -1,19 +1,8 @@
 import math
-from dataclasses import dataclass
-from dataclasses import field
-from typing import Optional
-
-import geoopt.manifolds.stereographic.math as pmath
-import power_spherical
-import torch
 import torch.nn.functional as F
 from fairseq import metrics
-from fairseq.criterions import register_criterion, FairseqCriterion
-from fairseq.criterions.cross_entropy import CrossEntropyCriterion, CrossEntropyCriterionConfig
-from fairseq.dataclass import FairseqDataclass
-from geoopt import StereographicExact
-from torch.distributions import multivariate_normal
-
+from fairseq.criterions import register_criterion
+from fairseq.criterions.cross_entropy import CrossEntropyCriterion
 @register_criterion("cosine_ar_criterion")
 class CosineARCriterion(CrossEntropyCriterion):
 
