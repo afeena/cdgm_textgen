@@ -62,7 +62,7 @@ class LorentzLinear(ManifoldLinear):
         #         (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
         # x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
 
-        x = x @ self.manifold.logmap0(self.weight.T)
+        x = x @ self.manifold.logmap0(self.weight).T
         return x
 
     def to_manifold(self, x):
@@ -91,7 +91,7 @@ class PoincareLinear(ManifoldLinear):
         #     p=self.weight
         # )
         # mult_fac = 2*torch.norm(a_k, dim=-1, keepdim=True)/(1-torch.norm(self.weight, dim=-1, keepdim=True)**2)
-        x = x @ self.manifold.logmap0(self.weight.T)
+        x = x @ self.manifold.logmap0(self.weight).T
         return x
 
     def to_manifold(self, x):
