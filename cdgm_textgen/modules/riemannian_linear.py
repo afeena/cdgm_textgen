@@ -1,5 +1,5 @@
 import geoopt
-import geoopt.manifolds.stereographic.math.dist2plane as dist2plane
+from geoopt.manifolds.stereographic.math import dist2plane
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
