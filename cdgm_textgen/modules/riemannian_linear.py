@@ -51,17 +51,18 @@ class LorentzLinear(ManifoldLinear):
 
     def forward(self, x):
         # https://github.com/chenweize1998/fully-hyperbolic-nn/blob/main/mt/onmt/modules/hyper_nets.py#L41
-        if not self.manifold.check_point_on_manifold(x):
-            x = self.manifold.expmap0(x)
-        x = x @ self.weight.T
+        # if not self.manifold.check_point_on_manifold(x):
+        #     x = self.manifold.expmap0(x)
+        # x = x @ self.weight.T
+        #
+        # x_narrow = x.narrow(-1, 1, x.shape[-1] - 1)
+        #
+        # time = x.narrow(-1, 0, 1).sigmoid() + 1.1
+        # scale = (time * time - self.manifold.k) / \
+        #         (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
+        # x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
 
-        x_narrow = x.narrow(-1, 1, x.shape[-1] - 1)
-
-        time = x.narrow(-1, 0, 1).sigmoid() + 1.1
-        scale = (time * time - self.manifold.k) / \
-                (x_narrow * x_narrow).sum(dim=-1, keepdim=True)
-        x = torch.cat([time, x_narrow * scale.sqrt()], dim=-1)
-
+        x = x @ self.manifold.logmap0(self.weight.T)
         return x
 
     def to_manifold(self, x):
@@ -81,16 +82,17 @@ class PoincareLinear(ManifoldLinear):
         return self.manifold.random_normal(shape, dtype=dtype, device=device)
 
     def forward(self, x):
-        if not self.manifold.check_point_on_manifold(x):
-            x = self.manifold.expmap0(x)
-        a_k = self.manifold.logmap0(self.weight),
-        dist2hyp = dist2plane(
-            x=x,
-            a=a_k,
-            p=self.weight
-        )
-        mult_fac = 2*torch.norm(a_k, dim=-1, keepdim=True)/(1-torch.norm(self.weight, dim=-1, keepdim=True)**2)
-        return mult_fac*dist2hyp
+        # if not self.manifold.check_point_on_manifold(x):
+        #     x = self.manifold.expmap0(x)
+        # a_k = self.manifold.logmap0(self.weight),
+        # dist2hyp = dist2plane(
+        #     x=x,
+        #     a=a_k,
+        #     p=self.weight
+        # )
+        # mult_fac = 2*torch.norm(a_k, dim=-1, keepdim=True)/(1-torch.norm(self.weight, dim=-1, keepdim=True)**2)
+        x = x @ self.manifold.logmap0(self.weight.T)
+        return x
 
     def to_manifold(self, x):
         return self.manifold.expmap0(x)
