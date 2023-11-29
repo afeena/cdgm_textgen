@@ -75,7 +75,7 @@ class LorentzLinear(ManifoldLinear):
 class PoincareLinear(ManifoldLinear):
     def __init__(self, in_features, out_features, bias=False, manifold=None):
         bias = False
-        manifold = geoopt.StereographicExact(k=1.0)
+        manifold = geoopt.StereographicExact(k=-1.0)
         super().__init__(in_features, out_features, bias, manifold=manifold)
 
     def random_init(self, shape, dtype, device):
