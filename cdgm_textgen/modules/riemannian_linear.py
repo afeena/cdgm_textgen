@@ -108,7 +108,7 @@ class SphereLinear(ManifoldLinear):
         super().__init__(in_features, out_features, bias, manifold=manifold)
 
     def forward(self, x):
-        x = F.normalize(x @ self.weight.T)
+        x = x @ self.weight.T
         return x
 
     def random_init(self, shape, dtype, device):
