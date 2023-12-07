@@ -59,8 +59,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["total"] = utils.item(total.data)
         if self.report_dispersed:
             dispersed_min_dist, dispersed_mean_v = self.compute_dispersed_metrics(model)
-            logging_output["dispersed_min_dist"] = dispersed_min_dist.detach()
-            logging_output["dispersed_mean_v"] = dispersed_mean_v.detach()
+            logging_output["dispersed_min_dist"] = dispersed_min_dist.data
+            logging_output["dispersed_mean_v"] = dispersed_mean_v.data
 
         return loss, sample_size, logging_output
 
