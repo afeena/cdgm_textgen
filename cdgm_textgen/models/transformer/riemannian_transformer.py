@@ -169,7 +169,7 @@ class ManifoldDecoder(TransformerDecoderBase):
     super().extract_features, but super() is not supported in torchscript. A copy of
     this function is made to be used in the subclass instead.
     """
-
+    @torch.jit.export
     def extract_features_scriptable(
             self,
             prev_output_tokens,
@@ -291,26 +291,3 @@ class ManifoldDecoder(TransformerDecoderBase):
             x = self.project_out_dim(x)
 
         return x, {"attn": [attn], "inner_states": inner_states}
-
-
-    # @torch.jit.export
-    # def get_normalized_probs(
-    #         self,
-    #         net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-    #         log_probs: bool,
-    #         sample: Optional[Dict[str, Tensor]] = None,
-    #         **kwargs
-    # ):
-    #     """Get normalized probabilities (or log probs) from a net's output."""
-    #     return self.get_normalized_probs_scriptable(net_output, log_probs, sample)
-    #
-    # def get_normalized_probs_scriptable(
-    #     self,
-    #     net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-    #     log_probs: bool,
-    #     sample: Optional[Dict[str, Tensor]] = None,
-    # ):
-    #     """Get normalized probabilities (or log probs) from a net's output."""
-    #
-    #     logits = net_output[0]
-    #     return torch.exp(logits)
