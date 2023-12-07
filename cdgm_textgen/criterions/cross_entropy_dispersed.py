@@ -15,7 +15,8 @@ class LSCrossEntropyDispersedCriterionConfig(LabelSmoothedCrossEntropyCriterionC
         default=0.0,
         metadata={"help": "weight for dispersed loss"},
     )
-    report_dispersed: bool = field(default=True, metadata={"help": "report dispersed loss"})
+    report_dispersed: bool = field(default=True,
+                                   metadata={"help": "report dispersed loss"})
 
 
 @register_criterion("label_smoothed_cross_entropy_dispersed", dataclass=LSCrossEntropyDispersedCriterionConfig)
@@ -57,6 +58,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             n_correct, total = self.compute_accuracy(model, net_output, sample)
             logging_output["n_correct"] = utils.item(n_correct.data)
             logging_output["total"] = utils.item(total.data)
+
         if self.report_dispersed:
             dispersed_min_dist, dispersed_mean_v = self.compute_dispersed_metrics(model)
             logging_output["dispersed_min_dist"] = dispersed_min_dist.data
@@ -83,10 +85,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            manifold = geoopt.manifolds.SphereExact()
-            dist = manifold.dist(model.decoder.embed_tokens.weight.data,
-                                 model.decoder.embed_tokens.weight.data,
-                                 keepdim=True)
+
+            dist = torch.acos(torch.inner(model.decoder.embed_tokens.weight.data,
+                                 model.decoder.embed_tokens.weight.data))
             dist.fill_diagonal_(float('inf'))
             min_dist = dist.min(dim=-1)[0]
             mean_v = 1-torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
@@ -134,7 +135,6 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
     def compute_dispered_loss(self, model):
         #first sample n uniform points on the sphere
-        manifold = geoopt.manifolds.SphereExact()
         samples = F.normalize(torch.randn(self.n_samples,
                                           1,
                                           model.decoder.embed_dim,
@@ -142,7 +142,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
                                           ),
                               dim=-1)
         # then compute the distance to the nearest point on the sphere
-        dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...])
+        dist2 = torch.acos(torch.inner(samples, model.decoder.embed_tokens.weight[None,...]))**2
         #choose closest center for each sample and sum results
         ll = (torch.min(dist2, dim=-1)[0]).sum()
         return ll
