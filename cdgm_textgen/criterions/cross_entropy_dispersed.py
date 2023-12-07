@@ -135,7 +135,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
         manifold = geoopt.manifolds.SphereExact()
         samples = F.normalize(torch.randn(self.n_samples, 1, model.decoder.embed_dim), dim=-1)
         # then compute the distance to the nearest point on the sphere
-        dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...], dim=-1)
+        dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...])
         #choose closest center for each sample and sum results
         ll = (torch.min(dist2, dim=-1)[0]).sum()
         return ll
