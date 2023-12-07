@@ -84,7 +84,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
             manifold = geoopt.manifolds.SphereExact()
-            dist = manifold.dist(model.decoder.embed_tokens.weight.data, model.decoder.embed_tokens.weight.data)
+            dist = manifold.dist(model.decoder.embed_tokens.weight.data,
+                                 model.decoder.embed_tokens.weight.data,
+                                 keepdim=True)
             dist.fill_diagonal_(float('inf'))
             min_dist = dist.min(dim=-1)[0]
             mean_v = 1-torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
