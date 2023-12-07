@@ -58,7 +58,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["n_correct"] = utils.item(n_correct.data)
             logging_output["total"] = utils.item(total.data)
         if self.report_dispersed:
-            dispersed_min_dist, dispersed_mean_v = self.compute_dispered_loss(model)
+            dispersed_min_dist, dispersed_mean_v = self.compute_dispersed_metrics(model)
             logging_output["dispersed_min_dist"] = dispersed_min_dist.detach()
             logging_output["dispersed_mean_v"] = dispersed_mean_v.detach()
 
@@ -133,7 +133,12 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
         #first sample n uniform points on the sphere
         manifold = geoopt.manifolds.SphereExact()
-        samples = F.normalize(torch.randn(self.n_samples, 1, model.decoder.embed_dim, device=model.decoder.embed_tokens.weight.device), dim=-1)
+        samples = F.normalize(torch.randn(self.n_samples,
+                                          1,
+                                          model.decoder.embed_dim,
+                                          device=model.decoder.embed_tokens.weight.device
+                                          ),
+                              dim=-1)
         # then compute the distance to the nearest point on the sphere
         dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...])
         #choose closest center for each sample and sum results
