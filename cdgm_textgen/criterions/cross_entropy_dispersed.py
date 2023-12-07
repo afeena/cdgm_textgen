@@ -133,7 +133,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
         #first sample n uniform points on the sphere
         manifold = geoopt.manifolds.SphereExact()
-        samples = F.normalize(torch.randn(self.n_samples, 1, model.decoder.embed_dim, device=model.decoder.embed_tokens.device), dim=-1)
+        samples = F.normalize(torch.randn(self.n_samples, 1, model.decoder.embed_dim, device=model.decoder.embed_tokens.weight.device), dim=-1)
         # then compute the distance to the nearest point on the sphere
         dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...])
         #choose closest center for each sample and sum results
