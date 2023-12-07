@@ -115,7 +115,7 @@ class LSCrossEntropyLloysCriterionConfig(LSCrossEntropyDispersedCriterionConfig)
     )
 
 @register_criterion("label_smoothed_cross_entropy_lloyd", dataclass=LSCrossEntropyLloysCriterionConfig)
-class LSCrossEntropyLloydCriterion(LabelSmoothedCrossEntropyCriterion):
+class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
