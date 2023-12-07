@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+import geoopt
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion
@@ -82,7 +83,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            dist = model.decoder.manifold.dist(model.decoder.weight.data, model.decoder.weight.data)
+            manifold = geoopt.manifolds.SphereExact()
+            dist = manifold.dist(model.decoder.weight.data, model.decoder.weight.data)
             dist.fill_diagonal_(float('inf'))
             min_dist = dist.min(dim=-1)[0]
             mean_v = 1-torch.norm(torch.mean(model.decoder.weight.data, dim=0))
@@ -130,7 +132,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
     def compute_dispered_loss(self, model):
         #first sample n uniform points on the sphere
-        manifold = model.decoder.manifold
+        manifold = geoopt.manifolds.SphereExact()
         samples = F.normalize(torch.randn(self.n_samples, 1, model.decoder.embed_dim), dim=-1)
         # then compute the distance to the nearest point on the sphere
         dist2 = manifold.dist2(samples, model.decoder.embed_tokens.weight[None,...], dim=-1)
