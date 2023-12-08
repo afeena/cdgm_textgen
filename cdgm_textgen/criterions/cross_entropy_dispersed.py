@@ -112,7 +112,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
 
 class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
-    n_samples: int = field(
+    n_lloyd_samples: int = field(
         default=100,
         metadata={"help": "weight for dispersed loss"},
     )
@@ -127,9 +127,9 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
                  report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True,
-                 n_samples=100):
+                 n_lloyd_samples=100):
         super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight, report_dispersed)
-        self.n_samples = n_samples
+        self.n_samples = n_lloyd_samples
 
     def compute_dispered_loss(self, model):
         #first sample n uniform points on the sphere
