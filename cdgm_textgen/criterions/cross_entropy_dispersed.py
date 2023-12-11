@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-import geoopt
 import torch
 import torch.nn.functional as F
 from fairseq.criterions import register_criterion
@@ -99,6 +98,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
         dispersed_min_dist = sum(log.get("dispersed_min_dist", 0) for log in logging_outputs)
         dispersed_mean_v = sum(log.get("dispersed_mean_v", 0) for log in logging_outputs)
+        n_logs = len(logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
@@ -107,8 +107,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         metrics.log_scalar(
             "nll_loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        metrics.log_scalar("min_dist", dispersed_min_dist /sample_size , sample_size, round=4)
-        metrics.log_scalar("mean dist val", dispersed_mean_v /sample_size, sample_size, round=4)
+        metrics.log_scalar("min_dist", dispersed_min_dist /n_logs , sample_size, round=4)
+        metrics.log_scalar("mean dist val", dispersed_mean_v /n_logs, sample_size, round=4)
 
 @dataclass
 class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
