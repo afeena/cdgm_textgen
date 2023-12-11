@@ -87,7 +87,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         with torch.no_grad():
             dist = torch.acos(model.decoder.embed_tokens.weight.data @ model.decoder.embed_tokens.weight.data.T)
             dist.fill_diagonal_(float('inf'))
-            min_dist = dist.view(-1).min()[0]
+            min_dist = dist.view(-1).min()
             mean_v = 1-torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
             return min_dist.detach(), mean_v.detach()
 
@@ -107,8 +107,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         metrics.log_scalar(
             "nll_loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        metrics.log_scalar("min_dist", dispersed_min_dist, 1, round=4)
-        metrics.log_scalar("mean dist val", dispersed_mean_v, 1, round=4)
+        metrics.log_scalar("min_dist", dispersed_min_dist /sample_size , sample_size, round=4)
+        metrics.log_scalar("mean dist val", dispersed_mean_v /sample_size, sample_size, round=4)
 
 
 class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
@@ -140,7 +140,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
                                           ),
                               dim=-1)
         # then compute the distance to the nearest point on the sphere
-        dist2 = torch.acos(samples@model.decoder.embed_tokens.weight.T)**2
+        dist2 = torch.acos(samples @ model.decoder.embed_tokens.weight.T)**2
         #choose closest center for each sample and sum results
         ll = (torch.min(dist2, dim=-1)[0]).sum()
         return ll
