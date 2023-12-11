@@ -110,7 +110,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         metrics.log_scalar("min_dist", dispersed_min_dist /sample_size , sample_size, round=4)
         metrics.log_scalar("mean dist val", dispersed_mean_v /sample_size, sample_size, round=4)
 
-
+@dataclass
 class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
     n_lloyd_samples: int = field(
         default=100,
