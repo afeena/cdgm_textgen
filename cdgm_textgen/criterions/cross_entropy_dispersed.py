@@ -1,12 +1,13 @@
+import math
 from dataclasses import dataclass, field
 
 import torch
 import torch.nn.functional as F
+from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
-from fairseq import metrics, utils
-import math
+
 
 @dataclass
 class LSCrossEntropyDispersedCriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
@@ -87,7 +88,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             dist = torch.acos(model.decoder.embed_tokens.weight.data @ model.decoder.embed_tokens.weight.data.T)
             dist.fill_diagonal_(float('inf'))
             min_dist = dist.view(-1).min()
-            mean_v = 1-torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
+            mean_v = 1 - torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
             return min_dist.detach(), mean_v.detach()
 
     @staticmethod
@@ -107,8 +108,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         metrics.log_scalar(
             "nll_loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-        metrics.log_scalar("min_dist", dispersed_min_dist /n_logs , sample_size, round=4)
-        metrics.log_scalar("mean dist val", dispersed_mean_v /n_logs, sample_size, round=4)
+        metrics.log_scalar("min_dist", dispersed_min_dist / n_logs, sample_size, round=4)
+        metrics.log_scalar("mean dist val", dispersed_mean_v / n_logs, sample_size, round=4)
+
 
 @dataclass
 class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
@@ -116,6 +118,7 @@ class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig)
         default=100,
         metadata={"help": "weight for dispersed loss"},
     )
+
 
 @register_criterion("label_smoothed_cross_entropy_lloyd", dataclass=LSCrossEntropyLloydCriterionConfig)
 class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
@@ -128,11 +131,12 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
                  dispersed_weight=0.0,
                  report_dispersed=True,
                  n_lloyd_samples=100):
-        super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight, report_dispersed)
+        super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight,
+                         report_dispersed)
         self.n_samples = n_lloyd_samples
 
     def compute_dispered_loss(self, model):
-        #first sample n uniform points on the sphere
+        # first sample n uniform points on the sphere
         samples = F.normalize(torch.randn(self.n_samples,
                                           1,
                                           model.decoder.embed_dim,
@@ -140,8 +144,32 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
                                           ),
                               dim=-1)
         # then compute the distance to the nearest point on the sphere
-        dist2 = torch.acos(samples @ model.decoder.embed_tokens.weight.T)**2
-        #choose closest center for each sample and sum results
+        dist2 = torch.acos(samples @ model.decoder.embed_tokens.weight.T) ** 2
+        # choose closest center for each sample and sum results
         ll = (torch.min(dist2, dim=-1)[0]).sum()
         return ll
 
+
+@register_criterion("label_smoothed_cross_entropy_sliced", dataclass=LSCrossEntropyDispersedCriterionConfig)
+class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
+    def compute_dispered_loss(self, model):
+        # choose a great circle at random via orthonormal p,q
+        PQ = F.normalize(torch.randn(2, model.decoder.embed_dim, dtype=torch.double), dim=-1)
+        PQ, _ = torch.linalg.qr(PQ.T)
+        p, q = PQ[:, 0], PQ[:, 1]
+
+        # project all embeddings onto the great circle
+        thetas = torch.arctan2(model.decoder.embed_tokens.weight @ p, model.decoder.embed_tokens.weight @ q)
+
+        vocab_size = model.decoder.embed_tokens.weight.size(0)
+        ix = torch.argsort(thetas)
+        invix = torch.empty_like(ix)
+        invix[ix] = torch.arange(vocab_size)
+
+        phis = -math.pi - math.pi / vocab_size + (2 * math.pi * torch.arange(1, vocab_size + 1)) / vocab_size
+        phis = phis[invix]
+
+        # riemannian projection:
+        tctr = 0.5*torch.mean(torch.pow(thetas - phis, 2))
+
+        return tctr
