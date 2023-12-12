@@ -154,7 +154,10 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
         # choose a great circle at random via orthonormal p,q
-        PQ = F.normalize(torch.randn(2, model.decoder.embed_dim, dtype=torch.double), dim=-1)
+        PQ = F.normalize(torch.randn(2, model.decoder.embed_dim,
+                                     dtype=model.decoder.embed_tokens.weight.dtype,
+                                     device=model.decoder.embed_tokens.weight.device),
+                         dim=-1)
         PQ, _ = torch.linalg.qr(PQ.T)
         p, q = PQ[:, 0], PQ[:, 1]
 
