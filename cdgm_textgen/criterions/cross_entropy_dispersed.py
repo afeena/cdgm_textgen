@@ -167,9 +167,11 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
         vocab_size = model.decoder.embed_tokens.weight.size(0)
         ix = torch.argsort(thetas)
         invix = torch.empty_like(ix)
-        invix[ix] = torch.arange(vocab_size)
+        invix[ix] = torch.arange(vocab_size, device=model.decoder.embed_tokens.weight.device)
 
-        phis = -math.pi - math.pi / vocab_size + (2 * math.pi * torch.arange(1, vocab_size + 1)) / vocab_size
+        phis = -math.pi - math.pi / vocab_size + (2 * math.pi *
+                                                  torch.arange(1, vocab_size + 1, device=model.decoder.embed_tokens.weight.device)
+                                                  ) / vocab_size
         phis = phis[invix]
 
         # riemannian projection:
