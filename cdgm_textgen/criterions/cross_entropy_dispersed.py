@@ -8,6 +8,8 @@ from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
 
+from cdgm_textgen.modules.sliced_sphere import compute_sliced_sphere_dispersion
+
 
 @dataclass
 class LSCrossEntropyDispersedCriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
@@ -153,28 +155,4 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 @register_criterion("label_smoothed_cross_entropy_sliced", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
-        # choose a great circle at random via orthonormal p,q
-        PQ = F.normalize(torch.randn(2, model.decoder.embed_dim,
-                                     dtype=model.decoder.embed_tokens.weight.dtype,
-                                     device=model.decoder.embed_tokens.weight.device),
-                         dim=-1)
-        PQ, _ = torch.linalg.qr(PQ.T)
-        p, q = PQ[:, 0], PQ[:, 1]
-
-        # project all embeddings onto the great circle
-        thetas = torch.arctan2(model.decoder.embed_tokens.weight @ p, model.decoder.embed_tokens.weight @ q)
-
-        vocab_size = model.decoder.embed_tokens.weight.size(0)
-        ix = torch.argsort(thetas)
-        invix = torch.empty_like(ix)
-        invix[ix] = torch.arange(vocab_size, device=model.decoder.embed_tokens.weight.device)
-
-        phis = -math.pi - math.pi / vocab_size + (2 * math.pi *
-                                                  torch.arange(1, vocab_size + 1, device=model.decoder.embed_tokens.weight.device)
-                                                  ) / vocab_size
-        phis = phis[invix]
-
-        # riemannian projection:
-        tctr = 0.5*torch.mean(torch.pow(thetas - phis, 2))
-
-        return tctr
+        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight.data)
