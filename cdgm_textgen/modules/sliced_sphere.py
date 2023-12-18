@@ -17,10 +17,10 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
         dtype = weight.dtype
         device = weight.device
 
-        PQ = F.normalize(torch.randn(2, emb_dim,
+        PQ = torch.randn(2, emb_dim,
                                      dtype=dtype,
-                                     device=device),
-                         dim=-1)
+                                     device=device)
+
         PQ, _ = torch.linalg.qr(PQ.T)
         p, q = PQ[:, 0], PQ[:, 1]
 
@@ -37,10 +37,15 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
                                                   torch.arange(1, vocab_size + 1,
                                                                device=device)
                                                   ) / vocab_size
-        phis = phis[invix]
 
-        # riemannian projection:
-        return 0.5 * torch.mean(torch.pow(thetas - phis, 2))
+
+        phis = phis[invix]
+        thetas_star = torch.mean(thetas)-phis
+
+        ctx.thetas_star = thetas_star
+        ctx.thetas = thetas
+
+        return 0.5*torch.mean(torch.pow(thetas-thetas_star, 2))
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -50,7 +55,10 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
         p = ctx.p
         q = ctx.q
 
-        return grad_output * (
+        thetas_star = ctx.thetas_star
+        thetas = ctx.thetas
+
+        return (thetas-thetas_star) * (
             ((weight @ p) * q - (weight @ q) * p)/ ((weight @ p)**2+(weight @ q)**2)
         )
 
