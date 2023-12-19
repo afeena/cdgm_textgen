@@ -8,39 +8,43 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
     """
     calculates forward and backward pass for sliced sphere despersion regularized
     """
-
     @staticmethod
-    def forward(ctx, weight):
+    def forward(ctx, X):
 
-        ctx.save_for_backward(weight)
-        emb_dim = weight.size(-1)
-        dtype = weight.dtype
-        device = weight.device
+        d = X.size(-1)
+        N = X.size(0)
+        dtype = X.dtype
+        device = X.device
 
-        PQ = torch.randn(2, emb_dim,
+        PQ = torch.randn(d, 2, requires_grad=False,
                                      dtype=dtype,
                                      device=device)
 
-        PQ, _ = torch.linalg.qr(PQ.T)
+        PQ, R = torch.linalg.qr(PQ)
+        PQ *= R.diagonal().sign()
         p, q = PQ[:, 0], PQ[:, 1]
 
         ctx.p = p
         ctx.q = q
-        thetas = torch.arctan2(weight @ p, weight @ q)
+        Xp = X @ p
+        Xq = X @ q
 
-        vocab_size = weight.size(0)
+        ctx.save_for_backward(Xp, Xq)
+
+        thetas = torch.arctan2(Xq, Xp)
+
         ix = torch.argsort(thetas)
         invix = torch.empty_like(ix)
-        invix[ix] = torch.arange(vocab_size, device=device)
+        invix[ix] = torch.arange(N, device=device)
 
-        phis = -math.pi - math.pi / vocab_size + (2 * math.pi *
-                                                  torch.arange(1, vocab_size + 1,
+        phis = -math.pi - math.pi / N + (2 * math.pi *
+                                                  torch.arange(1, N + 1,
                                                                device=device)
-                                                  ) / vocab_size
+                                                  ) / N
 
 
         phis = phis[invix]
-        thetas_star = torch.mean(thetas)-phis
+        thetas_star = torch.mean(thetas)+phis
 
         ctx.thetas_star = thetas_star
         ctx.thetas = thetas
@@ -51,15 +55,28 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
     def backward(ctx, grad_output):
         """
         """
-        weight = ctx.saved_tensors[-1]
+        #check this part!
+        Xp, Xq = ctx.saved_tensors
         p = ctx.p
         q = ctx.q
 
         thetas_star = ctx.thetas_star
         thetas = ctx.thetas
 
-        return (thetas-thetas_star) * (
-            ((weight @ p) * q - (weight @ q) * p)/ ((weight @ p)**2+(weight @ q)**2)
-        )
+        grad = (
+                (Xp * q.unsqueeze(-1) - Xq * p.unsqueeze(-1)) / (Xp ** 2 + Xq ** 2)
+        ) * (thetas - thetas_star)
+
+        return grad_output * grad.T
 
 compute_sliced_sphere_dispersion = SlicedSphereDispersionFunction.apply
+
+# def main():
+#     X = torch.randn(10, 2, requires_grad=True)
+#     y = F.normalize(X, dim=-1)
+#     res = compute_sliced_sphere_dispersion(y)
+#     res.backward()
+#     print(X.grad)
+#
+# if __name__ == "__main__":
+#     main()
