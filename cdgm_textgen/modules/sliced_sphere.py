@@ -9,27 +9,12 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
     calculates forward and backward pass for sliced sphere despersion regularized
     """
     @staticmethod
-    def forward(ctx, X):
-
-        d = X.size(-1)
+    def forward(ctx, X, p, q):
         N = X.size(0)
-        dtype = X.dtype
         device = X.device
 
-        PQ = torch.randn(d, 2, requires_grad=False,
-                                     dtype=dtype,
-                                     device=device)
-
-        PQ, R = torch.linalg.qr(PQ)
-        PQ *= R.diagonal().sign()
-        p, q = PQ[:, 0], PQ[:, 1]
-
-        ctx.p = p
-        ctx.q = q
         Xp = X @ p
         Xq = X @ q
-
-        ctx.save_for_backward(Xp, Xq)
 
         thetas = torch.arctan2(Xq, Xp)
 
@@ -46,8 +31,7 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
         phis = phis[invix]
         thetas_star = torch.mean(thetas)+phis
 
-        ctx.thetas_star = thetas_star
-        ctx.thetas = thetas
+        ctx.save_for_backward(Xp, Xq, p, q, thetas-thetas_star)
 
         return 0.5*torch.mean(torch.pow(thetas-thetas_star, 2))
 
@@ -55,28 +39,12 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
     def backward(ctx, grad_output):
         """
         """
-        #check this part!
-        Xp, Xq = ctx.saved_tensors
-        p = ctx.p
-        q = ctx.q
-
-        thetas_star = ctx.thetas_star
-        thetas = ctx.thetas
+        Xp, Xq, p, q, theta_minus_thetastr = ctx.saved_tensors
 
         grad = (
                 (Xp * q.unsqueeze(-1) - Xq * p.unsqueeze(-1)) / (Xp ** 2 + Xq ** 2)
-        ) * (thetas - thetas_star)
+        ) * theta_minus_thetastr
 
-        return grad_output * grad.T
+        return grad_output * grad.T, None, None
 
 compute_sliced_sphere_dispersion = SlicedSphereDispersionFunction.apply
-
-# def main():
-#     X = torch.randn(10, 2, requires_grad=True)
-#     y = F.normalize(X, dim=-1)
-#     res = compute_sliced_sphere_dispersion(y)
-#     res.backward()
-#     print(X.grad)
-#
-# if __name__ == "__main__":
-#     main()

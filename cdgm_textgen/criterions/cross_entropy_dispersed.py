@@ -157,4 +157,11 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 @register_criterion("label_smoothed_cross_entropy_sliced", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
-        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight.data)
+        PQ = torch.randn(model.decoder.embed_dim, 2, requires_grad=False,
+                         dtype=model.decoder.embed_tokens.weight.dtype,
+                         device=model.decoder.embed_tokens.weight.device)
+
+        PQ, R = torch.linalg.qr(PQ)
+        PQ *= R.diagonal().sign()
+        p, q = PQ[:, 0], PQ[:, 1]
+        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, p, q)
