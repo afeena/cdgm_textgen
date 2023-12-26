@@ -1,12 +1,14 @@
 import math
 from dataclasses import dataclass, field
 
+import ledoh_torch.utils
 import torch
-import torch.nn.functional as F
 from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
+from ledoh_torch import lloyd_dispersion, cosine_kernel_dispersion
+from ledoh_torch.utils import minimum_cosine_distance, circular_variance
 
 from cdgm_textgen.modules.sliced_sphere import compute_sliced_sphere_dispersion
 
@@ -46,7 +48,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
 
-        #here: since we don't want to scale regularizer with sample size,
+        # here: since we don't want to scale regularizer with sample size,
         # we apply mean reduction directly and return sample_size=1
         sample_size = 1
 
@@ -64,9 +66,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["total"] = utils.item(total.data)
 
         if self.report_dispersed:
-            dispersed_min_dist, dispersed_mean_v = self.compute_dispersed_metrics(model)
-            logging_output["dispersed_min_dist"] = dispersed_min_dist.data
-            logging_output["dispersed_mean_v"] = dispersed_mean_v.data
+            cosine_min_dist, var = self.compute_dispersed_metrics(model)
+            logging_output["cosine_min_dist"] = cosine_min_dist.detach()
+            logging_output["circular_variance"] = var.detach()
 
         return loss, sample_size, logging_output
 
@@ -89,11 +91,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            dist = torch.acos(model.decoder.embed_tokens.weight.data @ model.decoder.embed_tokens.weight.data.T)
-            dist.fill_diagonal_(float('inf'))
-            min_dist = dist.view(-1).min()
-            mean_v = 1 - torch.norm(torch.mean(model.decoder.embed_tokens.weight.data, dim=0))
-            return min_dist.detach(), mean_v.detach()
+            min_cosine_dist = minimum_cosine_distance(model.decoder.embed_tokens.weight.data)
+            var = circular_variance(model.decoder.embed_tokens.weight.data)
+        return min_cosine_dist, var
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -101,8 +101,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
         ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
-        dispersed_min_dist = sum(log.get("dispersed_min_dist", 0) for log in logging_outputs)
-        dispersed_mean_v = sum(log.get("dispersed_mean_v", 0) for log in logging_outputs)
+        dispersed_min_dist = sum(log.get("cosine_min_dist", 0) for log in logging_outputs)
+        dispersed_mean_v = sum(log.get("circular_variance", 0) for log in logging_outputs)
         n_logs = len(logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
@@ -124,7 +124,7 @@ class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig)
     )
 
 
-@register_criterion("label_smoothed_cross_entropy_lloyd", dataclass=LSCrossEntropyLloydCriterionConfig)
+@register_criterion("ls_cross_entropy_lloyd_disp", dataclass=LSCrossEntropyLloydCriterionConfig)
 class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
@@ -141,27 +141,43 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
     def compute_dispered_loss(self, model):
         # first sample n uniform points on the sphere
-        samples = F.normalize(torch.randn(self.n_samples,
-                                          1,
-                                          model.decoder.embed_dim,
-                                          device=model.decoder.embed_tokens.weight.device
-                                          ),
-                              dim=-1)
-        # then compute the distance to the nearest point on the sphere
-        dist2 = torch.acos(samples @ model.decoder.embed_tokens.weight.T) ** 2
-        # choose closest center for each sample and sum results
-        ll = (torch.min(dist2, dim=-1)[0]).mean()
-        return ll
+
+        return lloyd_dispersion(model.decoder.embed_tokens.weight, self.n_samples)
 
 
-@register_criterion("label_smoothed_cross_entropy_sliced", dataclass=LSCrossEntropyDispersedCriterionConfig)
+@register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
-        PQ = torch.randn(model.decoder.embed_dim, 2, requires_grad=False,
-                         dtype=model.decoder.embed_tokens.weight.dtype,
-                         device=model.decoder.embed_tokens.weight.device)
+        p, q = ledoh_torch.utils.init_great_circle(
+            model.decoder.embed_dim,
+            dtype=model.decoder.embed_tokens.weight.dtype,
+            device=model.decoder.embed_tokens.weight.device)
 
-        PQ, R = torch.linalg.qr(PQ)
-        PQ *= R.diagonal().sign()
-        p, q = PQ[:, 0], PQ[:, 1]
         return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, p, q)
+
+@dataclass
+class LSCrossEntropyKernelCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
+    kernel: str = field(
+        default="cosine",
+        metadata={"help": "kernel for dispersion"},
+    )
+    cosine_gamma: float = field(default = 0.001, metadata={"help": "gamma for cosine kernel"})
+
+@register_criterion("ls_cross_entropy_kernel_disp", dataclass=LSCrossEntropyKernelCriterionConfig)
+class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 label_smoothing,
+                 ignore_prefix_size=0,
+                 report_accuracy=False,
+                 dispersed_weight=0.0,
+                 report_dispersed=True,
+                 kernel="cosine",
+                 cosine_gamma=0.001):
+        super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight,
+                         report_dispersed)
+        self.kernel = kernel
+        self.cosine_gamma = cosine_gamma
+    def compute_dispered_loss(self, model):
+        return cosine_kernel_dispersion(model.decoder.embed_tokens.weight, self.cosine_gamma)

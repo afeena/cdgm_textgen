@@ -1,7 +1,7 @@
 import math
 
 import torch
-import torch.nn.functional as F
+from ledoh_torch import forward_sliced_dispersion, sliced_dispersion_gradient
 
 
 class SlicedSphereDispersionFunction(torch.autograd.Function):
@@ -10,30 +10,12 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
     """
     @staticmethod
     def forward(ctx, X, p, q):
-        N = X.size(0)
-        device = X.device
 
-        Xp = X @ p
-        Xq = X @ q
+        dist, hs = forward_sliced_dispersion(X, p, q, return_hidden_states=True)
 
-        thetas = torch.arctan2(Xq, Xp)
+        ctx.save_for_backward(hs["xp"], hs["xq"], p, q, hs["theta_minus_thetastr"])
 
-        ix = torch.argsort(thetas)
-        invix = torch.empty_like(ix)
-        invix[ix] = torch.arange(N, device=device)
-
-        phis = -math.pi - math.pi / N + (2 * math.pi *
-                                                  torch.arange(1, N + 1,
-                                                               device=device)
-                                                  ) / N
-
-
-        phis = phis[invix]
-        thetas_star = torch.mean(thetas)+phis
-
-        ctx.save_for_backward(Xp, Xq, p, q, thetas-thetas_star)
-
-        return 0.5*torch.mean(torch.pow(thetas-thetas_star, 2))
+        return dist
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -41,10 +23,8 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
         """
         Xp, Xq, p, q, theta_minus_thetastr = ctx.saved_tensors
 
-        grad = (
-                (Xp * q.unsqueeze(-1) - Xq * p.unsqueeze(-1)) / (Xp ** 2 + Xq ** 2)
-        ) * theta_minus_thetastr
+        grad = sliced_dispersion_gradient(Xp, Xq, p, q, theta_minus_thetastr, grad_output)
 
-        return grad_output * grad.T, None, None
+        return grad, None, None
 
 compute_sliced_sphere_dispersion = SlicedSphereDispersionFunction.apply
