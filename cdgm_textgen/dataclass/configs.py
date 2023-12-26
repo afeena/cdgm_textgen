@@ -67,16 +67,16 @@ class CDGMCommonConfig(CommonConfig):
 
 @dataclass
 class CDGMTextgenConfig(FairseqDataclass):
-    common: CDGMCommonConfig = CDGMCommonConfig()
-    common_eval: CommonEvalConfig = CommonEvalConfig()
-    distributed_training: DistributedTrainingConfig = DistributedTrainingConfig()
-    dataset: DatasetConfig = DatasetConfig()
-    optimization: OptimizationConfig = OptimizationConfig()
-    checkpoint: CheckpointConfig = CheckpointConfig()
-    bmuf: FairseqBMUFConfig = FairseqBMUFConfig()
-    generation: CDGMGenerationConfig = CDGMGenerationConfig()
-    eval_lm: EvalLMConfig = EvalLMConfig()
-    interactive: InteractiveConfig = InteractiveConfig()
+    common: CDGMCommonConfig = field(default_factory=CDGMCommonConfig())
+    common_eval: CommonEvalConfig = field(default_factory=CommonEvalConfig())
+    distributed_training: DistributedTrainingConfig = field(default_factory=DistributedTrainingConfig())
+    dataset: DatasetConfig = field(default_factory=DatasetConfig())
+    optimization: OptimizationConfig = field(default_factory=OptimizationConfig())
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig())
+    bmuf: FairseqBMUFConfig = field(default_factory=FairseqBMUFConfig())
+    generation: CDGMGenerationConfig = field(default_factory=CDGMGenerationConfig())
+    eval_lm: EvalLMConfig = field(default_factory=EvalLMConfig())
+    interactive: InteractiveConfig = field(default_factory=InteractiveConfig())
     model: Any = MISSING
     task: Any = None
     criterion: Any = None

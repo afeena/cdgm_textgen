@@ -13,7 +13,7 @@ class SlicedSphereDispersionFunction(torch.autograd.Function):
 
         dist, hs = forward_sliced_dispersion(X, p, q, return_hidden_states=True)
 
-        ctx.save_for_backward(hs["xp"], hs["xq"], p, q, hs["theta_minus_thetastr"])
+        ctx.save_for_backward(hs["xp"], hs["xq"], p, q, hs["theta_diff"])
 
         return dist
 
