@@ -85,6 +85,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             sample["target"].size(0) if self.sentence_avg else sample["ntokens"]
         )
         loss = torch.div(loss, sample_size)
+        nll_loss = torch.div(nll_loss, sample_size)
 
         if self.dispersed_weight > 0.0:
             dispersed_loss = self.compute_dispered_loss(model)
@@ -146,10 +147,10 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
     def compute_dispered_loss(self, model):
         # first sample n uniform points on the sphere
-
-        return LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
+        lloyd_disp, _ = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                              reduction='mean',
                                              n_samples=self.n_samples)
+        return lloyd_disp
 
 
 @register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
@@ -193,7 +194,8 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
         self.kernel_sample_size = kernel_sample_size
 
     def compute_dispered_loss(self, model):
-        return KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
+        kernel_disp, _ = KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                               reduction='mean',
                                               gamma=self.cosine_gamma,
                                               batch_size=self.kernel_sample_size)
+        return kernel_disp
