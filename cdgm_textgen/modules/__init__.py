@@ -9,12 +9,10 @@ from .utils import *
 from .riemannian_clustering import *
 from .riemannian_embeddings import *
 from .riemannian_linear import *
-from .sliced_sphere import compute_sliced_sphere_dispersion
 
 __all__ = [
     "neg_log_cmk_approx",
     "cluster_embeddings_riemannian",
     "build_manifold_embeddings",
     "build_manifold_linear",
-    "compute_sliced_sphere_dispersion"
 ]

@@ -7,10 +7,11 @@ from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
-from ledoh_torch import LloydSphereDispersion, KernelSphereDispersion
-from ledoh_torch.utils import minimum_cosine_distance, circular_variance
-
-from cdgm_textgen.modules.sliced_sphere import compute_sliced_sphere_dispersion
+from ledoh_torch import LloydSphereDispersion, \
+    KernelSphereDispersion, \
+    compute_sliced_sphere_dispersion, \
+    minimum_cosine_distance, \
+    circular_variance
 
 
 @dataclass
