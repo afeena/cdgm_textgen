@@ -49,8 +49,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
 
-        # here: since we don't want to scale regularizer with sample size,
-        # we apply mean reduction directly and return sample_size=1
+
         sample_size = 1
 
         logging_output = {
@@ -82,6 +81,11 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             ignore_index=self.padding_idx,
             reduce=reduce,
         )
+        sample_size = (
+            sample["target"].size(0) if self.sentence_avg else sample["ntokens"]
+        )
+        loss = torch.div(loss, sample_size)
+
         if self.dispersed_weight > 0.0:
             dispersed_loss = self.compute_dispered_loss(model)
             loss = loss + self.dispersed_weight * dispersed_loss
