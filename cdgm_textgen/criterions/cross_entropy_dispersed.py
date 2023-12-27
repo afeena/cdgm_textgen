@@ -7,7 +7,7 @@ from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
-from ledoh_torch import lloyd_dispersion, cosine_kernel_dispersion
+from ledoh_torch import LloydSphereDispersion, KernelSphereDispersion
 from ledoh_torch.utils import minimum_cosine_distance, circular_variance
 
 from cdgm_textgen.modules.sliced_sphere import compute_sliced_sphere_dispersion
@@ -142,7 +142,9 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
         # first sample n uniform points on the sphere
 
-        return lloyd_dispersion(model.decoder.embed_tokens.weight, self.n_samples)
+        return LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
+                                             reduction='mean',
+                                             n_samples=self.n_samples)
 
 
 @register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
@@ -155,14 +157,16 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
 
         return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, p, q)
 
+
 @dataclass
 class LSCrossEntropyKernelCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
     kernel: str = field(
         default="cosine",
         metadata={"help": "kernel for dispersion"},
     )
-    cosine_gamma: float = field(default = 0.001, metadata={"help": "gamma for cosine kernel"})
+    cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
     kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
+
 
 @register_criterion("ls_cross_entropy_kernel_disp", dataclass=LSCrossEntropyKernelCriterionConfig)
 class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
@@ -182,5 +186,9 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
         self.kernel = kernel
         self.cosine_gamma = cosine_gamma
         self.kernel_sample_size = kernel_sample_size
+
     def compute_dispered_loss(self, model):
-        return cosine_kernel_dispersion(model.decoder.embed_tokens.weight, self.cosine_gamma, self.kernel_sample_size)
+        return KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
+                                              reduction='mean',
+                                              gamma=self.cosine_gamma,
+                                              batch_size=self.kernel_sample_size)
