@@ -155,13 +155,30 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
 @register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
-    def compute_dispered_loss(self, model):
-        p, q = ledoh_torch.utils.init_great_circle(
-            model.decoder.embed_dim,
-            dtype=model.decoder.embed_tokens.weight.dtype,
-            device=model.decoder.embed_tokens.weight.device)
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 label_smoothing,
+                 ignore_prefix_size=0,
+                 report_accuracy=False,
+                 dispersed_weight=0.0,
+                 report_dispersed=True):
+        super().__init__(task, sentence_avg,
+                         label_smoothing,
+                         ignore_prefix_size,
+                         report_accuracy,
+                         dispersed_weight,
+                         report_dispersed)
 
-        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, p, q)
+        self.p, self.q = None, None
+    def compute_dispered_loss(self, model):
+        if self.p is None or self.q is None:
+            self.p, self.q = ledoh_torch.utils.init_great_circle(
+                model.decoder.embed_dim,
+                dtype=model.decoder.embed_tokens.weight.dtype,
+                device=model.decoder.embed_tokens.weight.device)
+
+        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q, "sum")
 
 
 @dataclass
