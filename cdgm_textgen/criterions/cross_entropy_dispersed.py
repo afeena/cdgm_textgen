@@ -178,7 +178,7 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
                 dtype=model.decoder.embed_tokens.weight.dtype,
                 device=model.decoder.embed_tokens.weight.device)
 
-        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q, "sum")
+        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q, "sum", True)
 
 
 @dataclass
