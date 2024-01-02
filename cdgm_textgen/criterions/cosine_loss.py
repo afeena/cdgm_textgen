@@ -12,7 +12,7 @@ from ledoh_torch import LloydSphereDispersion, \
     minimum_cosine_distance, \
     circular_variance
 
-from cdgm_textgen import dataclass
+from dataclasses import dataclass
 
 
 @register_criterion("cosine_ar_criterion")
@@ -73,7 +73,7 @@ class CEDispersedCriterionConfig(CrossEntropyCriterionConfig):
     report_dispersed: bool = field(default=True,
                                    metadata={"help": "report dispersed loss"})
 @register_criterion("cosine_dispersed_criterion")
-class CosineDispersedCriterion(CosineARCriterion):
+class CosineDispersedCriterion(CosineARCriterion, dataclass=CEDispersedCriterionConfig):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed):
         super().__init__(task, sentence_avg)
         self.dispersed_weight = dispersed_weight
@@ -138,7 +138,7 @@ class CELloydDispersedCriterionConfig(CEDispersedCriterionConfig):
     )
 
 @register_criterion("cosine_lloyd_dispersed_criterion")
-class CosineLloydDispersedCriterion(CosineDispersedCriterion):
+class CosineLloydDispersedCriterion(CosineDispersedCriterion, dataclass=CELloydDispersedCriterionConfig):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.n_lloyd_samples = n_lloyd_samples
@@ -155,12 +155,12 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
         return sliced
 
 @dataclass
-class CEKernelCriterionConfig(CosineDispersedCriterion):
+class CEKernelCriterionConfig(CEDispersedCriterionConfig):
     cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
     kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
 @register_criterion("cosine_lloyd_dispersed_criterion")
-class CosineKernelDispersedCriterion(CosineDispersedCriterion):
+class CosineKernelDispersedCriterion(CosineDispersedCriterion, dataclass=CEKernelCriterionConfig):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.cosine_gamma = cosine_gamma
