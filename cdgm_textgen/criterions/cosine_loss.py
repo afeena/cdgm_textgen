@@ -72,8 +72,8 @@ class CEDispersedCriterionConfig(CrossEntropyCriterionConfig):
     )
     report_dispersed: bool = field(default=True,
                                    metadata={"help": "report dispersed loss"})
-@register_criterion("cosine_dispersed_criterion")
-class CosineDispersedCriterion(CosineARCriterion, dataclass=CEDispersedCriterionConfig):
+@register_criterion("cosine_dispersed_criterion", dataclass=CEDispersedCriterionConfig)
+class CosineDispersedCriterion(CosineARCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed):
         super().__init__(task, sentence_avg)
         self.dispersed_weight = dispersed_weight
@@ -137,8 +137,8 @@ class CELloydDispersedCriterionConfig(CEDispersedCriterionConfig):
         metadata={"help": "weight for dispersed loss"},
     )
 
-@register_criterion("cosine_lloyd_dispersed_criterion")
-class CosineLloydDispersedCriterion(CosineDispersedCriterion, dataclass=CELloydDispersedCriterionConfig):
+@register_criterion("cosine_lloyd_dispersed_criterion", dataclass=CELloydDispersedCriterionConfig)
+class CosineLloydDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.n_lloyd_samples = n_lloyd_samples
@@ -159,8 +159,8 @@ class CEKernelCriterionConfig(CEDispersedCriterionConfig):
     cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
     kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
-@register_criterion("cosine_lloyd_dispersed_criterion")
-class CosineKernelDispersedCriterion(CosineDispersedCriterion, dataclass=CEKernelCriterionConfig):
+@register_criterion("cosine_lloyd_dispersed_criterion", dataclass=CEKernelCriterionConfig)
+class CosineKernelDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.cosine_gamma = cosine_gamma
