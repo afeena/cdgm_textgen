@@ -321,7 +321,7 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
         return decoder_out
 
     def get_targets(self, sample, net_output, **kwargs):
-        return self.decoder.output_projection.T(sample["target"])
+        return self.decoder.output_projection.weight.T(sample["target"])
 
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
@@ -330,7 +330,7 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
             m = torch.tensor([self.decoder.embed_tokens.shape[-1]], device=features.device)
             norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ (self.decoder.output_projection).to(features.dtype)
+            output_proj = features @ (self.decoder.output_projection.weight).to(features.dtype)
             if norm_const is not None:
                 output_proj += norm_const.squeeze()
 
