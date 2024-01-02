@@ -147,7 +147,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
     def compute_dispered_loss(self, model):
         # first sample n uniform points on the sphere
-        lloyd_disp, _ = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
+        lloyd_disp = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                              reduction='mean',
                                              n_samples=self.n_samples)
         return lloyd_disp
@@ -178,7 +178,7 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
                 dtype=model.decoder.embed_tokens.weight.dtype,
                 device=model.decoder.embed_tokens.weight.device)
 
-        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q, "sum", True)
+        return compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q)
 
 
 @dataclass
@@ -211,8 +211,7 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
         self.kernel_sample_size = kernel_sample_size
 
     def compute_dispered_loss(self, model):
-        kernel_disp, _ = KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
-                                              reduction='mean',
+        kernel_disp = KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                               gamma=self.cosine_gamma,
                                               batch_size=self.kernel_sample_size)
         return kernel_disp
