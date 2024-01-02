@@ -159,7 +159,7 @@ class CEKernelCriterionConfig(CEDispersedCriterionConfig):
     cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
     kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
-@register_criterion("cosine_lloyd_dispersed_criterion", dataclass=CEKernelCriterionConfig)
+@register_criterion("cosine_kernel_dispersed_criterion", dataclass=CEKernelCriterionConfig)
 class CosineKernelDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
