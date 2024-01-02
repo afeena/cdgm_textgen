@@ -97,8 +97,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            min_cosine_dist = minimum_cosine_distance(model.decoder.embed_tokens.weight.data)
-            var = circular_variance(model.decoder.embed_tokens.weight.data)
+            min_cosine_dist = minimum_cosine_distance(model.decoder.embed_tokens.weight.detach())
+            var = circular_variance(model.decoder.embed_tokens.weight.detach())
         return min_cosine_dist, var
 
     @staticmethod

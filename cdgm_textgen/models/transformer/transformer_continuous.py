@@ -36,16 +36,6 @@ class ContinuousTransformerManifold(TransformerModelContinuous):
         return decoder
 
 @dataclass
-class ContinuousTransformerScheduleConfig(ContinuousTransformerConfig):
-    freeze_after_update: int = field(
-        default=-1,
-        metadata={"help": "freeze target embeddings after N number of update"},
-    )
-    freeze_before_update: int = field(
-        default=-1,
-        metadata={"help": "freeze target embeddings before N number of updates"},
-    )
-@dataclass
 class ProbaTransformerConfig(ContinuousTransformerConfig):
     kappa: str = field(default="norm", metadata={"help": "kappa to use"})
 @register_model("proba_transformer", dataclass=ProbaTransformerConfig)

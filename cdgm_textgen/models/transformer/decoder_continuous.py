@@ -30,20 +30,8 @@ class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
                          target_embed=target_embed,
                          )
         self.manifold = None
-        if cfg.manifold == "poincare":
-            self.manifold = StereographicExact(k=-1)
-        if cfg.manifold == "euclidean":
-            self.manifold = Euclidean()
-        if cfg.manifold == "sphere_exact":
+        if cfg.manifold == "sphere":
             self.manifold = SphereExact()
-        if cfg.manifold == "sphere_product":
-            m = SphereExact()
-            d = 16
-            n_spheres = self.output_embed_dim // d
-            self.manifold = ProductManifold([(m, d) for _ in range(n_spheres)])
-        if self.manifold == "lorentz":
-            self.manifold = Lorentz()
-        if self.manifold is not None:
             self.set_params_to_manifold()
     def forward(
             self,
@@ -89,38 +77,6 @@ class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
                 x = x / torch.norm(x, dim=-1, keepdim=True)
         return x
 
-    def get_manifold_distance(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            bsz = features.shape[0]
-            scores = 1.0-self.manifold.dist(features, self.target_embed.weight.detach())
-            scores = scores.view(bsz, -1, self.dict_len)
-            return scores
-
-    def get_poincare_distance(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            bsz = features.shape[0]
-            assert self.manifold.check_point_on_manifold(features)
-            assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
-            scores = 1.0-stereographic_poincare_dist(features, self.target_embed.weight.detach())
-            scores = scores.view(bsz, -1, self.dict_len)
-            return scores
-
-    def get_poincare_distance2(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            bsz = features.shape[0]
-            assert self.manifold.check_point_on_manifold(features)
-            assert self.manifold.check_point_on_manifold(self.target_embed.weight.detach())
-            scores = 1.0-stereographic_poincare_dist(features, self.target_embed.weight.detach()).pow(2)
-            scores = scores.view(bsz, -1, self.dict_len)
-            return scores
-
-    def get_manifold_distance2(self, features: Tensor) -> Tensor:
-        with torch.no_grad():
-            bsz = features.shape[0]
-            scores = 1.0-self.manifold.dist2(features, self.target_embed.weight.detach())
-            scores = scores.view(bsz, -1, self.dict_len)
-            return scores
-
     def get_normalized_probs(
             self,
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
@@ -132,16 +88,6 @@ class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
             scores = None
             if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
-            if metric == "ps":
-                scores = self.get_ps_likelihood_scores(net_output[0])
-            if metric == "manifold_dist" and self.manifold:
-                scores = self.get_manifold_distance(net_output[0])
-            if metric == "manifold_dist2" and self.manifold:
-                scores = self.get_manifold_distance2(net_output[0])
-            if metric == "poincare" and self.manifold:
-                scores = self.get_poincare_distance(net_output[0])
-            if metric == "poincare2" and self.manifold:
-                scores = self.get_poincare_distance2(net_output[0])
 
         return scores
 class ProbaTransformerDecoder(ContinuousTransformerDecoderBase):
@@ -187,6 +133,22 @@ class ProbaTransformerDecoder(ContinuousTransformerDecoderBase):
 
             output_proj = log_probs.view(bsz, -1, self.dict_len)
             return output_proj
+
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = "cosine",
+    ):
+        with torch.no_grad():
+            scores = None
+            if metric == "cosine":
+                scores = self.get_cosine_similarity_scores(net_output[0])
+            elif metric == "ps":
+                scores = self.get_ps_likelihood_scores(net_output[0])
+
+        return scores
 
 
 class PseudoContinuousTransformerDecoder(ContinuousTransformerDecoderBase):

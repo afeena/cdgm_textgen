@@ -5,10 +5,11 @@ from typing import Optional, Dict, List, Any, Tuple
 import torch
 from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
 from torch import Tensor
-
+import torch.nn.functional as F
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
 from cdgm_textgen.models.transformer.transformer_base import Embedding
+from cdgm_textgen.modules.cmk_approx import _neglogcmk
 from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings
 from cdgm_textgen.modules.riemannian_linear import build_manifold_linear
 
@@ -291,3 +292,56 @@ class ManifoldDecoder(TransformerDecoderBase):
             x = self.project_out_dim(x)
 
         return x, {"attn": [attn], "inner_states": inner_states}
+
+
+@register_model("riemannian_emb_cont_transformer", dataclass=RiemannianTransformerConfig)
+class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
+    def forward(
+            self,
+            src_tokens,
+            src_lengths,
+            prev_output_tokens,
+            return_all_hiddens: bool = True,
+            features_only: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+    ):
+        encoder_out = self.encoder(
+            src_tokens, src_lengths=src_lengths, return_all_hiddens=return_all_hiddens
+        )
+        decoder_out = self.decoder(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            features_only=True,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+            src_lengths=src_lengths,
+            return_all_hiddens=return_all_hiddens,
+        )
+        return decoder_out
+
+    def get_targets(self, sample, net_output, **kwargs):
+        return self.decoder.output_projection.T(sample["target"])
+
+    def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
+        with torch.no_grad():
+            kappa = torch.tensor([1.], device=features.device)
+            features = F.normalize(features, p=2.0, dim=-1)
+            m = torch.tensor([self.decoder.embed_tokens.shape[-1]], device=features.device)
+            norm_const = _neglogcmk(m, kappa)
+
+            output_proj = features @ (self.decoder.output_projection).to(features.dtype)
+            if norm_const is not None:
+                output_proj += norm_const.squeeze()
+
+            return output_proj
+
+    # legacy
+    @torch.no_grad()
+    def get_normalized_probs(
+            self,
+            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
+            log_probs: bool,
+            sample: Optional[Dict[str, Tensor]] = None,
+    ):
+        return self.get_cosine_similarity_scores(net_output[0])
