@@ -343,5 +343,6 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
             net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
             log_probs: bool,
             sample: Optional[Dict[str, Tensor]] = None,
+            metric: Optional[str] = None,
     ):
         return self.get_cosine_similarity_scores(net_output[0])
