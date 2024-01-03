@@ -327,10 +327,10 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
             features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.decoder.embed_tokens.shape[-1]], device=features.device)
+            m = torch.tensor([self.decoder.embed_tokens.weight.shape[-1]], device=features.device)
             norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ (self.decoder.output_projection.weight).to(features.dtype)
+            output_proj = features @ (self.decoder.embed_tokens.weight.T).to(features.dtype)
             if norm_const is not None:
                 output_proj += norm_const.squeeze()
 
