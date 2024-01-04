@@ -321,8 +321,8 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
         return decoder_out
 
     def forward_decoder(self, prev_output_tokens, **kwargs):
-        kwargs["features_only"] = True
-        return self.decoder(prev_output_tokens, **kwargs)
+        return self.decoder(prev_output_tokens, features_only=True, **kwargs)
+
     def get_targets(self, sample, net_output, **kwargs):
         return self.decoder.embed_tokens(sample["target"])
 
