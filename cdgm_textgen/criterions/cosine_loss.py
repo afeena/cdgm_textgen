@@ -1,6 +1,7 @@
 import math
 from dataclasses import field
 
+import ledoh_torch
 import torch
 import torch.nn.functional as F
 from fairseq import metrics
@@ -9,7 +10,7 @@ from fairseq.criterions.cross_entropy import CrossEntropyCriterion, CrossEntropy
 from ledoh_torch import LloydSphereDispersion, \
     KernelSphereDispersion, \
     compute_sliced_sphere_dispersion, \
-    minimum_cosine_distance, \
+    minimum_acos_distance, \
     circular_variance
 
 from dataclasses import dataclass
@@ -109,7 +110,7 @@ class CosineDispersedCriterion(CosineARCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            min_cosine_dist = minimum_cosine_distance(model.decoder.embed_tokens.weight.detach())
+            min_cosine_dist = minimum_acos_distance(model.decoder.embed_tokens.weight.detach())
             var = circular_variance(model.decoder.embed_tokens.weight.detach())
         return min_cosine_dist, var
     def compute_dispersed_reg(self, model):
@@ -150,7 +151,16 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
 
 @register_criterion("cosine_sliced_dispersed_criterion")
 class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
+    def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed):
+        super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
+        self.p = None
+        self.q = None
     def compute_dispersed_loss(self, model):
+        if self.p is None or self.q is None:
+            self.p, self.q = ledoh_torch.utils.init_great_circle(
+                model.decoder.embed_dim,
+                dtype=model.decoder.embed_tokens.weight.dtype,
+                device=model.decoder.embed_tokens.weight.device)
         sliced = compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight)
         return sliced
 

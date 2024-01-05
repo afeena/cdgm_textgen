@@ -10,7 +10,7 @@ from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_l
 from ledoh_torch import LloydSphereDispersion, \
     KernelSphereDispersion, \
     compute_sliced_sphere_dispersion, \
-    minimum_cosine_distance, \
+    minimum_acos_distance, \
     circular_variance
 
 
@@ -67,7 +67,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
         if self.report_dispersed:
             cosine_min_dist, var = self.compute_dispersed_metrics(model)
-            logging_output["cosine_min_dist"] = cosine_min_dist.detach()
+            logging_output["min_acos_dist"] = cosine_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
         return loss, sample_size, logging_output
@@ -97,9 +97,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            min_cosine_dist = minimum_cosine_distance(model.decoder.embed_tokens.weight.detach())
+            min_acos_dist = minimum_acos_distance(model.decoder.embed_tokens.weight.detach())
             var = circular_variance(model.decoder.embed_tokens.weight.detach())
-        return min_cosine_dist, var
+        return min_acos_dist, var
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -148,7 +148,6 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispered_loss(self, model):
         # first sample n uniform points on the sphere
         lloyd_disp = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
-                                             reduction='mean',
                                              n_samples=self.n_samples)
         return lloyd_disp
 
