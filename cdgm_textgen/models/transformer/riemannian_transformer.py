@@ -294,8 +294,35 @@ class ManifoldDecoder(TransformerDecoderBase):
         return x, {"attn": [attn], "inner_states": inner_states}
 
 
+class ManifoldContDecoder(ManifoldDecoder):
+    def forward(
+            self,
+            prev_output_tokens,
+            encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+            incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+            features_only: bool = False,
+            full_context_alignment: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+            src_lengths: Optional[Any] = None,
+            return_all_hiddens: bool = False,
+    ):
+        x, extra = self.extract_features(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_state,
+            full_context_alignment=full_context_alignment,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+        )
+        return x, extra
 @register_model("riemannian_emb_cont_transformer", dataclass=RiemannianTransformerConfig)
 class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens, manifold=None):
+        decoder = ManifoldContDecoder(cfg, tgt_dict, embed_tokens, manifold=manifold)
+        return decoder
+
     def forward(
             self,
             src_tokens,
