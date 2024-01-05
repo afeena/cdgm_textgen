@@ -143,7 +143,7 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.n_lloyd_samples = n_lloyd_samples
-    def compute_dispersed_loss(self, model):
+    def compute_dispersed_reg(self, model):
         lloyd_disp = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                                       n_samples=self.n_samples)
         return lloyd_disp
@@ -155,7 +155,7 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.p = None
         self.q = None
-    def compute_dispersed_loss(self, model):
+    def compute_dispersed_reg(self, model):
         if self.p is None or self.q is None:
             self.p, self.q = ledoh_torch.utils.init_great_circle(
                 model.decoder.embed_dim,
@@ -175,7 +175,7 @@ class CosineKernelDispersedCriterion(CosineDispersedCriterion):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.cosine_gamma = cosine_gamma
         self.kernel_sample_size = kernel_sample_size
-    def compute_dispersed_loss(self, model):
+    def compute_dispersed_reg(self, model):
         kernel_disp = KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
                                                       gamma=self.cosine_gamma, batch_size=self.kernel_sample_size)
         return kernel_disp
