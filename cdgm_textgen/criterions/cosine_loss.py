@@ -145,7 +145,7 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
         self.n_lloyd_samples = n_lloyd_samples
     def compute_dispersed_reg(self, model):
         lloyd_disp = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
-                                                      n_samples=self.n_samples)
+                                                      n_samples=self.n_lloyd_samples)
         return lloyd_disp
 
 
