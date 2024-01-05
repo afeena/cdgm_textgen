@@ -100,8 +100,8 @@ class CosineDispersedCriterion(CosineARCriterion):
             "sample_size": 1,
         }
         if self.report_dispersed:
-            cosine_min_dist, var = self.compute_dispersed_metrics(model)
-            logging_output["cosine_min_dist"] = cosine_min_dist.detach()
+            acos_min_dist, var = self.compute_dispersed_metrics(model)
+            logging_output["acos_min_dist"] = acos_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
         if type(logging) is dict:
@@ -121,7 +121,7 @@ class CosineDispersedCriterion(CosineARCriterion):
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
         ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
-        dispersed_min_dist = sum(log.get("cosine_min_dist", 0) for log in logging_outputs)
+        dispersed_min_dist = sum(log.get("acos_min_dist", 0) for log in logging_outputs)
         dispersed_mean_v = sum(log.get("circular_variance", 0) for log in logging_outputs)
         n_logs = len(logging_outputs)
 

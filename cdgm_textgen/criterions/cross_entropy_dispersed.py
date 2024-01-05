@@ -107,7 +107,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
         ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
-        dispersed_min_dist = sum(log.get("cosine_min_dist", 0) for log in logging_outputs)
+        dispersed_min_dist = sum(log.get("min_acos_dist", 0) for log in logging_outputs)
         dispersed_mean_v = sum(log.get("circular_variance", 0) for log in logging_outputs)
         n_logs = len(logging_outputs)
 
