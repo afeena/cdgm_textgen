@@ -161,7 +161,7 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
                 model.decoder.embed_dim,
                 dtype=model.decoder.embed_tokens.weight.dtype,
                 device=model.decoder.embed_tokens.weight.device)
-        sliced = compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight)
+        sliced = compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q)
         return sliced
 
 @dataclass
