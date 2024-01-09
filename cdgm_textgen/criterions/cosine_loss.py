@@ -110,8 +110,8 @@ class CosineDispersedCriterion(CosineARCriterion):
 
     def compute_dispersed_metrics(self, model):
         with torch.no_grad():
-            min_cosine_dist = minimum_acos_distance(model.decoder.embed_tokens.weight.detach())
-            var = circular_variance(model.decoder.embed_tokens.weight.detach())
+            min_cosine_dist = minimum_acos_distance(model.decoder.output_projection.weight.detach())
+            var = circular_variance(model.decoder.output_projection.weight.detach())
         return min_cosine_dist, var
     def compute_dispersed_reg(self, model):
         raise NotImplementedError
@@ -144,7 +144,7 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
         self.n_lloyd_samples = n_lloyd_samples
     def compute_dispersed_reg(self, model):
-        lloyd_disp = LloydSphereDispersion.forward(model.decoder.embed_tokens.weight,
+        lloyd_disp = LloydSphereDispersion.forward(model.decoder.output_projection.weight,
                                                       n_samples=self.n_lloyd_samples)
         return lloyd_disp
 
@@ -159,9 +159,9 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
         if self.p is None or self.q is None:
             self.p, self.q = ledoh_torch.utils.init_great_circle(
                 model.decoder.embed_dim,
-                dtype=model.decoder.embed_tokens.weight.dtype,
-                device=model.decoder.embed_tokens.weight.device)
-        sliced = compute_sliced_sphere_dispersion(model.decoder.embed_tokens.weight, self.p, self.q)
+                dtype=model.decoder.output_projection.weight.dtype,
+                device=model.decoder.output_projection.weight.device)
+        sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, self.p, self.q)
         return sliced
 
 @dataclass
@@ -176,6 +176,6 @@ class CosineKernelDispersedCriterion(CosineDispersedCriterion):
         self.cosine_gamma = cosine_gamma
         self.kernel_sample_size = kernel_sample_size
     def compute_dispersed_reg(self, model):
-        kernel_disp = KernelSphereDispersion.forward(model.decoder.embed_tokens.weight,
+        kernel_disp = KernelSphereDispersion.forward(model.decoder.output_projection.weight,
                                                       gamma=self.cosine_gamma, batch_size=self.kernel_sample_size)
         return kernel_disp

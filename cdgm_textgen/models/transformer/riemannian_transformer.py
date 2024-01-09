@@ -316,6 +316,20 @@ class ManifoldContDecoder(ManifoldDecoder):
             alignment_heads=alignment_heads,
         )
         return x, extra
+    def build_manifold_output_projection(self, cfg, dictionary, embed_tokens):
+        if self.share_input_output_embed:
+            self.output_projection = build_manifold_embeddings(
+                self.embed_tokens.weight.shape[0],
+                self.embed_tokens.weight.shape[1],
+                "sphere",
+                padding_idx=self.dictionary.pad(),
+            )
+            self.output_projection.weight = self.embed_tokens.weight
+        else:
+            self.output_projection = build_manifold_embeddings(
+                len(self.dictionary), self.output_embed_dim, "sphere", padding_idx=self.dictionary.pad(),
+            )
+
 @register_model("riemannian_emb_cont_transformer", dataclass=RiemannianTransformerConfig)
 class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
     @classmethod
@@ -351,16 +365,16 @@ class RiemannianEmbContTransformer(RiemannianEmbeddingsTransformerModel):
         return self.decoder(prev_output_tokens, features_only=True, **kwargs)
 
     def get_targets(self, sample, net_output, **kwargs):
-        return self.decoder.embed_tokens(sample["target"])
+        return self.decoder.output_projection(sample["target"])
 
     def get_cosine_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
             features = F.normalize(features, p=2.0, dim=-1)
-            m = torch.tensor([self.decoder.embed_tokens.weight.shape[-1]], device=features.device)
+            m = torch.tensor([self.decoder.output_projection.weight.shape[-1]], device=features.device)
             norm_const = _neglogcmk(m, kappa)
 
-            output_proj = features @ (self.decoder.embed_tokens.weight.T).to(features.dtype)
+            output_proj = features @ (self.decoder.output_projection.weight.T).to(features.dtype)
             if norm_const is not None:
                 output_proj += norm_const.squeeze()
 
