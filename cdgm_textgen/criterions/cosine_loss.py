@@ -115,6 +115,15 @@ class CosineDispersedCriterion(CosineARCriterion):
         return min_cosine_dist, var
     def compute_dispersed_reg(self, model):
         raise NotImplementedError
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        out = net_output[0][mask]
+        target = target[mask]
+        loss = torch.triu(torch.acos(out @ target.T))
+        loss = loss.mean()
+        return loss, None
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
@@ -138,7 +147,7 @@ class CELloydDispersedCriterionConfig(CEDispersedCriterionConfig):
         metadata={"help": "weight for dispersed loss"},
     )
 
-@register_criterion("cosine_lloyd_dispersed_criterion", dataclass=CELloydDispersedCriterionConfig)
+@register_criterion("accos_lloyd_dispersed_criterion", dataclass=CELloydDispersedCriterionConfig)
 class CosineLloydDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
@@ -148,17 +157,7 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
                                                       n_samples=self.n_lloyd_samples)
         return lloyd_disp
 
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-
-        out = net_output[0][mask]
-        target = target[mask]
-        loss = torch.triu(torch.acos(out @ target.T))
-        loss = loss.mean()
-        return loss, None
-
-@register_criterion("cosine_sliced_dispersed_criterion")
+@register_criterion("acos_sliced_dispersed_criterion")
 class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
@@ -172,22 +171,13 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
                 device=model.decoder.output_projection.weight.device)
         sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, self.p, self.q)
         return sliced
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-
-        out = net_output[0][mask]
-        target = target[mask]
-        loss = torch.triu(torch.acos(out @ target.T))
-        loss = loss.mean()
-        return loss, None
 
 @dataclass
 class CEKernelCriterionConfig(CEDispersedCriterionConfig):
     cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
     kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
-@register_criterion("cosine_kernel_dispersed_criterion", dataclass=CEKernelCriterionConfig)
+@register_criterion("acos_kernel_dispersed_criterion", dataclass=CEKernelCriterionConfig)
 class CosineKernelDispersedCriterion(CosineDispersedCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
         super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
@@ -197,13 +187,3 @@ class CosineKernelDispersedCriterion(CosineDispersedCriterion):
         kernel_disp = KernelSphereDispersion.forward(model.decoder.output_projection.weight,
                                                       gamma=self.cosine_gamma, batch_size=self.kernel_sample_size)
         return kernel_disp
-
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        target = model.get_targets(sample, net_output)
-        mask = sample["target"].ne(self.padding_idx)
-
-        out = net_output[0][mask]
-        target = target[mask]
-        loss = torch.triu(torch.acos(out @ target.T))
-        loss = loss.mean()
-        return loss, None
