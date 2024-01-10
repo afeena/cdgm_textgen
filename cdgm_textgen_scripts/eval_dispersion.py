@@ -2,7 +2,7 @@ import argparse
 import torch
 from ledoh_torch import minimum_acos_distance, circular_variance
 
-from cdgm_textgen_scripts import txt_to_pt
+from utils import txt_to_pt
 
 if __name__ == "__main__":
 
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.model is not None:
-        model = torch.load(args.model_path)
+        model = torch.load(args.model)
         print(model.keys())
 
         embed = model["model"]["decoder.embed_tokens.weight"]
@@ -22,6 +22,8 @@ if __name__ == "__main__":
     else:
         print("Provide either model or txt")
         exit(-1)
+    norms = torch.norm(embed, dim=-1)
+    print(torch.allclose(norms, torch.tensor([1.0])))
     md = minimum_acos_distance(embed)
     cv = circular_variance(embed)
     print(f"min dist: {md}, circular variance: {cv}")
