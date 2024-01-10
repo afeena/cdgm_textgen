@@ -121,7 +121,7 @@ class CosineDispersedCriterion(CosineARCriterion):
 
         out = net_output[0][mask]
         target = target[mask]
-        loss = torch.triu(torch.acos(out @ target.T))
+        loss = torch.acos(out @ target.T)
         loss = loss.mean()
         return loss, None
     @staticmethod
