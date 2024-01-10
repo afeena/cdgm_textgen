@@ -148,6 +148,15 @@ class CosineLloydDispersedCriterion(CosineDispersedCriterion):
                                                       n_samples=self.n_lloyd_samples)
         return lloyd_disp
 
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        out = net_output[0][mask]
+        target = target[mask]
+        loss = torch.triu(torch.acos(out @ target.T))
+        loss = loss.mean()
+        return loss, None
 
 @register_criterion("cosine_sliced_dispersed_criterion")
 class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
@@ -163,6 +172,15 @@ class CosineSlicedDispersedCriterion(CosineDispersedCriterion):
                 device=model.decoder.output_projection.weight.device)
         sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, self.p, self.q)
         return sliced
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        out = net_output[0][mask]
+        target = target[mask]
+        loss = torch.triu(torch.acos(out @ target.T))
+        loss = loss.mean()
+        return loss, None
 
 @dataclass
 class CEKernelCriterionConfig(CEDispersedCriterionConfig):
@@ -179,3 +197,13 @@ class CosineKernelDispersedCriterion(CosineDispersedCriterion):
         kernel_disp = KernelSphereDispersion.forward(model.decoder.output_projection.weight,
                                                       gamma=self.cosine_gamma, batch_size=self.kernel_sample_size)
         return kernel_disp
+
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        out = net_output[0][mask]
+        target = target[mask]
+        loss = torch.triu(torch.acos(out @ target.T))
+        loss = loss.mean()
+        return loss, None
