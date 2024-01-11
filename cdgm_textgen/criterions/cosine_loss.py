@@ -119,8 +119,8 @@ class CosineDispersedCriterion(CosineARCriterion):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
 
-        out = net_output[0][mask]
-        target = target[mask]
+        out = F.normalize(net_output[0][mask], dim=-1)
+        target = F.normalize(target[mask], dim=-1)
         loss = torch.acos(out @ target.T)
         loss = loss.mean()
         return loss, None
