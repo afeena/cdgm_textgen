@@ -54,28 +54,36 @@ class DistanceCriterion(FairseqCriterion):
         dot_prod = out @ target.T
 
         if self.distance_metric == "cosine":
-            loss = 1.0 - dot_prod
-            return loss.mean(-1), {}
+            loss = (1.0 - dot_prod).mean(-1)
 
         elif self.distance_metric == "acos":
             loss = torch.acos(dot_prod).mean(-1)
-            return loss, {"cosine": loss.detach()}
+
+        return loss, {"dotprod": dot_prod.detach().mean()}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
-        ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
+        dotprod = sum(log.get("dotprod", 0) for log in logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
-            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+            "loss", loss_sum / sample_size, sample_size, round=3
         )
         metrics.log_scalar(
-            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+            "dotprod", dotprod / sample_size, sample_size, round=3
         )
 
+    @staticmethod
+    def logging_outputs_can_be_summed() -> bool:
+        """
+        Whether the logging outputs returned by `forward` can be summed
+        across workers prior to calling `reduce_metrics`. Setting this
+        to True will improves distributed training speed.
+        """
+        return True
 
 @dataclass
 class DispersedDistCriterionConfig(DistanceCriterionConfig):
@@ -104,15 +112,17 @@ class DispersedDistanceCriterion(DistanceCriterion):
         """
         net_output = model(**sample["net_input"])
         loss, logging = self.compute_loss(model, net_output, sample)
+        reg = None
         if self.dispersed_weight > 0:
-            reg = self.dispersed_weight * self.compute_dispersed_reg(model)
-            loss = loss + reg.mean()
+            reg = (self.dispersed_weight * self.compute_dispersed_reg(model)).mean()
+            loss = loss + reg
 
         logging_output = {
             "loss": loss.detach(),
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),
             "sample_size": 1,
+            "regularizer": reg.detach() if reg is not None else 0
         }
         if self.report_dispersed:
             acos_min_dist, var = self.compute_dispersed_metrics(model)
@@ -136,19 +146,26 @@ class DispersedDistanceCriterion(DistanceCriterion):
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
+        """Aggregate logging outputs from data parallel training."""
         loss_sum = sum(log.get("loss", 0) for log in logging_outputs)
-        ntokens = sum(log.get("ntokens", 0) for log in logging_outputs)
         sample_size = sum(log.get("sample_size", 0) for log in logging_outputs)
-        dispersed_min_dist = sum(log.get("acos_min_dist", 0) for log in logging_outputs)
-        dispersed_mean_v = sum(log.get("circular_variance", 0) for log in logging_outputs)
+        dotprod = sum(log.get("dotprod", 0) for log in logging_outputs)
+        acos_min_dist = sum(log.get("acos_min_dist", 0) for log in logging_outputs)
+        circular_variance = sum(log.get("circular_variance", 0) for log in logging_outputs)
+        regularize_value = sum(log.get("regularizer", 0) for log in logging_outputs)
         n_logs = len(logging_outputs)
 
         # we divide by log(2) to convert the loss from base e to base 2
         metrics.log_scalar(
-            "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
+            "loss", loss_sum / sample_size, sample_size, round=3
         )
-        metrics.log_scalar("min_dist", dispersed_min_dist / n_logs, sample_size, round=4)
-        metrics.log_scalar("mean dist val", dispersed_mean_v / n_logs, sample_size, round=4)
+        metrics.log_scalar(
+            "dotprod", dotprod / sample_size, sample_size, round=3
+        )
+        metrics.log_scalar("regularizer", regularize_value / sample_size, sample_size, round=3)
+
+        metrics.log_scalar("acos_min_dist", acos_min_dist / n_logs, n_logs, round=3)
+        metrics.log_scalar("circular_variance", circular_variance / n_logs, n_logs, round=3)
 
 
 @dataclass
@@ -157,7 +174,6 @@ class DistanceLloydCriterionConfig(DispersedDistCriterionConfig):
         default=100,
         metadata={"help": "weight for dispersed loss"},
     )
-
 
 @register_criterion("dist_criterion_with_lloyd_dispersion", dataclass=DistanceLloydCriterionConfig)
 class LloydDispersedCriterion(DispersedDistanceCriterion):
