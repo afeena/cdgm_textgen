@@ -15,10 +15,10 @@ from geoopt import StereographicExact
 from torch.distributions import multivariate_normal
 
 
-from cdgm_textgen.criterions.cosine_loss import CosineARCriterion
+from cdgm_textgen.criterions.distance_loss import DistanceCriterion
 
 @register_criterion("manifold_dist_criterion")
-class ManifoldDistanceCriterion(CosineARCriterion):
+class ManifoldDistanceCriterion(DistanceCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -45,7 +45,7 @@ class ManifoldDistanceCriterion(CosineARCriterion):
 
 
 @register_criterion("manifold_dist2_criterion")
-class ManifoldDistance2Criterion(CosineARCriterion):
+class ManifoldDistance2Criterion(DistanceCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -72,7 +72,7 @@ class ManifoldDistance2Criterion(CosineARCriterion):
 
 
 @register_criterion("sphere_dist_criterion")
-class SphereDistanceCriterion(CosineARCriterion):
+class SphereDistanceCriterion(DistanceCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -93,7 +93,7 @@ class SphereDistanceCriterion(CosineARCriterion):
 
 
 @register_criterion("sphere_dist2_criterion")
-class SphereDistance2Criterion(CosineARCriterion):
+class SphereDistance2Criterion(DistanceCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
@@ -114,7 +114,7 @@ class SphereDistance2Criterion(CosineARCriterion):
 
 
 @register_criterion("l2_ar_criterion")
-class L2ARCriterion(CosineARCriterion):
+class L2ARCriterion(DistanceCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
@@ -126,7 +126,7 @@ class L2ARCriterion(CosineARCriterion):
 
 
 @register_criterion("l2_squared_criterion")
-class L2SquaredARCriterion(CosineARCriterion):
+class L2SquaredARCriterion(DistanceCriterion):
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
@@ -146,9 +146,9 @@ class ARPowerSphericalCriterionConfig(CrossEntropyCriterionConfig):
 
 
 @register_criterion("ar_power_spherical_loss", dataclass=ARPowerSphericalCriterionConfig)
-class ARPowerSphericalCriterion(CosineARCriterion):
-    def __init__(self, task, sentence_avg, kappa_lambda):
-        super().__init__(task, sentence_avg)
+class ARPowerSphericalCriterion(DistanceCriterion):
+    def __init__(self, task, distance_metric, kappa_lambda):
+        super().__init__(task, distance_metric)
         self.kappa_lambda = kappa_lambda
 
     def compute_loss(self, model, net_output, sample, reduce=True):
