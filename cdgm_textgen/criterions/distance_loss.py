@@ -1,4 +1,3 @@
-import math
 from dataclasses import dataclass, field
 
 import ledoh_torch
@@ -6,9 +5,10 @@ import torch
 import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
+from fairseq.dataclass.configs import FairseqDataclass
 from ledoh_torch import minimum_acos_distance, circular_variance, LloydSphereDispersion, \
     compute_sliced_sphere_dispersion, KernelSphereDispersion
-from fairseq.dataclass.configs import FairseqDataclass
+
 
 @dataclass
 class DistanceCriterionConfig(FairseqDataclass):
@@ -84,6 +84,7 @@ class DistanceCriterion(FairseqCriterion):
         to True will improves distributed training speed.
         """
         return True
+
 
 @dataclass
 class DispersedDistCriterionConfig(DistanceCriterionConfig):
@@ -175,6 +176,7 @@ class DistanceLloydCriterionConfig(DispersedDistCriterionConfig):
         metadata={"help": "weight for dispersed loss"},
     )
 
+
 @register_criterion("dist_criterion_with_lloyd_dispersion", dataclass=DistanceLloydCriterionConfig)
 class LloydDispersedCriterion(DispersedDistanceCriterion):
     def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
@@ -187,20 +189,36 @@ class LloydDispersedCriterion(DispersedDistanceCriterion):
         return lloyd_disp
 
 
-@register_criterion("dist_criterion_with_sliced_dispersion", dataclass=DispersedDistCriterionConfig)
+@dataclass
+class SlicedDispersionCriterionConfig(DispersedDistCriterionConfig):
+    static_great_circle: bool = field(default=True, metadata={"help": "use static great circle"})
+
+
+@register_criterion("dist_criterion_with_sliced_dispersion", dataclass=SlicedDispersionCriterionConfig)
 class SlicedDispersedCriterion(DispersedDistanceCriterion):
-    def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed):
-        super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
+    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, static_great_circle):
+        super().__init__(task, distance_metric, dispersed_weight, report_dispersed)
+
+        self.static_great_circle = static_great_circle
         self.p = None
         self.q = None
 
     def compute_dispersed_reg(self, model):
-        if self.p is None or self.q is None:
-            self.p, self.q = ledoh_torch.utils.init_great_circle(
+        if not self.static_great_circle:
+            p, q = ledoh_torch.utils.init_great_circle(
                 model.decoder.embed_dim,
                 dtype=model.decoder.output_projection.weight.dtype,
                 device=model.decoder.output_projection.weight.device)
-        sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, self.p, self.q)
+        else:
+            if self.p is None or self.q is None:
+                self.p, self.q = ledoh_torch.utils.init_great_circle(
+                    model.decoder.embed_dim,
+                    dtype=model.decoder.output_projection.weight.dtype,
+                    device=model.decoder.output_projection.weight.device)
+            p = self.p
+            q = self.q
+
+        sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, p, q)
         return sliced
 
 
@@ -211,9 +229,9 @@ class DistanceKernelCriterionConfig(DispersedDistCriterionConfig):
 
 
 @register_criterion("dist_criterion_with_kernel_dispersion", dataclass=DistanceKernelCriterionConfig)
-class CosineKernelDispersedCriterion(DispersedDistanceCriterion):
-    def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
-        super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
+class KernelDispersedCriterion(DispersedDistanceCriterion):
+    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, cosine_gamma, kernel_sample_size):
+        super().__init__(task, distance_metric, dispersed_weight, report_dispersed)
         self.cosine_gamma = cosine_gamma
         self.kernel_sample_size = kernel_sample_size
 
