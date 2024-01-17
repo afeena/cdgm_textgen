@@ -70,7 +70,18 @@ class ContinuousTransformerDecoderBase(TransformerDecoderBase):
 
             return output_proj
 
+    def get_acos_similarity_scores(self, features: Tensor) -> Tensor:
+        with torch.no_grad():
+            kappa = torch.tensor([1.], device=features.device)
+            features = F.normalize(features, p=2.0, dim=-1)
+            m = torch.tensor([self.target_embed_normalized.shape[-1]], device=features.device)
+            norm_const = _neglogcmk(m, kappa)
 
+            output_proj = -torch.acos(features @ (self.target_embed_normalized.T).to(features.dtype))
+            if norm_const is not None:
+                output_proj += norm_const.squeeze()
+
+            return output_proj
 
     # legacy. compatible with fairseq translation task
     def get_normalized_probs(
@@ -86,5 +97,7 @@ class ContinuousTransformerDecoderBase(TransformerDecoderBase):
                 scores = self.get_cosine_similarity_scores(net_output[0])
             if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
+            if metric == "acos":
+                scores = self.get_acos_similarity_scores(net_output[0])
 
         return scores
