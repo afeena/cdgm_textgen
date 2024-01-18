@@ -57,7 +57,7 @@ class DistanceCriterion(FairseqCriterion):
             loss = (1.0 - dot_prod).diag().mean()
 
         elif self.distance_metric == "acos":
-            loss = torch.acos(dot_prod).diag().mean()
+            loss = torch.acos(dot_prod.clamp(-1+1e-4, 1-1e-4)).diag().mean()
 
         return loss, {"dotprod": dot_prod.detach().mean()}
 
