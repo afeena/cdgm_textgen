@@ -57,7 +57,7 @@ class DistanceCriterion(FairseqCriterion):
             loss = (1.0 - dot_prod).diag().mean()
 
         elif self.distance_metric == "acos":
-            loss = torch.acos(dot_prod.clamp(-1+1e-4, 1-1e-4)).diag().mean()
+            loss = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
 
         return loss, {"dotprod": dot_prod.detach().mean()}
 
@@ -179,8 +179,8 @@ class DistanceLloydCriterionConfig(DispersedDistCriterionConfig):
 
 @register_criterion("dist_criterion_with_lloyd_dispersion", dataclass=DistanceLloydCriterionConfig)
 class LloydDispersedCriterion(DispersedDistanceCriterion):
-    def __init__(self, task, sentence_avg, dispersed_weight, report_dispersed, n_lloyd_samples):
-        super().__init__(task, sentence_avg, dispersed_weight, report_dispersed)
+    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, n_lloyd_samples):
+        super().__init__(task, distance_metric, dispersed_weight, report_dispersed)
         self.n_lloyd_samples = n_lloyd_samples
 
     def compute_dispersed_reg(self, model):
