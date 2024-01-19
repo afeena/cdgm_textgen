@@ -191,7 +191,6 @@ class LloydDispersedCriterion(DispersedDistanceCriterion):
 
 @register_criterion("dist_criterion_with_sliced_dispersion", dataclass=DispersedDistCriterionConfig)
 class SlicedDispersedCriterion(DispersedDistanceCriterion):
-
     def compute_dispersed_reg(self, model):
         p, q = ledoh_torch.utils.init_great_circle(
             model.decoder.embed_dim,

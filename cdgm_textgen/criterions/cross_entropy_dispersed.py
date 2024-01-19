@@ -145,15 +145,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
         return lloyd_disp
 
 
-@dataclass
-class SlicedCECriterionConfig(LSCrossEntropyDispersedCriterionConfig):
-    static_great_circle: bool = field(
-        default=True,
-        metadata={"help": "weight for dispersed loss"},
-    )
-
-
-@register_criterion("ls_cross_entropy_sliced_disp", dataclass=SlicedCECriterionConfig)
+@register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
@@ -164,7 +156,6 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
                  dispersed_weight=0.0,
                  report_dispersed=True,
                  static_great_circle=True):
-
         super().__init__(task, sentence_avg,
                          label_smoothing,
                          ignore_prefix_size,
@@ -172,24 +163,11 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
                          dispersed_weight,
                          report_dispersed)
 
-        self.static_great_circle = static_great_circle
-        self.p = None
-        self.q = None
-
     def compute_dispersed_loss(self, model):
-        if not self.static_great_circle:
-            p, q = ledoh_torch.utils.init_great_circle(
-                model.decoder.embed_dim,
-                dtype=model.decoder.output_projection.weight.dtype,
-                device=model.decoder.output_projection.weight.device)
-        else:
-            if self.p is None or self.q is None:
-                self.p, self.q = ledoh_torch.utils.init_great_circle(
-                    model.decoder.embed_dim,
-                    dtype=model.decoder.output_projection.weight.dtype,
-                    device=model.decoder.output_projection.weight.device)
-            p = self.p
-            q = self.q
+        p, q = ledoh_torch.utils.init_great_circle(
+            model.decoder.embed_dim,
+            dtype=model.decoder.output_projection.weight.dtype,
+            device=model.decoder.output_projection.weight.device)
 
         sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, p, q)
         return sliced
@@ -218,7 +196,6 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
                  kernel="cosine",
                  cosine_gamma=0.001,
                  kernel_sample_size=-1):
-
         super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight,
                          report_dispersed)
         self.kernel = kernel
