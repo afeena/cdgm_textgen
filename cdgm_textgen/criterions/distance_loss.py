@@ -189,34 +189,14 @@ class LloydDispersedCriterion(DispersedDistanceCriterion):
         return lloyd_disp
 
 
-@dataclass
-class SlicedDispersionCriterionConfig(DispersedDistCriterionConfig):
-    static_great_circle: bool = field(default=True, metadata={"help": "use static great circle"})
-
-
-@register_criterion("dist_criterion_with_sliced_dispersion", dataclass=SlicedDispersionCriterionConfig)
+@register_criterion("dist_criterion_with_sliced_dispersion", dataclass=DispersedDistCriterionConfig)
 class SlicedDispersedCriterion(DispersedDistanceCriterion):
-    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, static_great_circle):
-        super().__init__(task, distance_metric, dispersed_weight, report_dispersed)
-
-        self.static_great_circle = static_great_circle
-        self.p = None
-        self.q = None
 
     def compute_dispersed_reg(self, model):
-        if not self.static_great_circle:
-            p, q = ledoh_torch.utils.init_great_circle(
-                model.decoder.embed_dim,
-                dtype=model.decoder.output_projection.weight.dtype,
-                device=model.decoder.output_projection.weight.device)
-        else:
-            if self.p is None or self.q is None:
-                self.p, self.q = ledoh_torch.utils.init_great_circle(
-                    model.decoder.embed_dim,
-                    dtype=model.decoder.output_projection.weight.dtype,
-                    device=model.decoder.output_projection.weight.device)
-            p = self.p
-            q = self.q
+        p, q = ledoh_torch.utils.init_great_circle(
+            model.decoder.embed_dim,
+            dtype=model.decoder.output_projection.weight.dtype,
+            device=model.decoder.output_projection.weight.device)
 
         sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, p, q)
         return sliced
