@@ -9,7 +9,7 @@ from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_l
     LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
 from ledoh_torch import LloydSphereDispersion, \
     KernelSphereDispersion, \
-    compute_sliced_sphere_dispersion, \
+    SlicedSphereDispersion, \
     minimum_acos_distance, \
     circular_variance
 
@@ -147,29 +147,13 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
 
 @register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
-    def __init__(self,
-                 task,
-                 sentence_avg,
-                 label_smoothing,
-                 ignore_prefix_size=0,
-                 report_accuracy=False,
-                 dispersed_weight=0.0,
-                 report_dispersed=True,
-                 static_great_circle=True):
-        super().__init__(task, sentence_avg,
-                         label_smoothing,
-                         ignore_prefix_size,
-                         report_accuracy,
-                         dispersed_weight,
-                         report_dispersed)
-
     def compute_dispersed_loss(self, model):
         p, q = ledoh_torch.utils.init_great_circle(
             model.decoder.embed_dim,
             dtype=model.decoder.output_projection.weight.dtype,
             device=model.decoder.output_projection.weight.device)
 
-        sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, p, q)
+        sliced = SlicedSphereDispersion.forward(model.decoder.output_projection.weight, p, q)
         return sliced
 
 

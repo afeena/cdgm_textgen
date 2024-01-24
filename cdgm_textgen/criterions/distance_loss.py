@@ -7,7 +7,7 @@ from fairseq import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass.configs import FairseqDataclass
 from ledoh_torch import minimum_acos_distance, circular_variance, LloydSphereDispersion, \
-    compute_sliced_sphere_dispersion, KernelSphereDispersion
+    SlicedSphereDispersion, KernelSphereDispersion
 
 
 @dataclass
@@ -197,7 +197,7 @@ class SlicedDispersedCriterion(DispersedDistanceCriterion):
             dtype=model.decoder.output_projection.weight.dtype,
             device=model.decoder.output_projection.weight.device)
 
-        sliced = compute_sliced_sphere_dispersion(model.decoder.output_projection.weight, p, q)
+        sliced = SlicedSphereDispersion.forward(model.decoder.output_projection.weight, p, q)
         return sliced
 
 
