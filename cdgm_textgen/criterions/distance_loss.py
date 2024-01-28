@@ -87,7 +87,7 @@ class DistanceCriterion(FairseqCriterion):
 
 @dataclass
 class DistanceCriterionMaxMarginConfig(DistanceCriterionConfig):
-    margin_lambda: float = field(default=0.1,
+    margin_lambda: float = field(default=1.0,
                                  metadata={"help": "Margin for max margin loss"})
     negative: str = field(default="projection", metadata={"help": "Negative sampling method (projection or diff)"})
 @register_criterion("distance_criterion_max_margin", dataclass=DistanceCriterionMaxMarginConfig)
