@@ -105,6 +105,16 @@ class DistanceCriterionMaxMargin(DistanceCriterion):
         return diff / torch.abs(diff)
     def negative_by_diff(self, out, target):
         return (out-target)/torch.abs(out-target)
+
+    def get_negative(self, out, target):
+        out = out.clone().detach()
+        target = target.clone().detach()
+        if self.negative == "projection":
+            negative = self.negative_by_projection(out, target)
+        elif self.negative == "diff":
+            negative = self.negative_by_diff(out, target)
+        return negative.detach()
+
     def compute_loss(self, model, net_output, sample, reduce=True):
         #lambda_4 = 1
         #lambda_3=0
@@ -118,10 +128,7 @@ class DistanceCriterionMaxMargin(DistanceCriterion):
 
         dot_prod_out_target = out @ target.T
 
-        if self.negative == "projection":
-            negative = self.negative_by_projection(out, target)
-        elif self.negative == "diff":
-            negative = self.negative_by_diff(out, target)
+        negative = self.get_negative(out, target)
 
         dot_prod_out_neg = out @ negative.T
 
