@@ -132,7 +132,7 @@ class DistanceCriterionMaxMargin(DistanceCriterion):
 
         dot_prod_out_neg = out @ negative.T
 
-        loss = self.margin_lambda + dot_prod_out_neg - dot_prod_out_target
+        loss = self.margin_lambda + dot_prod_out_neg.diag() - dot_prod_out_target.diag()
         loss = torch.max(torch.zeros_like(loss), loss).mean()
 
         return loss, {}
