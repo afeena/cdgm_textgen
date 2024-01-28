@@ -85,6 +85,50 @@ class DistanceCriterion(FairseqCriterion):
         """
         return True
 
+@dataclass
+class DistanceCriterionMaxMarginConfig(DistanceCriterionConfig):
+    margin_lambda: float = field(default=0.1,
+                                 metadata={"help": "Margin for max margin loss"})
+    negative: str = field(default="projection", metadata={"help": "Negative sampling method (projection or diff)"})
+
+class DistanceCriterionMaxMargin(DistanceCriterion):
+    def __init__(self, task, distance_metric, margin_lambda=0.1, negative="projection"):
+        super().__init__(task, distance_metric)
+        self.margin_lambda = margin_lambda
+        self.negative = negative
+
+    def negative_by_projection(self, out, target, dim=-1, eps=1e-4):
+        z = (out * target).sum(dim)
+        theta = z.clip(-1 + eps, 1 - eps).arccos()
+
+        diff = out - target * torch.cos(theta)
+        return diff / torch.abs(diff)
+    def negative_by_diff(self, out, target):
+        return (out-target)/torch.abs(out-target)
+    def compute_loss(self, model, net_output, sample, reduce=True):
+        #lambda_4 = 1
+        #lambda_3=0
+        #loss = max{0, self.margin+<u_orth,u_predicted>-<u,u_predicted>}
+
+        target = model.get_targets(sample, net_output)
+        mask = sample["target"].ne(self.padding_idx)
+
+        out = F.normalize(net_output[0][mask], dim=-1)
+        target = F.normalize(target[mask], dim=-1)
+
+        dot_prod_out_target = out @ target.T
+
+        if self.negative == "projection":
+            negative = self.negative_by_projection(out, target)
+        elif self.negative == "diff":
+            negative = self.negative_by_diff(out, target)
+
+        dot_prod_out_neg = out @ negative.T
+
+        loss = self.margin_lambda + dot_prod_out_neg - dot_prod_out_target
+        loss = torch.max(torch.zeros_like(loss), loss).mean()
+
+        return loss, {}
 
 @dataclass
 class DispersedDistCriterionConfig(DistanceCriterionConfig):
