@@ -101,10 +101,10 @@ class DistanceCriterionMaxMargin(DistanceCriterion):
         z = (out * target).sum(dim)
         theta = z.clip(-1 + eps, 1 - eps).arccos()
 
-        diff = out - target * torch.cos(theta)
-        return diff / torch.abs(diff)
+        diff = out - target * torch.cos(theta).unsqueeze(-1)
+        return diff / torch.norm(diff, dim=-1, keepdim=True)
     def negative_by_diff(self, out, target):
-        return (out-target)/torch.abs(out-target)
+        return (out-target)/torch.norm(out-target, dim=-1, keepdim=True)
 
     def get_negative(self, out, target):
         out = out.clone().detach()
