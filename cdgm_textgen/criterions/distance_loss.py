@@ -90,7 +90,7 @@ class DistanceCriterionMaxMarginConfig(DistanceCriterionConfig):
     margin_lambda: float = field(default=0.1,
                                  metadata={"help": "Margin for max margin loss"})
     negative: str = field(default="projection", metadata={"help": "Negative sampling method (projection or diff)"})
-
+@register_criterion("distance_criterion_max_margin", dataclass=DistanceCriterionMaxMarginConfig)
 class DistanceCriterionMaxMargin(DistanceCriterion):
     def __init__(self, task, distance_metric, margin_lambda=0.1, negative="projection"):
         super().__init__(task, distance_metric)
