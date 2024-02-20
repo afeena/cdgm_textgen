@@ -34,4 +34,4 @@ if __name__ == "__main__":
     plt.bar(edges[:-1], frq, width=0.1)
     plt.show()
     cv = circular_variance(embed)
-   # print(f"min dist: {md}, circular variance: {cv}")
+    print(f"min dist: {md.min()}, circular variance: {cv}")
