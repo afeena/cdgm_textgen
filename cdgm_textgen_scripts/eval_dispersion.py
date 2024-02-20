@@ -24,6 +24,8 @@ if __name__ == "__main__":
         exit(-1)
     norms = torch.norm(embed, dim=-1)
     print(torch.allclose(norms, torch.tensor([1.0])))
+    if not torch.allclose(norms, torch.tensor([1.0])):
+        embed = embed / norms.unsqueeze(-1)
     md = minimum_acos_distance_row(embed, embed)
     bins = np.arange(0,1.5,0.1)
 
