@@ -1,6 +1,6 @@
 import argparse
 import torch
-from ledoh_torch import minimum_acos_distance_row, circular_variance
+from ledoh_torch import minimum_acos_distance_block, circular_variance
 import plotext as plt
 from utils import txt_to_pt
 import numpy as np
@@ -26,12 +26,12 @@ if __name__ == "__main__":
     print(torch.allclose(norms, torch.tensor([1.0])))
     if not torch.allclose(norms, torch.tensor([1.0])):
         embed = embed / norms.unsqueeze(-1)
-    md = minimum_acos_distance_row(embed, embed)
-    bins = np.arange(0,1.5,0.1)
-
-    frq, edges = np.histogram(md, bins)
-
-    plt.bar(edges[:-1], frq, width=0.1)
-    plt.show()
+    md = minimum_acos_distance_block(embed, embed)
+    # bins = np.arange(0,1.5,0.1)
+    #
+    # frq, edges = np.histogram(md, bins)
+    #
+    # plt.bar(edges[:-1], frq, width=0.1)
+    # plt.show()
     cv = circular_variance(embed)
     print(f"min dist: {md.min()}, circular variance: {cv}")
