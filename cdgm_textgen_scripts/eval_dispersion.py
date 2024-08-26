@@ -1,7 +1,6 @@
 import argparse
 import torch
 from ledoh_torch import minimum_acos_distance_block, circular_variance
-import plotext as plt
 from utils import txt_to_pt
 import numpy as np
 
@@ -10,6 +9,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=None, type=str, help="path to model checkpoint")
     parser.add_argument("--txt", default=None, type=str, help="path to txt file with sentences")
+    parser.add_argument("--bs", default=1024, type=int, help="block size to calc min dist")
 
     args = parser.parse_args()
 
@@ -23,10 +23,9 @@ if __name__ == "__main__":
         print("Provide either model or txt")
         exit(-1)
     norms = torch.norm(embed, dim=-1)
-    print(torch.allclose(norms, torch.tensor([1.0])))
     if not torch.allclose(norms, torch.tensor([1.0])):
         embed = embed / norms.unsqueeze(-1)
-    md = minimum_acos_distance_block(embed, embed)
+    md = minimum_acos_distance_block(embed, args.bs)
     # bins = np.arange(0,1.5,0.1)
     #
     # frq, edges = np.histogram(md, bins)
@@ -34,4 +33,5 @@ if __name__ == "__main__":
     # plt.bar(edges[:-1], frq, width=0.1)
     # plt.show()
     cv = circular_variance(embed)
+    print(args.model, args.txt)
     print(f"min dist: {md.min()}, circular variance: {cv}")
