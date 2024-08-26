@@ -15,9 +15,7 @@ if __name__=="__main__":
 
     embeddings = torch.load(args.emb)
     embeddings_gradient = torch.load(args.emb_grad)
-    token_idxs = [5, 6, 7, 8, 9, 26060, 25730, 27319, 27413, 27328, 34, 38, 47, 59, 183, 19503, 21703, 24858, 26597, 23579]
-    tokens = ["▁the",",",".","s","▁of","▁Kilimanjaro","▁Celebrity","▁sneakers","▁vintage","▁spaghetti","▁have","▁not","▁at","▁but","▁energy","leo","675","misli","▁Volume","▁quae"]
-    token_freq = [1053762,768101,584740,532100,487430,1,1,1,1,1,84735,61222,51467,37053,11838,4,2,1,1,2]
+    token_idxs = [5, 6, 59, 183, 19503, 26597, 27413]
 
     with torch.no_grad():
         normalized_emb = F.normalize(embeddings, p=2, dim=-1)
@@ -26,7 +24,7 @@ if __name__=="__main__":
             l2n = torch.norm(embeddings_gradient[tid])
             min_dist = torch.acos((normalized_emb@normalized_emb[tid]).clamp(-1 + 1e-9, 1 - 1e-9)).topk(2, largest=False).values[1]
 
-            print(f"{direction.item()}||{l2n.item()}||{min_dist.item()}")
+            print(f"{direction.item()}\t{l2n.item()}\t{min_dist.item()}")
 
 
 
