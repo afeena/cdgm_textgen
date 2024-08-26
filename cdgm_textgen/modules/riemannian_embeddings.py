@@ -95,9 +95,10 @@ class SphereEmbeddings(ManifoldEmbeddings):
                  max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
                  sparse: bool = False, _weight: Optional[Tensor] = None, _freeze: bool = False,
                  device=None, dtype=None, manifold=None):
-        self.manifold = geoopt.SphereExact()
+        manifold = geoopt.SphereExact()
         super().__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type,
                          scale_grad_by_freq, sparse, _weight, _freeze, device, dtype, manifold)
+
 
     @torch.no_grad()
     def random_init(self, shape, dtype, device):
