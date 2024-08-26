@@ -13,6 +13,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if args.model is not None:
         model = torch.load(args.model)
         print(model.keys())
@@ -22,6 +24,7 @@ if __name__ == "__main__":
     else:
         print("Provide either model or txt")
         exit(-1)
+    embed = embed.to(device)
     norms = torch.norm(embed, dim=-1)
     if not torch.allclose(norms, torch.tensor([1.0])):
         embed = embed / norms.unsqueeze(-1)
