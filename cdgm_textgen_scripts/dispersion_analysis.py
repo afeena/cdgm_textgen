@@ -26,7 +26,7 @@ if __name__=="__main__":
             if args.riemannian:
                 embeddings_gradient_ = torch.load(row["grad"])
                 #calculate riemannian gradient given eucl one
-                embeddings_gradient = manifolds.SphereExact().erd2rgrad(embeddings, embeddings_gradient_)
+                embeddings_gradient = manifolds.SphereExact().egrad2rgrad(embeddings, embeddings_gradient_)
             else:
                 embeddings_gradient = torch.load(row["grad"])
 
