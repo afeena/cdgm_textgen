@@ -15,6 +15,9 @@ if __name__=="__main__":
     src = pd.read_csv(args.src)
     src = src.reset_index()
     res = {"token_idx":[]}
+    if args.riemannian:
+        manifold = manifolds.SphereExact()
+
     for index, row in src.iterrows():
         with torch.no_grad():
             embeddings = torch.load(row["emb"])
@@ -26,7 +29,7 @@ if __name__=="__main__":
             if args.riemannian:
                 embeddings_gradient_ = torch.load(row["grad"])
                 #calculate riemannian gradient given eucl one
-                embeddings_gradient = manifolds.SphereExact().egrad2rgrad(embeddings, embeddings_gradient_)
+                embeddings_gradient = manifold.egrad2rgrad(embeddings, embeddings_gradient_)
             else:
                 embeddings_gradient = torch.load(row["grad"])
 
