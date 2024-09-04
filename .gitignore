@@ -6,3 +6,7 @@ cdgm_textgen_scripts/*.sh
 cdgm_textgen_scripts/plots/*
 outputs/*
 *.txt
+
+*.pdf
+
+*.csv
