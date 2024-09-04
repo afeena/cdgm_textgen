@@ -1,6 +1,6 @@
 import argparse
 import torch
-from ledoh_torch import minimum_acos_distance_block, circular_variance
+from ledoh_torch import avg_acos_distance_batch, circular_variance
 from utils import txt_to_pt
 import numpy as np
 
@@ -26,9 +26,9 @@ if __name__ == "__main__":
         exit(-1)
     embed = embed.to(device)
     norms = torch.norm(embed, dim=-1)
-    if not torch.allclose(norms, torch.tensor([1.0])):
+    if not torch.allclose(norms, torch.tensor([1.0], device=device)):
         embed = embed / norms.unsqueeze(-1)
-    md = minimum_acos_distance_block(embed, args.bs)
+    md = avg_acos_distance_batch(embed, args.bs)
     # bins = np.arange(0,1.5,0.1)
     #
     # frq, edges = np.histogram(md, bins)
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     # plt.show()
     cv = circular_variance(embed)
     print(args.model, args.txt)
-    print(f"min dist: {md.min()}, circular variance: {cv}")
+    print(f"avg dist: {md}, circular variance: {cv}")
