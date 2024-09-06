@@ -10,7 +10,7 @@ from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_l
 from ledoh_torch import LloydSphereDispersion, \
     KernelSphereDispersion, \
     SlicedSphereDispersion, \
-    minimum_acos_distance_block, \
+    minimum_acos_distance_batch, \
     circular_variance, \
     AxisAlignedSlicedSphereDispersion, AxisAlignedBatchSphereDispersion
 
@@ -92,7 +92,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     @staticmethod
     def compute_dispersed_metrics(model):
         with torch.no_grad():
-            min_acos_dist = minimum_acos_distance_block(model.decoder.embed_tokens.weight.detach(), 4096)
+            min_acos_dist = minimum_acos_distance_batch(model.decoder.embed_tokens.weight.detach(), 4096)
             var = circular_variance(model.decoder.embed_tokens.weight.detach())
         return min_acos_dist, var
 

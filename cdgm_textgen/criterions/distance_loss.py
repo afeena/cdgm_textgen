@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from fairseq import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass.configs import FairseqDataclass
-from ledoh_torch import minimum_acos_distance_block, circular_variance, LloydSphereDispersion, \
+from ledoh_torch import minimum_acos_distance_batch, circular_variance, LloydSphereDispersion, \
     SlicedSphereDispersion, KernelSphereDispersion
 
 
@@ -188,7 +188,7 @@ class DispersedDistanceCriterion(DistanceCriterion):
     @staticmethod
     def compute_dispersed_metrics(model):
         with torch.no_grad():
-            min_cosine_dist = minimum_acos_distance_block(model.decoder.output_projection.weight.detach(), 4096)
+            min_cosine_dist = minimum_acos_distance_batch(model.decoder.output_projection.weight.detach(), 4096)
             var = circular_variance(model.decoder.output_projection.weight.detach())
         return min_cosine_dist, var
 
