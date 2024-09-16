@@ -39,7 +39,7 @@ if __name__=="__main__":
                 embeddings_gradient = torch.load(row["grad"])
 
             l2n = torch.norm(embeddings_gradient, dim=-1)
-            mindist = ledoh_torch.utils.minimum_acos_distance_row(embeddings)
+            mindist = ledoh_torch.utils.minimum_acos_distance_row(embeddings, embeddings)
             res_grad[row["step"]] = l2n.tolist()
             res_dist[row["step"]] = mindist.tolist()
 
