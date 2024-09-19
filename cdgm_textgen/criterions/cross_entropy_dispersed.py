@@ -5,18 +5,24 @@ import ledoh_torch.utils
 import torch
 from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
-from fairseq.criterions.label_smoothed_cross_entropy import label_smoothed_nll_loss, \
-    LabelSmoothedCrossEntropyCriterionConfig, LabelSmoothedCrossEntropyCriterion
-from ledoh_torch import LloydSphereDispersion, \
-    KernelSphereDispersion, \
-    SlicedSphereDispersion, \
-    minimum_acos_distance_batch, \
-    circular_variance, \
-    AxisAlignedSlicedSphereDispersion, AxisAlignedBatchSphereDispersion
+from fairseq.criterions.cross_entropy import CrossEntropyCriterionConfig, CrossEntropyCriterion
+from ledoh_torch import (
+    LloydSphereDispersion,
+    KernelSphereDispersion,
+    AxisAlignedBatchSphereDispersion,
+    SlicedSphereDispersion,
+    MMADispersion,
+    MMCSDispersion,
+    MHEDispersion,
+    KoLeoDispersion,
+    minimum_acos_distance_batch,
+    circular_variance
+)
+
 
 
 @dataclass
-class LSCrossEntropyDispersedCriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
+class CrossEntropyDispersedCriterionConfig(CrossEntropyCriterionConfig):
     dispersed_weight: float = field(
         default=0.0,
         metadata={"help": "weight for dispersed loss"},
@@ -25,17 +31,14 @@ class LSCrossEntropyDispersedCriterionConfig(LabelSmoothedCrossEntropyCriterionC
                                    metadata={"help": "report dispersed loss"})
 
 
-@register_criterion("label_smoothed_cross_entropy_dispersed", dataclass=LSCrossEntropyDispersedCriterionConfig)
-class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
+@register_criterion("cross_entropy_dispersed", dataclass=CrossEntropyDispersedCriterionConfig)
+class CrossEntropyDispersedCriterion(CrossEntropyCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
-                 label_smoothing,
-                 ignore_prefix_size=0,
-                 report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True):
-        super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy)
+        super().__init__(task, sentence_avg)
         self.dispersed_weight = dispersed_weight
         self.report_dispersed = report_dispersed
 
@@ -74,18 +77,6 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
         return loss, sample_size, logging_output
 
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        lprobs, target = self.get_lprobs_and_target(model, net_output, sample)
-        loss, nll_loss = label_smoothed_nll_loss(
-            lprobs,
-            target,
-            self.eps,
-            ignore_index=self.padding_idx,
-            reduce=reduce,
-        )
-
-        return loss, nll_loss
-
     def compute_dispersed_loss(self, model):
         raise NotImplementedError
 
@@ -117,28 +108,22 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
 
 @dataclass
-class LSCrossEntropyLloydCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
+class CrossEntropyLloydCriterionConfig(CrossEntropyDispersedCriterionConfig):
     n_lloyd_samples: int = field(
         default=100,
         metadata={"help": "weight for dispersed loss"},
     )
 
 
-@register_criterion("ls_cross_entropy_lloyd_disp", dataclass=LSCrossEntropyLloydCriterionConfig)
-class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
+@register_criterion("ce_lloyd_disp", dataclass=CrossEntropyLloydCriterionConfig)
+class LSCrossEntropyLloydCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
-                 label_smoothing,
-                 ignore_prefix_size=0,
-                 report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True,
                  n_lloyd_samples=100):
         super().__init__(task, sentence_avg,
-                         label_smoothing,
-                         ignore_prefix_size,
-                         report_accuracy,
                          dispersed_weight,
                          report_dispersed)
         self.lloyd = LloydSphereDispersion(n_samples=n_lloyd_samples)
@@ -149,20 +134,14 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
         return lloyd_disp
 
 
-@register_criterion("ls_cross_entropy_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
-class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
+@register_criterion("ce_sliced_disp", dataclass=CrossEntropyDispersedCriterionConfig)
+class LSCrossEntropySlicedCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
-                 label_smoothing,
-                 ignore_prefix_size=0,
-                 report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True):
         super().__init__(task, sentence_avg,
-                         label_smoothing,
-                         ignore_prefix_size,
-                         report_accuracy,
                          dispersed_weight,
                          report_dispersed)
         self.sliced = SlicedSphereDispersion()
@@ -176,8 +155,8 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
         sliced = self.sliced(model.decoder.output_projection.weight, p, q)
         return sliced
 
-@register_criterion("ls_cross_entropy_axisalignedsliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
-class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
+@register_criterion("ce_slicedax_disp", dataclass=CrossEntropyDispersedCriterionConfig)
+class LSCrossEntropySlicedAXCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -188,45 +167,90 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
                  report_dispersed=True,
                  batch_size=-1):
         super().__init__(task, sentence_avg,
-                         label_smoothing,
-                         ignore_prefix_size,
-                         report_accuracy,
                          dispersed_weight,
                          report_dispersed)
-        self.sliced = AxisAlignedBatchSphereDispersion(batch_size=batch_size)
+        self.slicedax = AxisAlignedBatchSphereDispersion(batch_size=batch_size)
 
     def compute_dispersed_loss(self, model):
-        p, q = ledoh_torch.utils.init_great_circle(
-            model.decoder.embed_dim,
-            dtype=model.decoder.output_projection.weight.dtype,
-            device=model.decoder.output_projection.weight.device)
-
-        sliced = self.sliced(model.decoder.output_projection.weight)
-        return sliced
+        slicedax = self.slicedax(model.decoder.output_projection.weight)
+        return slicedax
 
 @dataclass
-class LSCrossEntropyKernelCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
+class CrossEntropyMMDCriterionConfig(CrossEntropyDispersedCriterionConfig):
     cosine_gamma: float = field(default=0.001, metadata={"help": "gamma for cosine kernel"})
-    kernel_sample_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
+    batch_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
 
-@register_criterion("ls_cross_entropy_kernel_disp", dataclass=LSCrossEntropyKernelCriterionConfig)
-class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
+@register_criterion("ce_mmd_disp", dataclass=CrossEntropyMMDCriterionConfig)
+class LSCrossEntropyKernelCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
-                 label_smoothing,
-                 ignore_prefix_size=0,
-                 report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True,
                  cosine_gamma=0.001,
-                 kernel_sample_size=-1):
-        super().__init__(task, sentence_avg, label_smoothing, ignore_prefix_size, report_accuracy, dispersed_weight,
+                 batch_size=-1):
+        super().__init__(task, sentence_avg, dispersed_weight,
                          report_dispersed)
 
-        self.kernel_disp = KernelSphereDispersion(gamma=cosine_gamma, batch_size=kernel_sample_size)
+        self.mmd = KernelSphereDispersion(gamma=cosine_gamma, batch_size=batch_size)
 
     def compute_dispersed_loss(self, model):
-        kernel_disp = self.kernel_disp(model.decoder.embed_tokens.weight)
-        return kernel_disp
+        mmd_loss = self.mmd(model.decoder.embed_tokens.weight)
+        return mmd_loss
+
+@dataclass
+class CrossEntropyMMACriterionConfig(CrossEntropyDispersedCriterionConfig):
+    batch_szie: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
+
+
+@register_criterion("ce_mma_disp", dataclass=CrossEntropyMMACriterionConfig)
+class CrossEntropyMMACriterion(CrossEntropyDispersedCriterion):
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 dispersed_weight=0.0,
+                 report_dispersed=True,
+                 batch_size=-1):
+        super().__init__(task, sentence_avg, dispersed_weight,
+                         report_dispersed)
+
+        self.mma = MMADispersion(batch_size=batch_size)
+
+    def compute_dispersed_loss(self, model):
+        mma_loss = self.mma(model.decoder.embed_tokens.weight)
+        return mma_loss
+
+@register_criterion("ce_mhe_disp", dataclass=CrossEntropyMMACriterionConfig)
+class CrossEntropyMMACriterion(CrossEntropyDispersedCriterion):
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 dispersed_weight=0.0,
+                 report_dispersed=True,
+                 batch_size=-1):
+        super().__init__(task, sentence_avg, dispersed_weight,
+                         report_dispersed)
+
+        self.mhe = MHEDispersion(batch_size=batch_size)
+
+    def compute_dispersed_loss(self, model):
+        mhe_loss = self.mma(model.decoder.embed_tokens.weight)
+        return mhe_loss
+
+@register_criterion("ce_koleo_disp", dataclass=CrossEntropyMMACriterionConfig)
+class CrossEntropyMMACriterion(CrossEntropyDispersedCriterion):
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 dispersed_weight=0.0,
+                 report_dispersed=True,
+                 batch_size=-1):
+        super().__init__(task, sentence_avg, dispersed_weight,
+                         report_dispersed)
+
+        self.mhe = KoLeoDispersion()
+
+    def compute_dispersed_loss(self, model):
+        koleo_loss = self.koleo(model.decoder.embed_tokens.weight)
+        return koleo_loss
