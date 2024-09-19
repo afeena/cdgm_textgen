@@ -65,10 +65,6 @@ class CrossEntropyDispersedCriterion(CrossEntropyCriterion):
             "nsentences": sample["target"].size(0),
             "sample_size": sample_size,
         }
-        if self.report_accuracy:
-            n_correct, total = self.compute_accuracy(model, net_output, sample)
-            logging_output["n_correct"] = utils.item(n_correct.data)
-            logging_output["total"] = utils.item(total.data)
 
         if self.report_dispersed:
             cosine_min_dist, var = self.compute_dispersed_metrics(model)
