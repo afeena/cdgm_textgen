@@ -228,7 +228,7 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
         return mmd_loss
 
 @dataclass
-class LSCrossEntropyMMACriterionConfig(LabelSmoothedCrossEntropyCriterion):
+class LSCrossEntropyMMACriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
     batch_szie: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
 
