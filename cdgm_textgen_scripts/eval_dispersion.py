@@ -1,7 +1,7 @@
 import argparse
 import torch
 from ledoh_torch import avg_acos_distance_batch, circular_variance, \
-    minimum_acos_distance_batch, median_acos_distance_batch \
+    minimum_acos_distance_batch, median_acos_distance_batch, \
     minimum_acos_distance_row
 from utils import txt_to_pt
 import numpy as np
