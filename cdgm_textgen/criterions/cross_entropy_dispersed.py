@@ -116,7 +116,7 @@ class CrossEntropyLloydCriterionConfig(CrossEntropyDispersedCriterionConfig):
 
 
 @register_criterion("ce_lloyd_disp", dataclass=CrossEntropyLloydCriterionConfig)
-class LSCrossEntropyLloydCriterion(CrossEntropyDispersedCriterion):
+class CrossEntropyLloydCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -135,7 +135,7 @@ class LSCrossEntropyLloydCriterion(CrossEntropyDispersedCriterion):
 
 
 @register_criterion("ce_sliced_disp", dataclass=CrossEntropyDispersedCriterionConfig)
-class LSCrossEntropySlicedCriterion(CrossEntropyDispersedCriterion):
+class CrossEntropySlicedCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -155,8 +155,14 @@ class LSCrossEntropySlicedCriterion(CrossEntropyDispersedCriterion):
         sliced = self.sliced(model.decoder.output_projection.weight, p, q)
         return sliced
 
-@register_criterion("ce_slicedax_disp", dataclass=CrossEntropyDispersedCriterionConfig)
-class LSCrossEntropySlicedAXCriterion(CrossEntropyDispersedCriterion):
+@dataclass
+class CrossEntropySlicedAxCriterionConfig(CrossEntropyDispersedCriterionConfig):
+    batch_size: int = field(
+        default=-1,
+        metadata={"help": "batch size for slicedax"}
+    )
+@register_criterion("ce_slicedax_disp", dataclass=CrossEntropySlicedAxCriterionConfig)
+class CrossEntropySlicedAXCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -182,7 +188,7 @@ class CrossEntropyMMDCriterionConfig(CrossEntropyDispersedCriterionConfig):
 
 
 @register_criterion("ce_mmd_disp", dataclass=CrossEntropyMMDCriterionConfig)
-class LSCrossEntropyKernelCriterion(CrossEntropyDispersedCriterion):
+class CrossEntropyMMDCriterion(CrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,

@@ -4,3 +4,4 @@ from .continuous_loss import *
 from .mixture_model_continuous_loss import *
 from .hybrid_loss import *
 from .cross_entropy_dispersed import *
+from .ls_cross_entropy_dispersed import *
