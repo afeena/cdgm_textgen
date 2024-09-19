@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
         bins = np.arange(0,2.0,0.1)
 
-        frq, edges = np.histogram(row_md, bins)
+        frq, edges = np.histogram(row_md.cpu(), bins)
 
         plt.bar(edges[:-1], frq, width=0.1)
         plt.show()
