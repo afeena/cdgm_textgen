@@ -144,7 +144,7 @@ class LSCrossEntropyLloydCriterion(LSCrossEntropyDispersedCriterion):
         return lloyd_disp
 
 
-@register_criterion("ls_ce_sliced_disp", dataclass=LSCrossEntropyLloydCriterionConfig)
+@register_criterion("ls_ce_sliced_disp", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
@@ -170,7 +170,8 @@ class LSCrossEntropySlicedCriterion(LSCrossEntropyDispersedCriterion):
         sliced = self.sliced(model.decoder.output_projection.weight, p, q)
         return sliced
 @dataclass
-class LSCrossEntropySlicedAxCriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
+
+class LSCrossEntropySlicedAxCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
     batch_size: int = field(
         default=-1,
         metadata={"help": "batch size for sliced ax"}
