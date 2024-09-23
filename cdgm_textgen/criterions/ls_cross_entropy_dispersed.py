@@ -256,7 +256,7 @@ class LSCrossEntropyMMACriterion(LSCrossEntropyDispersedCriterion):
         return mma_loss
 
 @register_criterion("ls_ce_mhe_disp", dataclass=LSCrossEntropyMMACriterionConfig)
-class LSCrossEntropyMMACriterion(LSCrossEntropyDispersedCriterion):
+class LSCrossEntropyMHECriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -274,11 +274,11 @@ class LSCrossEntropyMMACriterion(LSCrossEntropyDispersedCriterion):
         self.mhe = MHEDispersion(batch_size=batch_size)
 
     def compute_dispersed_loss(self, model):
-        mhe_loss = self.mma(model.decoder.embed_tokens.weight)
+        mhe_loss = self.mhe(model.decoder.embed_tokens.weight)
         return mhe_loss
 
 @register_criterion("ls_ce_koleo_disp", dataclass=LSCrossEntropyMMACriterionConfig)
-class LSCrossEntropyMMACriterion(LSCrossEntropyDispersedCriterion):
+class LSCrossEntropyKoLeoCriterion(LSCrossEntropyDispersedCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
@@ -293,7 +293,7 @@ class LSCrossEntropyMMACriterion(LSCrossEntropyDispersedCriterion):
                          report_accuracy=report_accuracy,
                          dispersed_weight=dispersed_weight,
                          report_dispersed=report_dispersed)
-        self.mhe = KoLeoDispersion()
+        self.koleo = KoLeoDispersion()
 
     def compute_dispersed_loss(self, model):
         koleo_loss = self.koleo(model.decoder.embed_tokens.weight)
