@@ -229,7 +229,7 @@ class LSCrossEntropyKernelCriterion(LSCrossEntropyDispersedCriterion):
 
 @dataclass
 class LSCrossEntropyMMACriterionConfig(LabelSmoothedCrossEntropyCriterionConfig):
-    batch_szie: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
+    batch_size: int = field(default=-1, metadata={"help": "number of samples for kernel dispersion"})
 
 
 @register_criterion("ls_ce_mma_disp", dataclass=LSCrossEntropyMMACriterionConfig)
