@@ -5,10 +5,10 @@ import numpy as np
 import torch
 from omegaconf import DictConfig
 
-from fairseq import distributed_utils, utils
+from fairseq import distributed_utils, utils, checkpoint_utils
 from fairseq.utils import reset_logging
 
-from cdgm_textgen import checkpoint_utils, options
+from cdgm_textgen import options
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
 
