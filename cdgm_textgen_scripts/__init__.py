@@ -1,1 +1,1 @@
-from .utils import *
+from cdgm_textgen_scripts.analysis.utils import *

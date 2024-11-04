@@ -45,9 +45,9 @@ if __name__ == "__main__":
     if args.hist:
         row_md = minimum_acos_distance_row(embed, embed)
 
-        bins = np.arange(0,2.0,0.1)
+        bins = np.arange(1.3,1.6,0.01)
 
         frq, edges = np.histogram(row_md.cpu(), bins)
 
-        plt.bar(edges[:-1], frq, width=0.1)
+        plt.bar(edges[:-1], frq, width=0.01)
         plt.show()
