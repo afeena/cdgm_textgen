@@ -94,7 +94,8 @@ def main(cfg: DictConfig, override_args=None):
         with open(datastore_file, "w") as dsf, open(token_index_file, "w") as tif:
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
-                features = model.extract_features(**sample["net_input"])
+                #we are interested in the last layer only
+                features, _ = model.extract_features(**sample["net_input"])
                 target = model.get_targets(sample, features)
                 sample_size = sample["target"].size(-1)
                 for j in range(sample_size):
