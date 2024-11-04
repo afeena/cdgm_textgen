@@ -96,8 +96,8 @@ def main(cfg: DictConfig, override_args=None):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
                 features = model.extract_features(**sample["net_input"])
                 target = model.get_targets(sample, features)
-                sample_size = sample["target"].size(0)
-                for j in max(sample_size):
+                sample_size = sample["target"].size(-1)
+                for j in range(sample_size):
                     store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero()
                     store_target = torch.index_select(target[:,j], 0, store_token_idx)
                     store_features = torch.index_select(features[:,j], 0, store_token_idx)
