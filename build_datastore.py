@@ -13,7 +13,7 @@ from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
 
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
-
+torch.set_grad_enabled(False)
 
 def main(cfg: DictConfig, override_args=None):
     if isinstance(cfg, Namespace):
@@ -91,6 +91,7 @@ def main(cfg: DictConfig, override_args=None):
         data_folder = os.path.dirname(cfg.common_eval.path)
         datastore_file = os.path.join(data_folder, f"{subset}.datastore")
         token_index_file = os.path.join(data_folder, f"{subset}.token_index")
+
         with open(datastore_file, "w") as dsf, open(token_index_file, "w") as tif:
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
@@ -99,13 +100,13 @@ def main(cfg: DictConfig, override_args=None):
                 target = model.get_targets(sample, features)
                 sample_size = sample["target"].size(-1)
                 for j in range(sample_size):
-                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero()
+                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
                     store_target = torch.index_select(target[:,j], 0, store_token_idx)
                     store_features = torch.index_select(features[:,j], 0, store_token_idx)
                     # store token_idx and features
-                    np.save(dsf, store_features.cpu().numpy())
-                    np.save(tif, store_target.cpu().numpy())
-
+                    np.savetxt(dsf, store_features.cpu().numpy())
+                    np.savetxt(tif, store_target.cpu().numpy())
+                    print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
 
 if __name__ == "__main__":
