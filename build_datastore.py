@@ -88,8 +88,9 @@ def main(cfg: DictConfig, override_args=None):
             data_buffer_size=cfg.dataset.data_buffer_size,
         ).next_epoch_itr(shuffle=False)
 
-        datastore_file = os.path.join(cfg.common_eval.path, f"{subset}.datastore")
-        token_index_file = os.path.join(cfg.common_eval.path, f"{subset}.token_index")
+        data_folder = os.path.dirname(cfg.common_eval.path)
+        datastore_file = os.path.join(data_folder, f"{subset}.datastore")
+        token_index_file = os.path.join(data_folder, f"{subset}.token_index")
         with open(datastore_file, "w") as dsf, open(token_index_file, "w") as tif:
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
