@@ -11,7 +11,7 @@ import cdgm_textgen.tasks  # noqa
 import cdgm_textgen.dataclass  # noqa
 import cdgm_textgen.logging  # noqa
 import cdgm_textgen.optim  # noqa
-import checkpoint_utils  # noqa
+from .checkpoint_utils import *# noqa
 
 import fairseq.distributed  # noqa
 import fairseq.optim.lr_scheduler  # noqa
