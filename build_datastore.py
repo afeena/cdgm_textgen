@@ -104,7 +104,7 @@ def main(cfg: DictConfig, override_args=None):
                 store_target = torch.index_select(target[:,j], 0, store_token_idx)
                 store_features = torch.index_select(features[:,j], 0, store_token_idx)
                 # store token_idx and features
-                index.add_with_ids(store_features.size(0),store_features,store_token_idx)
+                index.add_with_ids(store_features,store_token_idx)
                 print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
         # save the index
