@@ -11,6 +11,7 @@ from fairseq.utils import reset_logging
 from cdgm_textgen import options
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
+import faiss
 
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
@@ -54,6 +55,7 @@ def main(cfg: DictConfig, override_args=None):
         suffix=cfg.checkpoint.checkpoint_suffix,
     )
     model = models[0]
+    index = faiss.IndexIDMap2(faiss.GpuIndexFlatL2(models.decoder.output_embed_dim))
 
     # Move models to GPU
     for model in models:
@@ -90,25 +92,23 @@ def main(cfg: DictConfig, override_args=None):
 
         data_folder = os.path.dirname(cfg.common_eval.path)
         datastore_file = os.path.join(data_folder, f"{subset}.datastore")
-        token_index_file = os.path.join(data_folder, f"{subset}.token_index")
 
-        with open(datastore_file, "w") as dsf, open(token_index_file, "w") as tif:
-            for i, sample in enumerate(itr):
-                sample = utils.move_to_cuda(sample) if use_cuda else sample
-                #we are interested in the last layer only
-                features, _ = model.extract_features(**sample["net_input"])
-                target = model.get_targets(sample, features)
-                sample_size = sample["target"].size(-1)
-                for j in range(sample_size):
-                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
-                    store_target = torch.index_select(target[:,j], 0, store_token_idx)
-                    store_features = torch.index_select(features[:,j], 0, store_token_idx)
-                    # store token_idx and features
-                    np.savetxt(dsf, store_features.cpu().numpy())
-                    np.savetxt(tif, store_target.cpu().numpy())
-                    print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
+        for i, sample in enumerate(itr):
+            sample = utils.move_to_cuda(sample) if use_cuda else sample
+            #we are interested in the last layer only
+            features, _ = model.extract_features(**sample["net_input"])
+            target = model.get_targets(sample, features)
+            sample_size = sample["target"].size(-1)
+            for j in range(sample_size):
+                store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
+                store_target = torch.index_select(target[:,j], 0, store_token_idx)
+                store_features = torch.index_select(features[:,j], 0, store_token_idx)
+                # store token_idx and features
+                index.add_with_ids(store_features.size(0),store_features,store_token_idx)
+                print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
-
+        # save the index
+        faiss.write_index(index, datastore_file)
 if __name__ == "__main__":
     parser = options.get_validation_parser()
     args = options.parse_args_and_arch(parser)
