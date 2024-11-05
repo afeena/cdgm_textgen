@@ -55,7 +55,7 @@ def main(cfg: DictConfig, override_args=None):
         suffix=cfg.checkpoint.checkpoint_suffix,
     )
     model = models[0]
-    index = faiss.IndexIDMap2(faiss.IndexFlatL2(models.decoder.output_embed_dim))
+    index = faiss.IndexIDMap2(faiss.IndexFlatL2(model.decoder.output_embed_dim))
 
     # Move models to GPU
     for model in models:
