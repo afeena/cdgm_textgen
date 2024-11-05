@@ -110,7 +110,7 @@ def main(cfg: DictConfig, override_args=None):
         print(f"total {index.ntotal} tokens are saved to a datastore")
         #sanity check
         print("staring sanity check")
-        idx_check = torch.randint(0, index.ntotal, (3,))
+        idx_check = torch.randint(0, len(task.target_dictionary), (3,))
         for i in idx_check:
             print(f"token {i} is {task.target_dictionary.string(torch.tensor([i]))}")
             vec_check = index.reconstruct(i)
