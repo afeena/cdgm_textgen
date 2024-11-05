@@ -104,10 +104,11 @@ def main(cfg: DictConfig, override_args=None):
                 store_target = torch.index_select(target[:,j], 0, store_token_idx)
                 store_features = torch.index_select(features[:,j], 0, store_token_idx)
                 # store token_idx and features
-                index.add_with_ids(store_features.cpu(),store_token_idx.cpu())
+                index.add_with_ids(store_features.cpu(),store_target.cpu())
                 print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
-        # save the index
+        print(f"total {index.ntotal} tokens are saved to a datastore")
+        # write the index
         faiss.write_index(index, datastore_file)
 if __name__ == "__main__":
     parser = options.get_validation_parser()
