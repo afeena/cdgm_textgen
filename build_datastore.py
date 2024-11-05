@@ -112,7 +112,7 @@ def main(cfg: DictConfig, override_args=None):
         print("staring sanity check")
         idx_check = torch.randint(0, index.ntotal, (3,))
         for i in idx_check:
-            print(f"token {i} is {task.target_dictionary.string(i)}")
+            print(f"token {i} is {task.target_dictionary.string(torch.tensor([i]))}")
             vec_check = index.reconstruct(i)
             nearest_dist, nearest_ids = index.search(vec_check, 5)
             print(f"nearest tokens are {task.target_dictionary.string(nearest_ids)} with dists {nearest_dist}")
