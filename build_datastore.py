@@ -108,6 +108,16 @@ def main(cfg: DictConfig, override_args=None):
                 print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
         print(f"total {index.ntotal} tokens are saved to a datastore")
+        #sanity check
+        print("staring sanity check")
+        idx_check = torch.randint(0, index.ntotal, (3,))
+        for i in idx_check:
+            print(f"token {i} is {task.target_dictionary.string(i)}")
+            vec_check = index.reconstruct(i)
+            nearest_dist, nearest_ids = index.search(vec_check, 5)
+            print(f"nearest tokens are {task.target_dictionary.string(nearest_ids)} with dists {nearest_dist}")
+        print("end sanity check")
+
         # write the index
         faiss.write_index(index, datastore_file)
 if __name__ == "__main__":
