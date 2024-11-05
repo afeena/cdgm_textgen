@@ -55,7 +55,8 @@ def main(cfg: DictConfig, override_args=None):
         suffix=cfg.checkpoint.checkpoint_suffix,
     )
     model = models[0]
-    index = faiss.IndexIDMap2(faiss.IndexFlatL2(model.decoder.output_embed_dim))
+    indexa = faiss.IndexFlatL2(model.decoder.output_embed_dim)
+    index = faiss.IndexIDMap2(indexa)
 
     # Move models to GPU
     for model in models:
@@ -103,19 +104,23 @@ def main(cfg: DictConfig, override_args=None):
                 store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
                 store_target = torch.index_select(target[:,j], 0, store_token_idx)
                 store_features = torch.index_select(features[:,j], 0, store_token_idx)
+                
                 # store token_idx and features
                 index.add_with_ids(store_features.cpu(),store_target.cpu())
                 print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
         print(f"total {index.ntotal} tokens are saved to a datastore")
         #sanity check
+        
         print("staring sanity check")
-        idx_check = torch.randint(0, len(task.target_dictionary), (3,))
+        idx_check = [index.id_map.at(7),index.id_map.at(8753),index.id_map.at(16753), index.id_map.at(56450)]
         for i in idx_check:
+            print("=============================")
             print(f"token {i} is {task.target_dictionary.string(torch.tensor([i]))}")
             vec_check = index.reconstruct(i)
-            nearest_dist, nearest_ids = index.search(vec_check, 5)
-            print(f"nearest tokens are {task.target_dictionary.string(nearest_ids)} with dists {nearest_dist}")
+            nearest_dist, nearest_ids = index.search(vec_check[np.newaxis,:], 5)
+            print(f"nearest tokens are: {task.target_dictionary.string(nearest_ids[0])}, with dists: {nearest_dist}")
+            print("=============================")
         print("end sanity check")
 
         # write the index
