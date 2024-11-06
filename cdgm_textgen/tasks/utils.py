@@ -168,5 +168,8 @@ def build_generator(
         no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
         search_strategy=search_strategy,
         metric=getattr(args, "decoding_measure", "cosine"),
+        knn_index_file=getattr(args, "knn_index_file", None),
+        knn_k=getattr(args, "knn_k", 5),
+        knn_lambda=getattr(args, "knn_lambda", 0.5),
         **extra_gen_cls_kwargs,
     )

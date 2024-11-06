@@ -14,7 +14,7 @@ from fairseq.data import data_utils
 from fairseq.models import FairseqIncrementalDecoder
 from fairseq.ngram_repeat_block import NGramRepeatBlock
 from torch import Tensor
-
+import faiss
 
 class SequenceGenerator(nn.Module):
     def __init__(
@@ -39,6 +39,9 @@ class SequenceGenerator(nn.Module):
             lm_weight=1.0,
             tokens_to_suppress=(),
             metric="cosine",
+            knn_index_file=None,
+            knn_k=5,
+            knn_lambda=0.5,
     ):
         """Generates translations of a given source sentence.
 
@@ -127,6 +130,12 @@ class SequenceGenerator(nn.Module):
         self.lm_weight = lm_weight
         if self.lm_model is not None:
             self.lm_model.eval()
+
+        if self.knn_idex_file is not None:
+            self.knn_index = faiss.read_index(self.knn_idex_file)
+            self.knn_k = knn_k
+            self.knn_lambda = knn_lambda
+
         self.metric = metric
 
         self.model.set_normalized_tgt_embeddings()
@@ -353,7 +362,7 @@ class SequenceGenerator(nn.Module):
             with torch.autograd.profiler.record_function(
                     "EnsembleModel: forward_decoder"
             ):
-                lprobs, avg_attn_scores = self.model.forward_decoder(
+                lprobs, avg_attn_scores, decoder_out = self.model.forward_decoder(
                     tokens[:, : step + 1],
                     encoder_outs,
                     incremental_states,
@@ -368,6 +377,14 @@ class SequenceGenerator(nn.Module):
                 )
                 probs = probs[:, -1, :] * self.lm_weight
                 lprobs += probs
+
+            if self.knn_index is not None:
+                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.detach().cpu().numpy(), self.knn_k)
+                knn_out_idx = torch.from_numpy(knn_out_idx).to(decoder_out.device)
+                knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
+                knn_p = torch.exp(-knn_out_dists / self.knn_temp)
+                knn_l_probs = torch.zeros_like(lprobs).scatter_(1, knn_out_idx, knn_p)
+                lprobs = (1 - self.knn_weight) * lprobs + self.knn_weight * knn_l_probs
 
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
 
@@ -818,6 +835,7 @@ class EnsembleModel(nn.Module):
             incremental_states: List[Dict[str, Dict[str, Optional[Tensor]]]],
             temperature: float = 1.0,
             metric: Optional[str] = "cosine",
+            return_decoder_output: bool = False,
     ):
         log_probs = []
         avg_attn: Optional[Tensor] = None
@@ -883,7 +901,10 @@ class EnsembleModel(nn.Module):
 
         if avg_attn is not None:
             avg_attn.div_(self.models_size)
-        return avg_probs, avg_attn
+        if return_decoder_output:
+            return avg_probs, avg_attn, decoder_out[0]
+        else:
+            return avg_probs, avg_attn
 
     @torch.jit.export
     def reorder_encoder_out(
