@@ -887,7 +887,10 @@ class EnsembleModel(nn.Module):
             )
             probs = probs[:, -1, :]
             if self.models_size == 1:
-                return probs, attn
+                if return_decoder_output:
+                    return probs, attn, decoder_out[0]
+                else:
+                    return probs, attn
 
             log_probs.append(probs)
             if attn is not None:
@@ -902,8 +905,7 @@ class EnsembleModel(nn.Module):
 
         if avg_attn is not None:
             avg_attn.div_(self.models_size)
-        if return_decoder_output:
-            return avg_probs, avg_attn, decoder_out[0]
+
         else:
             return avg_probs, avg_attn
 
