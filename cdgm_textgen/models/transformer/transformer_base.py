@@ -11,7 +11,6 @@ from fairseq import utils
 from fairseq.models import FairseqEncoderDecoderModel, register_model
 from fairseq.models.transformer import (
     TransformerConfig,
-    TransformerDecoderBase,
     TransformerEncoderBase,
 )
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
+from cdgm_textgen.models.transformer import TransformerDecoderBase
 
 
 @register_model("transformer_base", dataclass=TransformerConfig)
