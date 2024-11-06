@@ -382,7 +382,7 @@ class SequenceGenerator(nn.Module):
                 lprobs += probs
 
             if self.knn_index is not None:
-                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.detach().cpu().numpy(), self.knn_k)
+                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.squeeze(1).detach().cpu().numpy(), self.knn_k)
                 knn_out_idx = torch.from_numpy(knn_out_idx).to(decoder_out.device)
                 knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
                 knn_p = torch.exp(-knn_out_dists / self.knn_temperature)
