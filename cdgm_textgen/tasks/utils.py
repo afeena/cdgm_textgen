@@ -171,5 +171,6 @@ def build_generator(
         knn_index_file=getattr(args, "knn_index_file", None),
         knn_k=getattr(args, "knn_k", 5),
         knn_lambda=getattr(args, "knn_lambda", 0.5),
+        knn_temperature=getattr(args, "knn_temperature", 1.0),
         **extra_gen_cls_kwargs,
     )

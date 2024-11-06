@@ -54,7 +54,7 @@ class CDGMGenerationConfig(GenerationConfig):
     knn_index_file: Optional[str] = field(default=None, metadata={"help": "knn-mt index file on train data"})
     knn_k: Optional[int] = field(default=5, metadata={"help": "number of nearest neighbors ofr knn-MT decoding"})
     knn_lambda: Optional[float] = field(default=0.5, metadata={"help": "lambda for knn-MT decoding"})
-
+    knn_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for knn-MT decoding"})
 
 @dataclass
 class CDGMCommonConfig(CommonConfig):

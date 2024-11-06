@@ -42,6 +42,7 @@ class SequenceGenerator(nn.Module):
             knn_index_file=None,
             knn_k=5,
             knn_lambda=0.5,
+            knn_temperature=1.0,
     ):
         """Generates translations of a given source sentence.
 
@@ -135,6 +136,7 @@ class SequenceGenerator(nn.Module):
             self.knn_index = faiss.read_index(knn_index_file)
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
+            self.knn_temperature = knn_temperature
 
         self.metric = metric
 
@@ -383,7 +385,7 @@ class SequenceGenerator(nn.Module):
                 knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.detach().cpu().numpy(), self.knn_k)
                 knn_out_idx = torch.from_numpy(knn_out_idx).to(decoder_out.device)
                 knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
-                knn_p = torch.exp(-knn_out_dists / self.knn_temp)
+                knn_p = torch.exp(-knn_out_dists / self.knn_temperature)
                 knn_l_probs = torch.zeros_like(lprobs).scatter_(1, knn_out_idx, knn_p)
                 lprobs = (1 - self.knn_weight) * lprobs + self.knn_weight * knn_l_probs
 
