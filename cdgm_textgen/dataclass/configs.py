@@ -51,10 +51,9 @@ class CDGMGenerationConfig(GenerationConfig):
         default="distance",
         metadata={"help": "criteria to use for unmasking"},
     )
-    approximate_knn: bool = field(
-        default=False,
-        metadata={"help": "approximate knn with faiss (deprecated)"},
-    )
+    knn_index_file: Optional[str] = field(default=None, metadata={"help": "knn-mt index file on train data"})
+    knn_k: Optional[int] = field(default=5, metadata={"help": "number of nearest neighbors ofr knn-MT decoding"})
+    knn_lambda: Optional[float] = field(default=0.5, metadata={"help": "lambda for knn-MT decoding"})
 
 
 @dataclass

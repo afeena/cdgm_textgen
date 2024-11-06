@@ -131,7 +131,7 @@ class SequenceGenerator(nn.Module):
         if self.lm_model is not None:
             self.lm_model.eval()
 
-        if self.knn_idex_file is not None:
+        if knn_index_file is not None:
             self.knn_index = faiss.read_index(self.knn_idex_file)
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
