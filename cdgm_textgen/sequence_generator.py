@@ -387,7 +387,7 @@ class SequenceGenerator(nn.Module):
                 knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
                 knn_p = torch.exp(-knn_out_dists / self.knn_temperature)
                 knn_l_probs = torch.zeros_like(lprobs).scatter_(1, knn_out_idx, knn_p)
-                lprobs = (1 - self.knn_weight) * lprobs + self.knn_weight * knn_l_probs
+                lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
 
