@@ -367,7 +367,8 @@ class SequenceGenerator(nn.Module):
                     encoder_outs,
                     incremental_states,
                     self.temperature,
-                    self.metric
+                    self.metric,
+                    return_decoder_output=True,
                 )
 
             if self.lm_model is not None:
