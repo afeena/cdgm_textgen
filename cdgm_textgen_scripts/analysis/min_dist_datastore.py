@@ -16,8 +16,8 @@ with open(args.features, 'r') as f:
         if not line:
             continue
         features = np.array([float(x) for x in line.split()])
-        idx, dists = datastore.search(-1*features.reshape(1, -1), 1)
-        min_dists.append(dists)
+        idx, dists = datastore.search(features.reshape(1, -1), 2)
+        min_dists.append(dists[-1])
 
 min_dist_total = np.array(min_dists).min()
 print(min_dist_total)
