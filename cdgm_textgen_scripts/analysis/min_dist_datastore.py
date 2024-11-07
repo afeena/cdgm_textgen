@@ -5,6 +5,7 @@ import argparse
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--datastore', type=str, required=True)
 argparser.add_argument('--features', type=str, required=True)
+argparser.add_argument('-n', type=int, default=100, help='Number of nearest neighbors to retrieve')
 
 args = argparser.parse_args()
 
@@ -16,7 +17,7 @@ with open(args.features, 'r') as f:
         if not line:
             continue
         features = np.array([float(x) for x in line.split()])
-        idx, dists = datastore.search(features.reshape(1, -1), 100)
+        idx, dists = datastore.search(features.reshape(1, -1), args.n)
         min_dists.append(dists[-1])
 
 min_dist_total = np.array(min_dists).min()
