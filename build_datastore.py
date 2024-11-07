@@ -55,7 +55,7 @@ def main(cfg: DictConfig, override_args=None):
         suffix=cfg.checkpoint.checkpoint_suffix,
     )
     model = models[0]
-    indexa = faiss.IndexFlatL2(model.decoder.output_embed_dim)
+    indexa = faiss.IndexFlatIP(model.decoder.output_embed_dim)
     index = faiss.IndexIDMap2(indexa)
 
     # Move models to GPU
@@ -92,12 +92,15 @@ def main(cfg: DictConfig, override_args=None):
         ).next_epoch_itr(shuffle=False)
 
         data_folder = os.path.dirname(cfg.common_eval.path)
-        datastore_file = os.path.join(data_folder, f"{subset}.datastore")
+        datastore_file = os.path.join(data_folder, f"{subset}.datastore.flatIP")
 
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             #we are interested in the last layer only
             features, _ = model.extract_features(**sample["net_input"])
+            #Normalize the features
+            features = features / features.norm(p=2, dim=-1, keepdim=True)
+
             target = model.get_targets(sample, features)
             sample_size = sample["target"].size(-1)
             for j in range(sample_size):
