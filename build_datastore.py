@@ -93,24 +93,26 @@ def main(cfg: DictConfig, override_args=None):
 
         data_folder = os.path.dirname(cfg.common_eval.path)
         datastore_file = os.path.join(data_folder, f"{subset}.datastore.flatIP")
+        features_file = os.path.join(data_folder, f"{subset}.features.flatIP")
 
-        for i, sample in enumerate(itr):
-            sample = utils.move_to_cuda(sample) if use_cuda else sample
-            #we are interested in the last layer only
-            features, _ = model.extract_features(**sample["net_input"])
-            #Normalize the features
-            features = features / features.norm(p=2, dim=-1, keepdim=True)
+        with open(features_file, "w") as ff:
+            for i, sample in enumerate(itr):
+                sample = utils.move_to_cuda(sample) if use_cuda else sample
+                #we are interested in the last layer only
+                features, _ = model.extract_features(**sample["net_input"])
+                #Normalize the features
+                features = features / features.norm(p=2, dim=-1, keepdim=True)
 
-            target = model.get_targets(sample, features)
-            sample_size = sample["target"].size(-1)
-            for j in range(sample_size):
-                store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
-                store_target = torch.index_select(target[:,j], 0, store_token_idx)
-                store_features = torch.index_select(features[:,j], 0, store_token_idx)
-                
-                # store token_idx and features
-                index.add_with_ids(store_features.cpu(),store_target.cpu())
-                print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
+                target = model.get_targets(sample, features)
+                sample_size = sample["target"].size(-1)
+                for j in range(sample_size):
+                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
+                    store_target = torch.index_select(target[:,j], 0, store_token_idx)
+                    store_features = torch.index_select(features[:,j], 0, store_token_idx)
+                    np.savetxt(ff, store_features.cpu().numpy())
+                    # store token_idx and features
+                    index.add_with_ids(store_features.cpu(),store_target.cpu())
+                    print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
 
         print(f"total {index.ntotal} tokens are saved to a datastore")
         #sanity check
