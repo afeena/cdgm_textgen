@@ -14,21 +14,20 @@ args = argparser.parse_args()
 datastore = faiss.read_index(args.datastore)
 min_dists = []
 min_dists_unique = []
-targets = []
-with open(args.features, 'r') as f, open(args.targets, 'r') as t:
-    for line_fetaure,line_target in zip(f,t):
+targets = np.loadtxt(args.targets, dtype=np.int32)
+t = 0
+with open(args.features, 'r') as f:
+    for line_fetaure in f:
         line_fetaure = line_fetaure.strip()
-        idx_target = int(line_target.strip())
-        targets.append(idx_target)
         if not line_fetaure:
             continue
         features = np.array([float(x) for x in line_fetaure.split()])
         idx, dists = datastore.search(features.reshape(1, -1), args.n)
-        position = np.where(idx!=idx_target)
+        position = np.where(idx!=targets[t])
         min_dists_unique.append(dists[position])
         min_dists.append(dists[1])
+        t+=1
 
 import pandas as pd
 
 pd.DataFrame({'min_dist': min_dists, 'min_dist_unique': min_dists_unique, 'target': targets}).to_csv(args.s, index=False)
-        
