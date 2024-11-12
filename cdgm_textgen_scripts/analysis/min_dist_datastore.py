@@ -14,7 +14,7 @@ args = argparser.parse_args()
 datastore = faiss.read_index(args.datastore)
 min_dists = []
 min_dists_unique = []
-targets = np.loadtxt(args.targets, converters={0: lambda x: int(x)})
+targets = np.loadtxt(args.targets, dtype=float).astype(np.int64)
 t = 0
 with open(args.features, 'r') as f:
     for line_fetaure in f:
