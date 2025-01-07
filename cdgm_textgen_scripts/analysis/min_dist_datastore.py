@@ -12,8 +12,8 @@ argparser.add_argument('-s', type=str, help="Path to save the min_dists.csv file
 args = argparser.parse_args()
 
 datastore = faiss.read_index(args.datastore)
-min_dists = []
-min_dists_unique = []
+min_dists = np.inf
+min_dists_unique = np.inf
 targets = np.loadtxt(args.targets, dtype=float).astype(np.int64)
 t = 0
 with open(args.features, 'r') as f:
@@ -24,9 +24,16 @@ with open(args.features, 'r') as f:
         features = np.array([float(x) for x in line_fetaure.split()])
         idx, dists = datastore.search(features.reshape(1, -1), args.n)
         position = np.where(idx[0] != targets[t])
-        min_dists_unique.append(dists[0][position])
-        min_dists.append(dists[0][1])
-        t+=1
-        if t % 1000 == 0:
-            print(f"Processed {t} samples")
+        if dists[0][position]<min_dists_unique:
+            min_dists_unique = dists[0][position]
+        if dists[0][1]<min_dists:
+            min_dists = dists[0][1]
 
+        t+=1
+        if t % 100000 == 0:
+            print(f"Processed {t} samples")
+            exit(-1)
+
+print(
+    "global minimum distance to the nearest neighbor: ", min_dists, "\n",
+    "global minimum distance to the nearest neighbour which is not a token itself", min_dists_unique)
