@@ -39,10 +39,6 @@ class SequenceGenerator(nn.Module):
             lm_weight=1.0,
             tokens_to_suppress=(),
             metric="cosine",
-            knn_index_file=None,
-            knn_k=5,
-            knn_lambda=0.5,
-            knn_temperature=1.0,
     ):
         """Generates translations of a given source sentence.
 
@@ -131,12 +127,6 @@ class SequenceGenerator(nn.Module):
         self.lm_weight = lm_weight
         if self.lm_model is not None:
             self.lm_model.eval()
-
-        if knn_index_file is not None:
-            self.knn_index = faiss.read_index(knn_index_file)
-            self.knn_k = knn_k
-            self.knn_lambda = knn_lambda
-            self.knn_temperature = knn_temperature
 
         self.metric = metric
 
@@ -380,14 +370,6 @@ class SequenceGenerator(nn.Module):
                 )
                 probs = probs[:, -1, :] * self.lm_weight
                 lprobs += probs
-
-            if self.knn_index is not None:
-                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.squeeze(1).detach().cpu().numpy(), self.knn_k)
-                knn_out_idx = torch.from_numpy(knn_out_idx).to(decoder_out.device).to(torch.int64)
-                knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
-                knn_p = torch.exp(-knn_out_dists / self.knn_temperature)
-                knn_l_probs = torch.zeros_like(lprobs).scatter_(1, knn_out_idx, knn_p)
-                lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
 

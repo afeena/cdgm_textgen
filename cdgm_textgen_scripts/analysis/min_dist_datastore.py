@@ -23,11 +23,10 @@ with open(args.features, 'r') as f:
             continue
         features = np.array([float(x) for x in line_fetaure.split()])
         idx, dists = datastore.search(features.reshape(1, -1), args.n)
-        position = np.where(idx!=targets[t])
-        min_dists_unique.append(dists[position])
-        min_dists.append(dists[1])
+        position = np.where(idx[0] != targets[t])
+        min_dists_unique.append(dists[0][position])
+        min_dists.append(dists[0][1])
         t+=1
+        if t % 1000 == 0:
+            print(f"Processed {t} samples")
 
-import pandas as pd
-
-pd.DataFrame({'min_dist': min_dists, 'min_dist_unique': min_dists_unique, 'target': targets}).to_csv(args.s, index=False)
