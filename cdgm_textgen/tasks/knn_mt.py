@@ -15,7 +15,7 @@ class KnnTranslationConfig(TranslationConfig):
     knn_k: int = field(default=32, metadata={"help": "number of nearest neighbors to retrieve"})
     knn_lambda: float = field(default=0.5, metadata={"help": "lambda for knn search"})
     knn_temperature: float = field(default=1.0, metadata={"help": "temperature for knn search"})
-
+    knn_index_file: str = field(default=None, metadata={"help": "path to the knn index file"})
 
 @register_task("translation_knn", dataclass=KnnTranslationConfig)
 class KnnTranslationTask(TranslationTask):
@@ -35,6 +35,7 @@ class KnnTranslationTask(TranslationTask):
             min_len=getattr(args, "min_len", 1),
             search_strategy=getattr(args, "search_strategy", "beam"),
             metric=getattr(args, "search_strategy", "cosine"),
+            knn_index_file = getattr(args, "knn_index_file", None),
             knn_k=getattr(args, "knn_k", 32),
             knn_lambda=getattr(args, "knn_lambda", 0.5),
             knn_temperature=getattr(args, "knn_temperature", 1.0),
