@@ -26,6 +26,7 @@ class KnnTranslationTask(TranslationTask):
 
         from cdgm_textgen.knn_sequence_generator import KnnMTSequenceGenerator
         seq_gen_cls = KnnMTSequenceGenerator
+        extra_gen_cls_kwargs = {}
 
 
         return seq_gen_cls(
