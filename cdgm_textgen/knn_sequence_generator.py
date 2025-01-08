@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 import torch
 from torch import Tensor
 import faiss
-from sequence_generator import SequenceGenerator
+from cdgm_textgen.sequence_generator import SequenceGenerator
 
 class KnnMTSequenceGenerator(SequenceGenerator):
     def __init__(self,
