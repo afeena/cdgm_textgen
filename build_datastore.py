@@ -1,145 +1,67 @@
-import logging
-import os
-from argparse import Namespace
-import numpy as np
-import torch
-from omegaconf import DictConfig
-
-from fairseq import distributed_utils, utils, checkpoint_utils
-from fairseq.utils import reset_logging
-
-from cdgm_textgen import options
-from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
-
+import argparse
 import faiss
+import os
+import numpy as np
+import time
 
-logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
-torch.set_grad_enabled(False)
-
-def main(cfg: DictConfig, override_args=None):
-    if isinstance(cfg, Namespace):
-        cfg = convert_namespace_to_omegaconf(cfg)
-
-    utils.import_user_module(cfg.common)
-
-    reset_logging()
-
-    assert (
-        cfg.dataset.max_tokens is not None or cfg.dataset.batch_size is not None
-    ), "Must specify batch size either with --max-tokens or --batch-size"
-
-    use_fp16 = cfg.common.fp16
-    use_cuda = torch.cuda.is_available() and not cfg.common.cpu
-
-    if use_cuda:
-        torch.cuda.set_device(cfg.distributed_training.device_id)
-
-    if cfg.distributed_training.distributed_world_size > 1:
-        data_parallel_world_size = distributed_utils.get_data_parallel_world_size()
-        data_parallel_rank = distributed_utils.get_data_parallel_rank()
-    else:
-        data_parallel_world_size = 1
-        data_parallel_rank = 0
-
-    if override_args is not None:
-        overrides = vars(override_args)
-        overrides.update(eval(getattr(override_args, "model_overrides", "{}")))
-    else:
-        overrides = None
-
-    # Load ensemble
-    logger.info("loading model(s) from {}".format(cfg.common_eval.path))
-    models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task(
-        [cfg.common_eval.path],
-        arg_overrides=overrides,
-        suffix=cfg.checkpoint.checkpoint_suffix,
-    )
-    model = models[0]
-    indexa = faiss.IndexFlatIP(model.decoder.output_embed_dim)
-    index = faiss.IndexIDMap2(indexa)
-
-    # Move models to GPU
-    for model in models:
-        model.eval()
-        if use_fp16:
-            model.half()
-        if use_cuda:
-            model.cuda()
-
-    for subset in cfg.dataset.valid_subset.split(","):
-        try:
-            task.load_dataset(subset, combine=False, epoch=1, task_cfg=saved_cfg.task)
-            dataset = task.dataset(subset)
-        except KeyError:
-            raise Exception("Cannot find dataset: " + subset)
-
-        # Initialize data iterator
-        itr = task.get_batch_iterator(
-            dataset=dataset,
-            max_tokens=cfg.dataset.max_tokens,
-            max_sentences=cfg.dataset.batch_size,
-            max_positions=utils.resolve_max_positions(
-                task.max_positions(),
-                *[m.max_positions() for m in models],
-            ),
-            ignore_invalid_inputs=cfg.dataset.skip_invalid_size_inputs_valid_test,
-            required_batch_size_multiple=cfg.dataset.required_batch_size_multiple,
-            seed=cfg.common.seed,
-            num_shards=data_parallel_world_size,
-            shard_id=data_parallel_rank,
-            num_workers=cfg.dataset.num_workers,
-            data_buffer_size=cfg.dataset.data_buffer_size,
-        ).next_epoch_itr(shuffle=False)
-
-        data_folder = os.path.dirname(cfg.common_eval.path)
-        datastore_file = os.path.join(data_folder, f"{subset}.datastore.flatIP")
-        features_file = os.path.join(data_folder, f"{subset}.features.flatIP")
-        targets_file = os.path.join(data_folder, f"{subset}.targets.flatIP")
-
-        with open(features_file, "w") as ff, open(targets_file, "w") as tf:
-            for i, sample in enumerate(itr):
-                sample = utils.move_to_cuda(sample) if use_cuda else sample
-                #we are interested in the last layer only
-                features, _ = model.extract_features(**sample["net_input"])
-                #Normalize the features
-                features = features / features.norm(p=2, dim=-1, keepdim=True)
-
-                target = model.get_targets(sample, features)
-                sample_size = sample["target"].size(-1)
-                for j in range(sample_size):
-                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
-                    store_target = torch.index_select(target[:,j], 0, store_token_idx)
-                    store_features = torch.index_select(features[:,j], 0, store_token_idx)
-                    np.savetxt(ff, store_features.cpu().numpy())
-                    np.savetxt(tf, store_target.cpu().numpy())
-                    # store token_idx and features
-                    index.add_with_ids(store_features.cpu(),store_target.cpu())
-                    print(f"batch {i}, {len(store_features)} tokens is saved to a datastore")
-
-        print(f"total {index.ntotal} tokens are saved to a datastore")
-        #sanity check
-        
-        print("staring sanity check")
-        idx_check = [index.id_map.at(7),index.id_map.at(8753),index.id_map.at(16753), index.id_map.at(56450)]
-        for i in idx_check:
-            print("=============================")
-            print(f"token {i} is {task.target_dictionary.string(torch.tensor([i]))}")
-            vec_check = index.reconstruct(i)
-            nearest_dist, nearest_ids = index.search(vec_check[np.newaxis,:], 5)
-            print(f"nearest tokens are: {task.target_dictionary.string(nearest_ids[0])}, with dists: {nearest_dist}")
-            print("=============================")
-        print("end sanity check")
-
-        # write the index
-        faiss.write_index(index, datastore_file)
 if __name__ == "__main__":
-    parser = options.get_validation_parser()
-    args = options.parse_args_and_arch(parser)
+    datastore_parser = argparse.ArgumentParser()
+    datastore_parser.add_argument("--keys_path", type=str, required=True)
+    datastore_parser.add_argument("--values_path", type=str, required=True)
+    datastore_parser.add_argument('--dstore_size', type=int, help='number of items saved in the datastore memmap')
+    datastore_parser.add_argument("--faiss_index", type=str, default=None)
+    datastore_parser.add_argument("--dim", type=int, default=128)
+    datastore_parser.add_argument("--ncentroids", type=int, default=4096)
+    datastore_parser.add_argument("--code_size", type=int, default=64)
+    datastore_parser.add_argument("--nprobe", type=int, default=8)
 
-    # only override args that are explicitly given on the command line
-    override_parser = options.get_validation_parser()
-    override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
+    args = datastore_parser.parse_args()
 
-    distributed_utils.call_main(
-        convert_namespace_to_omegaconf(args), main, override_args=override_args
-    )
+    keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
+                     shape=(args.dstore_size, args.dimension))
+    vals = np.memmap(args.dvalues_path, dtype=np.int, mode='r', shape=(args.dstore_size, 1))
+
+    if not os.path.exists(args.faiss_index + ".trained"):
+        print("training faiss index")
+
+        indexa = faiss.IndexFlatIP(args.dim)
+        index = faiss.IndexIVFPQ(indexa, args.dim,
+                                     args.ncentroids,
+                                     args.code_size, 8)
+        index.nprobe = args.nprobe
+        np.random.seed(args.seed)
+        random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(1000000, vals.shape[0])], replace=False)
+
+        start = time.time()
+        index.train(keys[random_sample].astype(np.float32))
+        print('Training took {} s'.format(time.time() - start))
+
+        print('Writing index after training')
+        start = time.time()
+        faiss.write_index(index, args.faiss_index + ".trained")
+        print('Writing index took {} s'.format(time.time() - start))
+
+    print('Adding Keys')
+    index = faiss.read_index(args.faiss_index + ".trained")
+    start = 0
+    start_time = time.time()
+    num_keys_to_add_at_a_time = 1000000
+    while start < args.dstore_size:
+        end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
+        to_add = keys[start:end].copy()
+        index.add_with_ids(to_add.astype(np.float32), np.arange(start, end))
+        start += num_keys_to_add_at_a_time
+
+        if (start % 1000000) == 0:
+            print('Added %d tokens so far' % start)
+            print('Writing Index', start)
+            faiss.write_index(index, args.faiss_index)
+
+    print("Adding total %d keys" % end)
+    print('Adding took {} s'.format(time.time() - start_time))
+    print('Writing Index')
+    start = time.time()
+    faiss.write_index(index, args.faiss_index)
+    print('Writing index took {} s'.format(time.time() - start))
+
+    print(f"total {index.ntotal} tokens are saved to a datastore")
