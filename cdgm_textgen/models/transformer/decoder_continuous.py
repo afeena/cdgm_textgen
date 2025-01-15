@@ -33,6 +33,9 @@ class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
         if cfg.manifold == "sphere":
             self.manifold = SphereExact()
             self.set_params_to_manifold()
+        if cfg.manifold == "poincare":
+            self.manifold = StereographicExact(k=-1.0)
+            self.set_params_to_manifold()
     def forward(
             self,
             prev_output_tokens,

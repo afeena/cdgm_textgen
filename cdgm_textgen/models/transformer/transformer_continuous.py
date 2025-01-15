@@ -16,7 +16,7 @@ logger = logging.getLogger("cdgm_textgen.models.transformer.transformer_continuo
 @dataclass
 class ContinuousTransformerManifoldConfig(ContinuousTransformerConfig):
     manifold: Optional[str] = field(default=None, metadata={"help": "manifold to use for output of the model"})
-
+@register_model("manifold_cont_transformer", dataclass=ContinuousTransformerManifoldConfig)
 class ContinuousTransformerManifold(TransformerModelContinuous):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
