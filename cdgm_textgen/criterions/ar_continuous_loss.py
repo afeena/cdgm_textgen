@@ -15,9 +15,9 @@ from geoopt import StereographicExact
 from torch.distributions import multivariate_normal
 
 
-from cdgm_textgen.criterions.distance_loss import DistanceCriterion
+from cdgm_textgen.criterions.distance_loss import DistanceCriterion, DistanceCriterionConfig
 
-@register_criterion("manifold_dist_criterion")
+@register_criterion("manifold_dist_criterion", dataclass=DistanceCriterionConfig)
 class ManifoldDistanceCriterion(DistanceCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
