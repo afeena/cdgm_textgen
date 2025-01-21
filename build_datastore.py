@@ -18,8 +18,8 @@ if __name__ == "__main__":
     args = datastore_parser.parse_args()
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
-                     shape=(args.dstore_size, args.dimension))
-    vals = np.memmap(args.dvalues_path, dtype=np.int, mode='r', shape=(args.dstore_size, 1))
+                     shape=(args.dstore_size, args.dim))
+    vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("training faiss index")
@@ -29,7 +29,7 @@ if __name__ == "__main__":
                                      args.ncentroids,
                                      args.code_size, 8)
         index.nprobe = args.nprobe
-        np.random.seed(args.seed)
+        np.random.seed(42)
         random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(1000000, vals.shape[0])], replace=False)
 
         start = time.time()
