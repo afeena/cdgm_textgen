@@ -11,21 +11,23 @@ if __name__ == "__main__":
     datastore_parser.add_argument('--dstore_size', type=int, help='number of items saved in the datastore memmap')
     datastore_parser.add_argument("--faiss_index", type=str, default=None)
     datastore_parser.add_argument("--dim", type=int, default=128)
-    datastore_parser.add_argument("--ncentroids", type=int, default=4096)
-    datastore_parser.add_argument("--code_size", type=int, default=64)
+    datastore_parser.add_argument("--ncentroids", type=int, default=2048)
+    datastore_parser.add_argument("--code_size", type=int, default=32)
     datastore_parser.add_argument("--nprobe", type=int, default=8)
 
     args = datastore_parser.parse_args()
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
-                     shape=(args.dstore_size, args.dimension))
+                     shape=(args.dstore_size, args.dim))
     vals = np.memmap(args.dvalues_path, dtype=np.int, mode='r', shape=(args.dstore_size, 1))
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("training faiss index")
 
-        indexa = faiss.IndexFlatIP(args.dim)
-        index = faiss.IndexIVFPQ(indexa, args.dim,
+        res = faiss.StandardGpuResources()
+        indexa = faiss.GpuIndexFlatIP(args.dim)
+        indexa = faiss.index_cpu_to_gpu(res, 0, indexa)
+        index = faiss.GpuIndexIVFPQ(indexa, args.dim,
                                      args.ncentroids,
                                      args.code_size, 8)
         index.nprobe = args.nprobe
