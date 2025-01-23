@@ -34,12 +34,12 @@ if __name__ == "__main__":
                          shape=(args.dstore_size, args.dim))
         vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
+    res = faiss.StandardGpuResources()
+    config = faiss.GpuIndexFlatConfig()
+    config.device = 0
     if not os.path.exists(args.faiss_index + ".trained"):
         print("training faiss index")
 
-        res = faiss.StandardGpuResources()
-        config = faiss.GpuIndexFlatConfig()
-        config.device = 0
         indexa = faiss.IndexFlatIP(args.dim)
         cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                      args.ncentroids,
@@ -80,7 +80,8 @@ if __name__ == "__main__":
     print('Adding took {} s'.format(time.time() - start_time))
     print('Writing Index')
     start = time.time()
-    faiss.write_index(index, args.faiss_index)
+    index_cpu = faiss.index_gpu_to_cpu(index)
+    faiss.write_index(index_cpu, args.faiss_index)
     print('Writing index took {} s'.format(time.time() - start))
 
     print(f"total {index.ntotal} tokens are saved to a datastore")
