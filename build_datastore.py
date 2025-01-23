@@ -5,6 +5,7 @@ import numpy as np
 import time
 
 if __name__ == "__main__":
+    print("start")
     datastore_parser = argparse.ArgumentParser()
     datastore_parser.add_argument("--keys_path", type=str, required=True)
     datastore_parser.add_argument("--values_path", type=str, required=True)
@@ -17,6 +18,8 @@ if __name__ == "__main__":
 
     args = datastore_parser.parse_args()
 
+    print("read keys and vals")
+
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
                      shape=(args.dstore_size, args.dim))
     vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
@@ -25,11 +28,13 @@ if __name__ == "__main__":
         print("training faiss index")
 
         res = faiss.StandardGpuResources()
-        indexa = faiss.GpuIndexFlatIP(args.dim)
-        indexa = faiss.index_cpu_to_gpu(res, 0, indexa)
-        index = faiss.GpuIndexIVFPQ(indexa, args.dim,
+        config = faiss.GpuIndexFlatConfig()
+        config.device = 0
+        indexa = faiss.IndexFlatIP(args.dim)
+        cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                      args.ncentroids,
                                      args.code_size, 8)
+        index = faiss.index_cpu_to_gpu(res,0, cpu_idx)
         index.nprobe = args.nprobe
         np.random.seed(42)
         random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(1000000, vals.shape[0])], replace=False)
