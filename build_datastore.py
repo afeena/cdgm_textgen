@@ -15,14 +15,24 @@ if __name__ == "__main__":
     datastore_parser.add_argument("--ncentroids", type=int, default=2048)
     datastore_parser.add_argument("--code_size", type=int, default=32)
     datastore_parser.add_argument("--nprobe", type=int, default=8)
+    datastore_parser.add_argument("--dry_run", action="store_true")
 
     args = datastore_parser.parse_args()
 
     print("read keys and vals")
+    #here test ds creation
+    if args.dry_run:
+        args.dstore_size = 1000
+        args.dim = 128
+        args.faiss_index = "test"
+        keys = np.random.rand(args.dstore_size, args.dim).astype(np.float32)
+        vals = np.random.randint(0, 1000000, size=[args.dstore_size, 1]).astype(np.int32)
 
-    keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
-                     shape=(args.dstore_size, args.dim))
-    vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
+    else:
+
+        keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
+                         shape=(args.dstore_size, args.dim))
+        vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("training faiss index")
