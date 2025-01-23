@@ -55,11 +55,13 @@ if __name__ == "__main__":
 
         print('Writing index after training')
         start = time.time()
-        faiss.write_index(index, args.faiss_index + ".trained")
+        index_cpu = faiss.index_gpu_to_cpu(index)
+        faiss.write_index(index_cpu, args.faiss_index + ".trained")
         print('Writing index took {} s'.format(time.time() - start))
 
     print('Adding Keys')
-    index = faiss.read_index(args.faiss_index + ".trained")
+    index_cpu = faiss.read_index(args.faiss_index + ".trained")
+    index = faiss.index_cpu_to_gpu(res, 0, index_cpu)
     start = 0
     start_time = time.time()
     num_keys_to_add_at_a_time = 1000000
