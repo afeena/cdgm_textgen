@@ -96,7 +96,7 @@ def main(cfg: DictConfig, override_args=None):
 
         total_tokens = 0
 
-        with open(features_file, "w") as ff, open(targets_file, "w") as tf:
+        with open(features_file, "wb") as ff, open(targets_file, "wb") as tf:
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
                 #we are interested in the last layer only
