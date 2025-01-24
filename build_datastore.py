@@ -5,7 +5,6 @@ import numpy as np
 import time
 
 if __name__ == "__main__":
-    print("start")
     datastore_parser = argparse.ArgumentParser()
     datastore_parser.add_argument("--keys_path", type=str, required=True)
     datastore_parser.add_argument("--values_path", type=str, required=True)
@@ -74,7 +73,8 @@ if __name__ == "__main__":
         if (start % 1000000) == 0:
             print('Added %d tokens so far' % start)
             print('Writing Index', start)
-            faiss.write_index(index, args.faiss_index)
+            index_cpu = faiss.index_gpu_to_cpu(index)
+            faiss.write_index(index_cpu, args.faiss_index)
 
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
