@@ -100,9 +100,9 @@ def main(cfg: DictConfig, override_args=None):
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
                 #we are interested in the last layer only
-                features, _ = model.forward(**sample["net_input"])
+                features, _ = model.extract_features(**sample["net_input"])
                 #Normalize the features
-                #features = features / features.norm(p=2, dim=-1, keepdim=True)
+                features = features / features.norm(p=2, dim=-1, keepdim=True)
 
                 target = model.get_targets(sample, features)
                 sample_size = sample["target"].size(-1)
