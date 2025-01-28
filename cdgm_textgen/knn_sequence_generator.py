@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 import faiss
 from cdgm_textgen.sequence_generator import SequenceGenerator
+import numpy as np
 
 class KnnMTSequenceGenerator(SequenceGenerator):
     def __init__(self,
@@ -51,16 +52,25 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  symbols_to_strip_from_output=symbols_to_strip_from_output,
                  lm_model=lm_model,
                  lm_weight=lm_weight,
-                 tokens_to_suppress=(),
-                 metric="cosine")
+                 tokens_to_suppress=tokens_to_suppress,
+                 metric=metric,
+                )
 
         if knn_index_file is not None:
-            res = faiss.StandardGpuResources()
+            res = [faiss.StandardGpuResources() for _ in range(torch.cuda.device_count())]
             self.knn_index = faiss.read_index(knn_index_file)
-            self.knn_index = faiss.index_cpu_to_gpu(res, 0, self.knn_index)
+            self.knn_index = faiss.index_cpu_to_gpu_multiple_py(res,self.knn_index)
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
+
+            print("load vals to retrieve vocab indices")
+            del self.vals
+            self.vals_from_memmap = np.memmap(knn_index_file + '_vals.npy', dtype=np.int, mode='r',
+                                              shape=(self.dstore_size, 1))
+            self.vals = np.zeros((self.dstore_size, 1), np.int)
+            self.vals = self.vals_from_memmap[:]
+            self.vals = torch.tensor(self.vals, dtype=torch.int32, device='cuda' if torch.cuda.is_available() else 'cpu')
 
     def _generate(
             self,
@@ -220,10 +230,9 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 )
 
             if self.knn_index is not None:
-                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.squeeze(1).detach().cpu().numpy(),
+                knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
-                knn_out_idx = torch.from_numpy(knn_out_idx).to(decoder_out.device).to(torch.int64)
-                knn_out_dists = torch.from_numpy(knn_out_dists).to(decoder_out.device)
+                knn_out_idx = self.vals[knn_out_idx]
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
                 knn_l_probs = torch.zeros_like(lprobs).scatter_add_(1, knn_out_idx, knn_p)
