@@ -12,9 +12,9 @@ if __name__ == "__main__":
     datastore_parser.add_argument('--dstore_size', type=int, help='number of items saved in the datastore memmap')
     datastore_parser.add_argument("--faiss_index", type=str, default=None)
     datastore_parser.add_argument("--dim", type=int, default=128)
-    datastore_parser.add_argument("--ncentroids", type=int, default=2048)
+    datastore_parser.add_argument("--ncentroids", type=int, default=4096)
     datastore_parser.add_argument("--code_size", type=int, default=32)
-    datastore_parser.add_argument("--nprobe", type=int, default=8)
+    datastore_parser.add_argument("--nprobe", type=int, default=128)
     datastore_parser.add_argument("--dry_run", action="store_true")
     datastore_parser.add_argument("--ntrain", type=int, default=1000000)
 
