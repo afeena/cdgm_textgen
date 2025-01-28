@@ -77,6 +77,8 @@ if __name__ == "__main__":
         end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
         to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
         idx_not_inf = torch.where(torch.all(to_add<float('1e37'), dim=-1))
+        with open(args.faiss_index+"_vals.npy") as vf:
+            np.save(vf, vals[start:end][idx_not_inf].copy())
         idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
         index.add_with_ids(to_add[idx_not_inf], idx_to_add[idx_not_inf])
         start += num_keys_to_add_at_a_time
