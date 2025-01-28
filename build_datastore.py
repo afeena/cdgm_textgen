@@ -15,6 +15,7 @@ if __name__ == "__main__":
     datastore_parser.add_argument("--code_size", type=int, default=32)
     datastore_parser.add_argument("--nprobe", type=int, default=8)
     datastore_parser.add_argument("--dry_run", action="store_true")
+    datastore_parser.add_argument("--ntrain", type=int, default=1000000)
 
     args = datastore_parser.parse_args()
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     config = faiss.GpuIndexFlatConfig()
     config.device = 0
     if not os.path.exists(args.faiss_index + ".trained"):
-        print("training faiss index")
+        print("create faiss index")
 
         indexa = faiss.IndexFlatIP(args.dim)
         cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
@@ -45,11 +46,17 @@ if __name__ == "__main__":
                                      args.code_size, 8)
         index = faiss.index_cpu_to_gpu(res,0, cpu_idx)
         index.nprobe = args.nprobe
-        np.random.seed(42)
-        random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(1000000, vals.shape[0])], replace=False)
 
+        print("sample vectors for training")
+        np.random.seed(42)
+        random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(args.ntrain, vals.shape[0])], replace=False)
+        training_samples = keys[random_sample]
+        training_samples = training_samples[np.all(training_samples<float('1e37'),axis=1)]
+        print(training_samples.shape)
+
+        print(f"train faiss index with {random_sample.shape[0]} samples")
         start = time.time()
-        index.train(keys[random_sample].astype(np.float32))
+        index.train(training_samples)
         print('Training took {} s'.format(time.time() - start))
 
         print('Writing index after training')
