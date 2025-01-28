@@ -55,7 +55,9 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  metric="cosine")
 
         if knn_index_file is not None:
+            res = faiss.StandardGpuResources()
             self.knn_index = faiss.read_index(knn_index_file)
+            self.knn_index = faiss.index_cpu_to_gpu(res, 0, self.knn_index)
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
