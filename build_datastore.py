@@ -73,7 +73,7 @@ if __name__ == "__main__":
     start = 0
     start_time = time.time()
     num_keys_to_add_at_a_time = 1000000
-    with open(args.faiss_index + "_vals.npy") as vf:
+    with open(args.faiss_index + "_vals.npy","w") as vf:
         while start < args.dstore_size:
             end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
             to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
