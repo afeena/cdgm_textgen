@@ -1,8 +1,9 @@
 import argparse
-import faiss
+import torch
 import os
 import numpy as np
 import time
+import faiss.contrib.torch_utils
 
 if __name__ == "__main__":
     datastore_parser = argparse.ArgumentParser()
@@ -50,8 +51,9 @@ if __name__ == "__main__":
         print("sample vectors for training")
         np.random.seed(42)
         random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(args.ntrain, vals.shape[0])], replace=False)
-        training_samples = keys[random_sample]
-        training_samples = training_samples[np.all(training_samples<float('1e37'),axis=1)]
+        #to be able to search with gpu tensors, we need to build store with gpu tensors
+        training_samples = torch.tensor(keys[random_sample], dtype=torch.float32, device='cuda')
+        training_samples = training_samples[torch.all(training_samples<float('1e37'),dim=-1)]
         print(training_samples.shape)
 
         print(f"train faiss index with {random_sample.shape[0]} samples")
@@ -73,8 +75,8 @@ if __name__ == "__main__":
     num_keys_to_add_at_a_time = 1000000
     while start < args.dstore_size:
         end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
-        to_add = keys[start:end].copy()
-        index.add_with_ids(to_add.astype(np.float32), np.arange(start, end))
+        to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
+        index.add_with_ids(to_add, torch.arange(start, end, device='cuda', dtype=torch.int64))
         start += num_keys_to_add_at_a_time
 
         if (start % 1000000) == 0:

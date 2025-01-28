@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 import torch
 from torch import Tensor
 import faiss
-import faiss.contrib.torch_utils
 from cdgm_textgen.sequence_generator import SequenceGenerator
 import numpy as np
 
