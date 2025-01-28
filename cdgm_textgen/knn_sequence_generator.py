@@ -66,7 +66,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
 
             print("load vals to retrieve vocab indices")
             self.vals_from_memmap = np.memmap(knn_index_file + '_vals.npy', dtype=np.int32, mode='r',
-                                              shape=(self.dstore_size, 1))
+                                              shape=(self.knn_index.ntotal, 1))
             self.vals = torch.zeros((self.knn_index.ntotal, 1), dtype=torch.int32, device='cuda' if torch.cuda.is_available() else 'cpu')
             self.vals = self.vals_from_memmap[:]
 
