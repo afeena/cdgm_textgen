@@ -87,6 +87,9 @@ if __name__ == "__main__":
 
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
+    print("check distances for first 100 keys")
+    D, I = index.search(torch.tensor(keys[:100], device='cuda', dtype=torch.float32), 10)
+    print(D)
     print('Writing Index')
     start = time.time()
     index_cpu = faiss.index_gpu_to_cpu(index)
