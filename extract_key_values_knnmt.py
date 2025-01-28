@@ -113,8 +113,8 @@ def main(cfg: DictConfig, override_args=None):
                     if torch.any(torch.isinf(store_features)) or torch.any(torch.isnan(store_features)):
                         print("NaN or Inf detected")
                         continue
-                    torch.save(store_features, ff)
-                    torch.save(store_target, tf)
+                    np.save(ff, store_features.cpu().numpy())
+                    np.save(tf, store_target.cpu().numpy())
                     print(f"batch {i}, {len(store_features)} tokens are extracted")
                     total_tokens += len(store_features)
         print(f"Total {total_tokens} tokens are extracted")
