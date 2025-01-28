@@ -73,21 +73,21 @@ if __name__ == "__main__":
     start = 0
     start_time = time.time()
     num_keys_to_add_at_a_time = 1000000
-    while start < args.dstore_size:
-        end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
-        to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
-        idx_not_inf = torch.where(torch.all(to_add<float('1e37'), dim=-1))
-        with open(args.faiss_index+"_vals.npy") as vf:
+    with open(args.faiss_index + "_vals.npy") as vf:
+        while start < args.dstore_size:
+            end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
+            to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
+            idx_not_inf = torch.where(torch.all(to_add<float('1e37'), dim=-1))
             np.save(vf, vals[start:end][idx_not_inf].copy())
-        idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
-        index.add_with_ids(to_add[idx_not_inf], idx_to_add[idx_not_inf])
-        start += num_keys_to_add_at_a_time
+            idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
+            index.add_with_ids(to_add[idx_not_inf], idx_to_add[idx_not_inf])
+            start += num_keys_to_add_at_a_time
 
-        if (start % 1000000) == 0:
-            print('Added %d tokens so far' % start)
-            print('Writing Index', start)
-            index_cpu = faiss.index_gpu_to_cpu(index)
-            faiss.write_index(index_cpu, args.faiss_index)
+            if (start % 1000000) == 0:
+                print('Added %d tokens so far' % start)
+                print('Writing Index', start)
+                index_cpu = faiss.index_gpu_to_cpu(index)
+                faiss.write_index(index_cpu, args.faiss_index)
 
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
