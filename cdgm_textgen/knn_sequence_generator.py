@@ -233,7 +233,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 if self.vals.device != decoder_out.device:
                     self.vals = self.vals.to(decoder_out.device)
 
-                knn_target_idx = self.vals[knn_out_idx.squeeze(0).to(torch.int32)]
+                knn_target_idx = self.vals[knn_out_idx.squeeze(0).to(torch.int32)].to(torch.int32)
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
                 knn_l_probs = torch.zeros_like(lprobs).scatter_add_(1, knn_target_idx, knn_p)
