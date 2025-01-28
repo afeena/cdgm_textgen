@@ -100,9 +100,9 @@ def main(cfg: DictConfig, override_args=None):
             for i, sample in enumerate(itr):
                 sample = utils.move_to_cuda(sample) if use_cuda else sample
                 #we are interested in the last layer only
-                features, _ = model.extract_features(**sample["net_input"])
+                features, _ = model.forward(**sample["net_input"])
                 #Normalize the features
-                features = features / features.norm(p=2, dim=-1, keepdim=True)
+                #features = features / features.norm(p=2, dim=-1, keepdim=True)
 
                 target = model.get_targets(sample, features)
                 sample_size = sample["target"].size(-1)
@@ -113,8 +113,8 @@ def main(cfg: DictConfig, override_args=None):
                     if torch.any(torch.isinf(store_features)) or torch.any(torch.isnan(store_features)):
                         print("NaN or Inf detected")
                         continue
-                    np.save(ff, store_features.cpu().numpy())
-                    np.save(tf, store_target.cpu().numpy())
+                    torch.save(store_features, ff)
+                    torch.save(store_target, tf)
                     print(f"batch {i}, {len(store_features)} tokens are extracted")
                     total_tokens += len(store_features)
         print(f"Total {total_tokens} tokens are extracted")
