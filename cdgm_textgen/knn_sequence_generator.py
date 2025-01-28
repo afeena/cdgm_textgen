@@ -67,8 +67,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             print("load vals to retrieve vocab indices")
             self.vals_from_memmap = np.memmap(knn_index_file + '_vals.npy', dtype=np.int32, mode='r',
                                               shape=(self.knn_index.ntotal, 1))
-            self.vals = torch.zeros((self.knn_index.ntotal, 1), dtype=torch.int32, device='cuda' if torch.cuda.is_available() else 'cpu')
-            self.vals = self.vals_from_memmap[:]
+            self.vals = torch.zeros((self.knn_index.ntotal, 1), dtype=torch.int32)
+            self.vals = torch.from_numpy(self.vals_from_memmap[:])
 
     def _generate(
             self,
@@ -230,7 +230,9 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             if self.knn_index is not None:
                 knn_out_idx, knn_out_dists = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
-                knn_out_idx = self.vals[knn_out_idx]
+                if self.vals.device !=decoder_out.device:
+                    knn_out_idx = knn_out_idx.to(decoder_out.device)
+                knn_out_idx = self.vals[knn_out_idx.squeeze(0)]
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
                 knn_l_probs = torch.zeros_like(lprobs).scatter_add_(1, knn_out_idx, knn_p)
