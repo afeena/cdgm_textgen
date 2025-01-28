@@ -65,7 +65,6 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_temperature = knn_temperature
 
             print("load vals to retrieve vocab indices")
-            del self.vals
             self.vals_from_memmap = np.memmap(knn_index_file + '_vals.npy', dtype=np.int, mode='r',
                                               shape=(self.dstore_size, 1))
             self.vals = np.zeros((self.dstore_size, 1), np.int)
