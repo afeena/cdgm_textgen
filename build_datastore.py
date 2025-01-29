@@ -35,9 +35,10 @@ if __name__ == "__main__":
                          shape=(args.dstore_size, args.dim))
         vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
-    res = faiss.StandardGpuResources()
-    config = faiss.GpuIndexFlatConfig()
-    config.device = 0
+    co = faiss.GpuMultipleClonerOptions()
+    co.shard = True
+    co.useFloat16 = False
+
     if not os.path.exists(args.faiss_index + ".trained"):
         print("create faiss index")
 
@@ -45,7 +46,7 @@ if __name__ == "__main__":
         cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                      args.ncentroids,
                                      args.code_size, 8)
-        index = faiss.index_cpu_to_gpu(res,0, cpu_idx)
+        index = faiss.index_cpu_to_all_gpus(cpu_idx, co)
         index.nprobe = args.nprobe
 
         print("sample vectors for training")
@@ -69,7 +70,7 @@ if __name__ == "__main__":
 
     print('Adding Keys')
     index_cpu = faiss.read_index(args.faiss_index + ".trained")
-    index = faiss.index_cpu_to_gpu(res, 0, index_cpu)
+    index = faiss.index_cpu_to_all_gpus(cpu_idx, co)
     start = 0
     start_time = time.time()
     num_keys_to_add_at_a_time = 1000000
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
     print("check distances for first 100 keys")
-    D, I = index.search(torch.tensor(keys[:100], device='cuda', dtype=torch.float32), 10)
+    D, I = index.search(torch.tensor(keys[:100], dtype=torch.float32), 10)
     print(D)
     print('Writing Index')
     start = time.time()
