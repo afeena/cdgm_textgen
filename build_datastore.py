@@ -35,9 +35,9 @@ if __name__ == "__main__":
                          shape=(args.dstore_size, args.dim))
         vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
-    co = faiss.GpuMultipleClonerOptions()
-    co.shard = True
-    co.useFloat16 = False
+    res = faiss.StandardGpuResources()
+    co = faiss.GpuClonerOptions()
+    co.useFloat16 = True
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("create faiss index")
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                      args.ncentroids,
                                      args.code_size, 8)
-        index = faiss.index_cpu_to_all_gpus(cpu_idx, co)
+        index = faiss.index_cpu_to_gpu(res,0,cpu_idx,co)
         index.nprobe = args.nprobe
 
         print("sample vectors for training")
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     print('Adding Keys')
     index_cpu = faiss.read_index(args.faiss_index + ".trained")
-    index = faiss.index_cpu_to_all_gpus(cpu_idx, co)
+    index = faiss.index_cpu_to_gpu(res,0,cpu_idx, co)
     start = 0
     start_time = time.time()
     num_keys_to_add_at_a_time = 1000000
