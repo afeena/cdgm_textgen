@@ -52,7 +52,7 @@ if __name__ == "__main__":
         np.random.seed(42)
         random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(args.ntrain, vals.shape[0])], replace=False)
         #to be able to search with gpu tensors, we need to build store with gpu tensors
-        training_samples = torch.tensor(keys[random_sample], dtype=torch.float16, device='cuda')
+        training_samples = torch.tensor(keys[random_sample], dtype=torch.float32, device='cuda')
         training_samples = training_samples[torch.all(training_samples<float('1e37'),dim=-1)]
         print(training_samples.shape)
 
