@@ -3,11 +3,12 @@ from dataclasses import field, dataclass
 from typing import Optional, Dict, List, Any, Tuple
 
 import torch
-from fairseq.models.transformer import TransformerConfig, TransformerDecoderBase
+from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
 import torch.nn.functional as F
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
+from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoder
 from cdgm_textgen.models.transformer.transformer_base import Embedding
 from cdgm_textgen.modules.cmk_approx import _neglogcmk
 from cdgm_textgen.modules.riemannian_embeddings import build_manifold_embeddings
@@ -118,7 +119,7 @@ class RiemannianEmbeddingsTransformerModel(TransformerModelBase):
         return embeddings
 
 
-class ManifoldDecoder(TransformerDecoderBase):
+class ManifoldDecoder(TransformerDecoder):
     def __init__(
         self,
         cfg,
