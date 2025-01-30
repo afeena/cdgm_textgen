@@ -57,9 +57,11 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 )
 
         if knn_index_file is not None:
-            res = [faiss.StandardGpuResources() for _ in range(torch.cuda.device_count())]
+            res = faiss.StandardGpuResources()
+            co = faiss.GpuClonerOptions()
+            co.useFloat16 = True
             self.knn_index = faiss.read_index(knn_index_file)
-            self.knn_index = faiss.index_cpu_to_gpu_multiple_py(res,self.knn_index)
+            self.knn_index = faiss.index_cpu_to_gpu(res,0,self.knn_index,co)
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
