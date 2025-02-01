@@ -21,7 +21,12 @@ if __name__ == '__main__':
     perm = torch.randperm(all_ids.size(0))
     idx = perm[:args.sample_size]
 
-    _, _, samples = index.reconstruct_batch(all_ids[idx])
+    samples = torch.empty(args.sample_size, index.d, dtype=torch.float32, device='cuda')
+    j=0
+    for i in idx:
+        _, _, sample = index.reconstruct(all_ids[i])
+        samples[j] = torch.tensor(sample, dtype=torch.float32, device='cuda')
+        j+=1
 
     k = 32
 
