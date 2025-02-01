@@ -12,12 +12,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(args.dataset_size, 128))
+    keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(21507934, 128))
     random_sample = np.random.choice(np.arange(keys.shape[0]), size=[args.sample_size,1], replace=False)
     tkeys = torch.from_numpy(keys[random_sample]).to(torch.cuda).to(torch.float32)
 
     del keys
-    
+
     args = parser.parse_args()
 
     res = faiss.StandardGpuResources()
