@@ -6,13 +6,10 @@ import torch
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--values_path', type=str, required=True)
     parser.add_argument('--sample_size', type=int, required=True, default=1000)
     parser.add_argument('--faiss_index', type=str, required=True)
-    parser.add_argument('--dim', type=int, default=128)
 
     args = parser.parse_args()
-    vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
 
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
