@@ -13,7 +13,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     keys = np.memmap(args.keys, dtype=np.float32, mode='r',)
-    random_sample = np.random.choice(np.arange(keys.shape[0]), size=[args.samle_size], replace=False)
+    random_sample = np.random.choice(np.arange(keys.shape[0]), size=[args.sample_size], replace=False)
     tkeys = torch.zeros((args.sample_size, 1), dtype=torch.float32, device='cuda')
     tkeys = torch.from_numpy(keys[random_sample])
 
@@ -24,11 +24,6 @@ if __name__ == '__main__':
     co.useFloat16 = True
     index_cpu = faiss.read_index(args.faiss_index)
     index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
-
-    all_ids = torch.arange(index.ntotal, device='cuda')
-    perm = torch.randperm(all_ids.size(0))
-    idx = perm[:args.sample_size]
-
 
     k = 32
 
