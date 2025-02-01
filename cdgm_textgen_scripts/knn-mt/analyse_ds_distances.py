@@ -24,7 +24,7 @@ if __name__ == '__main__':
     samples = torch.empty(args.sample_size, index.d, dtype=torch.float32, device='cuda')
     j=0
     for i in idx:
-        _, _, sample = index.reconstruct(all_ids[i])
+        _, _, sample = index.reconstruct(all_ids[i].item())
         samples[j] = torch.tensor(sample, dtype=torch.float32, device='cuda')
         j+=1
 
