@@ -14,7 +14,6 @@ if __name__ == '__main__':
 
     keys = np.memmap(args.keys, dtype=np.float32, mode='r',)
     random_sample = np.random.choice(np.arange(keys.shape[0]), size=[args.sample_size,1], replace=False)
-    del keys
     tkeys = torch.from_numpy(keys[random_sample]).to(torch.cuda).to(torch.float32)
 
     args = parser.parse_args()
