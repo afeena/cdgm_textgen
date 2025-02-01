@@ -12,8 +12,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    keys = np.memmap(args.keys_path, dtype=np.float32, mode='r',
-                     shape=(args.dstore_size, args.dim))
+    keys = np.memmap(args.keys, dtype=np.float32, mode='r',)
     random_sample = np.random.choice(np.arange(keys.shape[0]), size=[args.samle_size], replace=False)
     tkeys = torch.zeros((args.sample_size, 1), dtype=torch.float32, device='cuda')
     tkeys = torch.from_numpy(keys[random_sample])
