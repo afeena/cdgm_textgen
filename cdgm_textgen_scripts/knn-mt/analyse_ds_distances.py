@@ -29,12 +29,13 @@ if __name__ == '__main__':
     k = 32
 
     cosine_sim, I = index.search(tkeys, k)
+    print(cosine_sim)
     acos_dist = torch.acos(cosine_sim)
     average_row = torch.mean(acos_dist, dim=1)
     min_dist = torch.min(average_row)
 
     print(f'Minimum distance: {min_dist.item()}')
-    print(f'Average distance: {average_row.item()}')
+    print(f'Average distance: {average_row}')
 
 
 
