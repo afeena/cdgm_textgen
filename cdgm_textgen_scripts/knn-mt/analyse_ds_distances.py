@@ -26,16 +26,24 @@ if __name__ == '__main__':
     index_cpu = faiss.read_index(args.faiss_index)
     index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
 
-    k = 32
+    k = 8
 
-    cosine_sim, I = index.search(tkeys, k)
-    print(cosine_sim)
-    acos_dist = torch.acos(cosine_sim)
-    average_row = torch.mean(acos_dist, dim=1)
-    min_dist = torch.min(average_row)
+    start = 0
+    end = 1000
+    min_dists_batch = []
+    while True:
+        cosine_sim, I = index.search(tkeys, k)
+        acos_dist = torch.acos(cosine_sim.clamp(-1 + 1e-7, 1 - 1e-7))
+        average_row = torch.mean(acos_dist, dim=1)
+        min_dist = torch.min(average_row)
+        min_dists_batch.append(min_dist.item())
+        print(f"Batch {start} - {end} min dist: {min_dist.item()}")
+        start += 1000
+        end += 1000
+        if end > args.sample_size:
+            break
 
-    print(f'Minimum distance: {min_dist.item()}')
-    print(f'Average distance: {average_row}')
+    print(f"Mean min dist: {np.mean(min_dists_batch)}")
 
 
 
