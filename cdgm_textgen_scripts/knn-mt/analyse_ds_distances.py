@@ -1,0 +1,42 @@
+import faiss
+import numpy as np
+import argparse
+
+import torch
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--values_path', type=str, required=True)
+    parser.add_argument('--sample_size', type=int, required=True, default=1000)
+    parser.add_argument('--faiss_index', type=str, required=True)
+    parser.add_argument('--dim', type=int, default=128)
+
+    args = parser.parse_args()
+    vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, 1))
+
+    res = faiss.StandardGpuResources()
+    co = faiss.GpuClonerOptions()
+    co.useFloat16 = True
+    index_cpu = faiss.read_index(args.faiss_index)
+    index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
+
+    all_ids = torch.arange(index.ntotal, device='cuda')
+    perm = torch.randperm(all_ids.size(0))
+    idx = perm[:args.sample_size]
+
+    _, _, samples = index.reconstruct_batch(all_ids[idx])
+
+    k = 32
+
+    cosine_sim, I = index.search(samples, k)
+    acos_dist = torch.acos(cosine_sim)
+    average_row = torch.mean(acos_dist, dim=1)
+    min_dist = torch.min(average_row)
+
+    print(f'Minimum distance: {min_dist.item()}')
+    print(f'Average distance: {average_row.item()}')
+
+
+
+
+
