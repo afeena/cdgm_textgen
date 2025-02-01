@@ -1,4 +1,4 @@
-import faiss
+import faiss.contrib.torch_utils
 import numpy as np
 import argparse
 
