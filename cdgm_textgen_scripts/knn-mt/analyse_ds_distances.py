@@ -10,13 +10,14 @@ if __name__ == '__main__':
     parser.add_argument('--sample_size', type=int, required=True, default=1000)
     parser.add_argument('--faiss_index', type=str, required=True)
     parser.add_argument('--keys', type=str, required=True)
+    parser.add_argument('--vals', type=str, required=True)
     parser.add_argument('--sample_ids', type=str)
     parser.add_argument('--out_frame', type=str, default=None)
     parser.add_argument('--vocab_size', type=int, default=10000)
 
     args = parser.parse_args()
 
-    vals = np.memmap(args.keys, dtype=np.int32, mode='r', shape=(21507934, 1))
+    vals = np.memmap(args.vals, dtype=np.int32, mode='r', shape=(21507934, 1))
     tvals = torch.from_numpy(vals[:]).to(device='cuda', dtype=torch.int32)
 
     keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(21507934, 128))
