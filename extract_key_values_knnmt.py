@@ -120,12 +120,11 @@ def main(cfg: DictConfig, override_args=None):
 
         print(f"Total {total_tokens} tokens are extracted")
         with open(features_file, "ab") as ff:
-            np.save(ff, np.vstack(features_all))
+            np.save(ff, np.concatenate(features_all))
         with open(targets_file, "ab") as tf:
-            np.save(tf, np.vstack(targets_all))
+            np.save(tf, np.concatenate(targets_all))
 
 if __name__ == "__main__":
-
     parser = options.get_validation_parser()
     args = options.parse_args_and_arch(parser)
 
