@@ -229,7 +229,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
 
-                knn_target_idx = torch.transpose(self.vals[knn_out_idx.squeeze(0).cpu().to(torch.int32)], -2, -1)
+                knn_target_idx = self.vals[knn_out_idx.squeeze(0).cpu().to(torch.int32)]
                 if len(knn_target_idx.shape)>2:
                     knn_target_idx = knn_target_idx.squeeze()
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
