@@ -110,9 +110,6 @@ def main(cfg: DictConfig, override_args=None):
                     store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
                     store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int64)
                     store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
-                    if torch.any(torch.isinf(store_features)) or torch.any(torch.isnan(store_features)):
-                        print("NaN or Inf detected")
-                        continue
                     np.save(ff, store_features.cpu().numpy())
                     np.save(tf, store_target.cpu().numpy())
                     print(f"batch {i}, {len(store_features)} tokens are extracted")
