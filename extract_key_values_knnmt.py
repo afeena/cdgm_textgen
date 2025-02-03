@@ -119,9 +119,9 @@ def main(cfg: DictConfig, override_args=None):
                 total_tokens += len(store_features)
 
         print(f"Total {total_tokens} tokens are extracted")
-        with open(features_file, "ab") as ff:
+        with open(features_file, "wb") as ff:
             np.save(ff, np.concatenate(features_all))
-        with open(targets_file, "ab") as tf:
+        with open(targets_file, "wb") as tf:
             np.save(tf, np.concatenate(targets_all))
 
 if __name__ == "__main__":
