@@ -67,10 +67,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_temperature = knn_temperature
 
             print("load vals to retrieve vocab indices")
-            self.vals_from_memmap = np.memmap(knn_index_file + '_vals.npy',  mode='r',
-                                              shape=(self.knn_index.ntotal, 1))
-            self.vals = torch.zeros((self.knn_index.ntotal, 1), dtype=torch.int64)
-            self.vals = torch.from_numpy(self.vals_from_memmap[:])
+            self.vals = torch.from_numpy(np.load(f"{knn_index_file}_vals.npy"), dtype=torch.int64)
 
     def _generate(
             self,
