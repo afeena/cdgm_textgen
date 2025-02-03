@@ -228,15 +228,13 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             if self.knn_index is not None:
                 knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
-                if self.vals.device != decoder_out.device:
-                    self.vals = self.vals.to(decoder_out.device)
 
-                knn_target_idx = torch.transpose(self.vals[knn_out_idx.squeeze(0).to(torch.int32)], -2, -1)
+                knn_target_idx = torch.transpose(self.vals[knn_out_idx.squeeze(0).cpu().to(torch.int32)], -2, -1)
                 if len(knn_target_idx.shape)>2:
                     knn_target_idx = knn_target_idx.squeeze()
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
-                knn_l_probs = torch.zeros_like(lprobs).scatter_add_(1, knn_target_idx.to(torch.int64), knn_p)
+                knn_l_probs = torch.zeros_like(lprobs).scatter_add_(1, knn_target_idx.to(dtype=torch.int64,device=decoder_out.device), knn_p)
                 lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             if self.lm_model is not None:
