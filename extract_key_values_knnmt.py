@@ -110,8 +110,9 @@ def main(cfg: DictConfig, override_args=None):
                     store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
                     store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int32)
                     store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
-                    np.save(ff, store_features.cpu().numpy())
-                    np.save(tf, store_target.cpu().numpy())
+                    (store_features.cpu().numpy()).tofile(ff)
+                    (store_target.cpu().numpy()).tofile(tf)
+                    assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
                     print(f"batch {i}, {len(store_features)} tokens are extracted")
                     total_tokens += len(store_features)
         print(f"Total {total_tokens} tokens are extracted")
