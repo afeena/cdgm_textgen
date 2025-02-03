@@ -96,27 +96,33 @@ def main(cfg: DictConfig, override_args=None):
 
         total_tokens = 0
 
-        with open(features_file, "ab") as ff, open(targets_file, "ab") as tf:
-            for i, sample in enumerate(itr):
-                sample = utils.move_to_cuda(sample) if use_cuda else sample
-                #we are interested in the last layer only
-                features, _ = model.extract_features(**sample["net_input"])
-                #Normalize the features
-                features = features / features.norm(p=2, dim=-1, keepdim=True)
+        features_all = []
+        targets_all = []
 
-                target = model.get_targets(sample, features)
-                sample_size = sample["target"].size(-1)
-                for j in range(sample_size):
-                    store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
-                    store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int32)
-                    store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
-                    (store_features.cpu().numpy()).tofile(ff)
-                    (store_target.cpu().numpy()).tofile(tf)
-                    assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
-                    print(f"batch {i}, {len(store_features)} tokens are extracted")
-                    total_tokens += len(store_features)
+        for i, sample in enumerate(itr):
+            sample = utils.move_to_cuda(sample) if use_cuda else sample
+            #we are interested in the last layer only
+            features, _ = model.extract_features(**sample["net_input"])
+            #Normalize the features
+            #features = features / features.norm(p=2, dim=-1, keepdim=True)
+
+            target = model.get_targets(sample, features)
+            sample_size = sample["target"].size(-1)
+            for j in range(sample_size):
+                store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
+                store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int32)
+                store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
+                features_all.append(store_features.cpu().numpy())
+                targets_all.append(store_target.cpu().numpy())
+                assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
+                print(f"batch {i}, {len(store_features)} tokens are extracted")
+                total_tokens += len(store_features)
+
         print(f"Total {total_tokens} tokens are extracted")
-
+        with open(features_file, "ab") as ff:
+            np.save(ff, np.vstack(features_all))
+        with open(targets_file, "ab") as tf:
+            np.save(tf, np.vstack(targets_all))
 
 if __name__ == "__main__":
 
