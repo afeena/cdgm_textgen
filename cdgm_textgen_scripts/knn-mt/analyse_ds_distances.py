@@ -17,34 +17,38 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    vals = np.memmap(args.vals, dtype=np.int32, mode='r', shape=(21507934, 1))
-    tvals = torch.from_numpy(vals[:]).to(device='cuda', dtype=torch.int32)
-
-    keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(21507934, 128))
-    tkeys = torch.from_numpy(keys[:]).to(device='cuda', dtype=torch.float32)
-
-    if not os.path.exists(args.sample_ids):
-        #sample random entry for each target token in the vocabulary
-        sample_ids = torch.zeros(args.vocab_size, dtype=torch.int32, device='cuda')
-        for etfc in range(args.vocab_size):
-            tmp = tvals.eq(etfc).squeeze(1).nonzero()
-            sample_ids[etfc] = tmp[torch.randperm(tmp.size(0))[0]]
-        torch.save(sample_ids, args.sample_ids)
-    else:
-        sample_ids = torch.load(args.sample_ids)
-
-    tkeys = tkeys[sample_ids]
-    gold_samples_targets = tvals[sample_ids]
-
-    del keys
-
-    args = parser.parse_args()
-
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
     co.useFloat16 = True
     index_cpu = faiss.read_index(args.faiss_index)
     index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
+
+    vals = np.load(args.vals)
+    tvals = torch.zeros((21507934, 1), dtype=torch.int64)
+    tvals[:] = torch.from_numpy(vals[:])
+
+    keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(21507934, 128))
+    tkeys = torch.from_numpy(keys[:]).to(dtype=torch.float32)
+
+    if not os.path.exists(args.sample_ids):
+        #sample random entry for each target token in the vocabulary
+        sample_ids = torch.zeros(args.vocab_size, dtype=torch.int64)
+        all_vocab_idx = torch.arange(0,args.vocab_size, dtype=torch.int64)
+        for vocab_idx in all_vocab_idx:
+            tmp = (tvals.flatten()==vocab_idx).nonzero().squeeze(1)
+            if len(tmp.size())==0:
+                sample_ids[vocab_idx]=-1
+                continue
+            sample_ids[vocab_idx] = tmp[torch.randperm(tmp.size(0))[0]]
+        sample_ids = sample_ids[sample_ids>0]
+        torch.save(sample_ids, args.sample_ids)
+    else:
+        sample_ids = torch.load(args.sample_ids, map_location='cpu')
+    print(sample_ids.shape)
+    tkeys = tkeys[sample_ids].to(device='cuda')
+    gold_samples_targets = tvals[sample_ids]
+
+    del keys
 
     k = 8
 
@@ -61,9 +65,9 @@ if __name__ == '__main__':
         gold_targets = gold_samples_targets[start:end]
         cosine_sim, I = index.search(tkeys[start:end], k)
 
-        acos_dist = torch.acos(cosine_sim.clamp(-1 + 1e-7, 1 - 1e-7))
+        acos_dist = torch.acos(cosine_sim.clamp(-1 + 1e-7, 1 - 1e-7)).cpu()
         # check avg dist correct target(s)
-        predicted_targets = tvals[I]
+        predicted_targets = tvals[I.cpu()]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets)
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1)
         samples_avg_dist_to_correct[start:end] = torch.mean(acos_dist[correct_targets_mask.nonzero()],dim=1)
