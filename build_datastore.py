@@ -37,7 +37,7 @@ if __name__ == "__main__":
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
     co.useFloat16 = True
-    indexa = faiss.IndexFlatIP(args.dim)
+    indexa = faiss.IndexFlatL2(args.dim)
     cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                args.ncentroids,
                                args.code_size, 8)
