@@ -233,9 +233,12 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 print(knn_target_idx)
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
-                knn_l_probs = 
-                knn_l_probs[knn_l_probs==0] = -math.inf
-                print(knn_l_probs.max(),lprobs.max())
+                #here is the tricky part
+                unique_knn_target_idx = torch.unique(knn_target_idx)
+                uniq_knn_idx_mask = unique_knn_target_idx == torch.unique(unique_knn_target_idx).unsqueeze(-1)
+                knn_l_probs_vals = torch.logsumexp(knn_p[None,...].expand(unique_knn_target_idx.shape[0],-1).masked_fill_(~uniq_knn_idx_mask, -math.inf), dim=-1)
+                knn_l_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype)
+                knn_l_probs[unique_knn_target_idx]=knn_l_probs_vals
                 lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             if self.lm_model is not None:
