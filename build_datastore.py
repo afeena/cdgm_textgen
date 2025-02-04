@@ -17,6 +17,7 @@ if __name__ == "__main__":
     datastore_parser.add_argument("--nprobe", type=int, default=128)
     datastore_parser.add_argument("--dry_run", action="store_true")
     datastore_parser.add_argument("--ntrain", type=int, default=1000000)
+    datastore_parser.add_argument("--coarse_idx", type=str, default='l2')
 
     args = datastore_parser.parse_args()
 
@@ -37,7 +38,10 @@ if __name__ == "__main__":
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
     co.useFloat16 = True
-    indexa = faiss.IndexFlatL2(args.dim)
+    if args.coarse_idx== 'l2':
+        indexa = faiss.IndexFlatL2(args.dim)
+    elif args.coarse_idx=='ip':
+        indexa = faiss.IndexFlatIP(args.dim)
     cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                args.ncentroids,
                                args.code_size, 8)
@@ -75,7 +79,7 @@ if __name__ == "__main__":
         while start < args.dstore_size:
             end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
             to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
-            idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int32)
+            idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
             index.add_with_ids(to_add, idx_to_add)
             start += num_keys_to_add_at_a_time
 
