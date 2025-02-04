@@ -230,15 +230,16 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                                                                    self.knn_k)
 
                 knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
-                print(knn_target_idx)
+                knn_target_idx = knn_target_idx.to(decoder_out.device)
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
                 #here sum the log probs for each token
                 #here is the tricky part
-                unique_knn_target_idx = torch.unique(knn_target_idx)
-                uniq_knn_idx_mask = unique_knn_target_idx == torch.unique(unique_knn_target_idx).unsqueeze(-1)
-                knn_l_probs_vals = torch.logsumexp(knn_p[None,...].expand(unique_knn_target_idx.shape[0],-1).masked_fill_(~uniq_knn_idx_mask, -math.inf), dim=-1)
+                unique_knn_target_idx = torch.unique(knn_target_idx).unsqueeze(1)
+                uniq_knn_idx_mask = (knn_target_idx == unique_knn_target_idx)
+                knn_p = knn_p.expand(unique_knn_target_idx.shape[0],-1).masked_fill_(~uniq_knn_idx_mask, -math.inf)
+                knn_l_probs_vals = torch.logsumexp(knn_p, dim=-1)
                 knn_l_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype)
-                knn_l_probs[unique_knn_target_idx]=knn_l_probs_vals
+                knn_l_probs[:, unique_knn_target_idx]=knn_l_probs_vals.unsqueeze(1)
                 lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             if self.lm_model is not None:
