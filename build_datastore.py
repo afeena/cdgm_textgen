@@ -79,7 +79,7 @@ if __name__ == "__main__":
         while start < args.dstore_size:
             end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
             to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
-            idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int32)
+            idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
             index.add_with_ids(to_add, idx_to_add)
             start += num_keys_to_add_at_a_time
 
