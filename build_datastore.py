@@ -17,6 +17,7 @@ if __name__ == "__main__":
     datastore_parser.add_argument("--nprobe", type=int, default=128)
     datastore_parser.add_argument("--dry_run", action="store_true")
     datastore_parser.add_argument("--ntrain", type=int, default=1000000)
+    datastore_parser.add_argument("--coarse_idx", type=str, default='l2')
 
     args = datastore_parser.parse_args()
 
@@ -37,7 +38,10 @@ if __name__ == "__main__":
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
     co.useFloat16 = True
-    indexa = faiss.IndexFlatL2(args.dim)
+    if args.coarse_idx== 'l2':
+        indexa = faiss.IndexFlatL2(args.dim)
+    elif args.coarse_idx=='ip':
+        indexa = faiss.IndexFlatIP(args.dim)
     cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
                                args.ncentroids,
                                args.code_size, 8)
