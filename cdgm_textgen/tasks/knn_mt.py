@@ -14,6 +14,7 @@ class KnnTranslationConfig(TranslationConfig):
     knn_lambda: float = field(default=0.5, metadata={"help": "lambda for knn search"})
     knn_temperature: float = field(default=1.0, metadata={"help": "temperature for knn search"})
     knn_index_file: str = field(default="/", metadata={"help": "path to the knn index file"})
+    knn_metric: str = field(default="l2", metadata={"help": "metric for knn search"})
 
 @register_task("translation_knn", dataclass=KnnTranslationConfig)
 class KnnTranslationTask(TranslationTask):
@@ -116,5 +117,6 @@ class KnnTranslationTask(TranslationTask):
             knn_k=getattr(args, "knn_k", 32),
             knn_lambda=getattr(args, "knn_lambda", 0.5),
             knn_temperature=getattr(args, "knn_temperature", 1.0),
+            knn_metric=getattr(args, "knn_metric", "l2"),
             **extra_gen_cls_kwargs,
         )

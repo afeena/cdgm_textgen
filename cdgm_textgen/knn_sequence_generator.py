@@ -33,6 +33,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  knn_k=5,
                  knn_lambda=0.5,
                  knn_temperature=1.0,
+                 knn_metric="cosine",
                  ):
         super().__init__(models,
                  tgt_dict,
@@ -65,6 +66,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
+            self.knn_metric = knn_metric
 
             print("load vals to retrieve vocab indices")
             self.vals = torch.from_numpy(np.load(f"{knn_index_file}_vals.npy")).to(dtype=torch.int64)
@@ -226,6 +228,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                     return_decoder_output=True,
                 )
             if self.knn_index is not None:
+                if self.knn_metric == 'cosine':
+                    decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
                 knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
 
