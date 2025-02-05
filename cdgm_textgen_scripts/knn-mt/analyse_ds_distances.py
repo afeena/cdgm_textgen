@@ -14,6 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample_ids', type=str)
     parser.add_argument('--out_frame', type=str, default=None)
     parser.add_argument('--vocab_size', type=int, default=10000)
+    parser.add_argument('--distance', type=str, default='l2')
 
     args = parser.parse_args()
 
@@ -63,14 +64,17 @@ if __name__ == '__main__':
     while start < args.sample_size:
         end = min(args.sample_size, start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end]
-        cosine_sim, I = index.search(tkeys[start:end], k)
+        dist, I = index.search(tkeys[start:end], k)
 
-        acos_dist = torch.acos(cosine_sim.clamp(-1 + 1e-7, 1 - 1e-7)).cpu()
+        if args.distance == 'acos':
+            print("make sure you use index with IP coarse quantizer")
+            dist = torch.sqrt(2 - 2 * dist.clamp(-1 + 1e-7, 1 - 1e-7)).cpu()
+            dist = torch.acos(dist.clamp(-1 + 1e-7, 1 - 1e-7)).cpu()
         # check avg dist correct target(s)
         predicted_targets = tvals[I.cpu()]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets)
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1)
-        samples_avg_dist_to_correct[start:end] = torch.mean(acos_dist[correct_targets_mask.nonzero()],dim=1)
+        samples_avg_dist_to_correct[start:end] = torch.mean(dist[correct_targets_mask.nonzero()],dim=1)
 
         # check avg dist to other targets
         samples_min_dist_to_other_count[start:end] = k - samples_correct_count[start:end]
