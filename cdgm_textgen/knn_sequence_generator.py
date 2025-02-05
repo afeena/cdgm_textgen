@@ -233,10 +233,15 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
                                                                    self.knn_k)
 
+                
                 knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
                 knn_target_idx = knn_target_idx.to(decoder_out.device)
                 knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
+                sgn = 1.0 if self.knn_metric == 'cosine' else -1.0
+                knn_p = torch.log_softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
+                
                 #here sum the log probs for each token
+                #logsumexp for each token
                 #here is the tricky part
                 unique_knn_target_idx = torch.unique(knn_target_idx).unsqueeze(1)
                 uniq_knn_idx_mask = (knn_target_idx == unique_knn_target_idx)
