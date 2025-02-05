@@ -25,11 +25,13 @@ if __name__ == '__main__':
     index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
 
     vals = np.load(args.vals)
-    tvals = torch.zeros((21507934, 1), dtype=torch.int64)
-    tvals[:] = torch.from_numpy(vals[:])
+    tvals = torch.from_numpy(vals).to(dtype=torch.int64)
+    del vals
 
-    keys = np.memmap(args.keys, dtype=np.float32, mode='r',shape=(21507934, 128))
-    tkeys = torch.from_numpy(keys[:]).to(dtype=torch.float32)
+    keys = np.load(args.keys)
+
+    tkeys = torch.from_numpy(keys).to(dtype=torch.float32)
+    del keys
 
     if not os.path.exists(args.sample_ids):
         #sample random entry for each target token in the vocabulary
@@ -49,10 +51,9 @@ if __name__ == '__main__':
     tkeys = tkeys[sample_ids].to(device='cuda')
     gold_samples_targets = tvals[sample_ids]
 
-    del keys
+
 
     k = 8
-
     start = 0
     num_to_retrieve = 1000
     min_dists_batch = []
@@ -78,9 +79,9 @@ if __name__ == '__main__':
 
         # check avg dist to other targets
         samples_min_dist_to_other_count[start:end] = k - samples_correct_count[start:end]
-        samples_avg_dist_to_other[start:end] = torch.mean(acos_dist[~correct_targets_mask],dim=1)
+        samples_avg_dist_to_other[start:end] = torch.mean(dist[~correct_targets_mask],dim=1)
 
-        average_row = torch.mean(acos_dist, dim=1)
+        average_row = torch.mean(dist, dim=1)
         min_dist = torch.min(average_row)
         min_dists_batch.append(min_dist.item())
         print(f"Batch {start} - {end} min dist: {min_dist.item()}")
