@@ -124,24 +124,22 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
                 total_tokens += len(store_features)
                 mapped_features.flush()
                 mapped_keys.flush()
-                
+
         assert total_tokens == ntotal, f"Total tokens {total_tokens} should be equal to ntotal {ntotal}"
         print(f"Total {total_tokens} tokens are extracted")
 
 if __name__ == "__main__":
-    parser_ = argparse.ArgumentParser(description="Extract key values from the model using KNNMT")
-    parser_.add_argument("--ntotal", type=int, default=None, help="Total number of tokens in the dataset")
-    extracting_options = parser_.parse_args()
-
     parser = options.get_validation_parser()
+    parser.add_argument("--ntotal", type=int, help="Total number of tokens to be extracted")
     args = options.parse_args_and_arch(parser)
 
     # only override args that are explicitly given on the command line
     override_parser = options.get_validation_parser()
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
 
+
     distributed_utils.call_main(
-        convert_namespace_to_omegaconf(args), main, override_args=override_args, ntotal=extracting_options.ntotal
+        convert_namespace_to_omegaconf(args), main, override_args=override_args, ntotal=args.ntotal
     )
 
 
