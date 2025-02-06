@@ -17,7 +17,7 @@ import faiss
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
 
-def main(cfg: DictConfig, override_args=None):
+def main(cfg: DictConfig, override_args=None, ntotal = None):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
@@ -98,7 +98,12 @@ def main(cfg: DictConfig, override_args=None):
 
         features_all = []
         targets_all = []
+        ntotal = ntotal
 
+        dim = model.decoder.output_embed_dim
+
+        mapped_features = np.memmap(features_file, dtype='float32', mode='w+', shape=(ntotal, dim))
+        mapped_keys = np.memmap(targets_file, dtype='int32', mode='w+', shape=(ntotal,))
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             #we are interested in the last layer only
@@ -112,19 +117,22 @@ def main(cfg: DictConfig, override_args=None):
                 store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
                 store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int32)
                 store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
-                features_all.append(store_features.cpu().numpy())
-                targets_all.append(store_target.cpu().numpy())
+                mapped_features[total_tokens:total_tokens+len(store_features)]=store_features.cpu().numpy()
+                mapped_keys[total_tokens:total_tokens+len(store_features)] = store_target.cpu().numpy()
                 assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
                 print(f"batch {i}, {len(store_features)} tokens are extracted")
                 total_tokens += len(store_features)
-
+                mapped_features.flush()
+                mapped_keys.flush()
+                
+        assert total_tokens == ntotal, f"Total tokens {total_tokens} should be equal to ntotal {ntotal}"
         print(f"Total {total_tokens} tokens are extracted")
-        with open(features_file, "wb") as ff:
-            np.save(ff, np.concatenate(features_all))
-        with open(targets_file, "wb") as tf:
-            np.save(tf, np.concatenate(targets_all))
 
 if __name__ == "__main__":
+    parser_ = argparse.ArgumentParser(description="Extract key values from the model using KNNMT")
+    parser_.add_argument("--ntotal", type=int, default=None, help="Total number of tokens in the dataset")
+    extracting_options = parser_.parse_args()
+
     parser = options.get_validation_parser()
     args = options.parse_args_and_arch(parser)
 
@@ -133,7 +141,7 @@ if __name__ == "__main__":
     override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
 
     distributed_utils.call_main(
-        convert_namespace_to_omegaconf(args), main, override_args=override_args
+        convert_namespace_to_omegaconf(args), main, override_args=override_args, ntotal=extracting_options.ntotal
     )
 
 

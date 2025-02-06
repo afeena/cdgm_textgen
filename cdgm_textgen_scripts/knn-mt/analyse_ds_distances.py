@@ -7,7 +7,7 @@ import torch
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sample_size', type=int, required=True, default=1000)
+    parser.add_argument('--sample_size', type=int, required=True, default=100000)
     parser.add_argument('--faiss_index', type=str, required=True)
     parser.add_argument('--keys', type=str, required=True)
     parser.add_argument('--vals', type=str, required=True)
@@ -35,15 +35,18 @@ if __name__ == '__main__':
 
     if not os.path.exists(args.sample_ids):
         #sample random entry for each target token in the vocabulary
-        sample_ids = torch.zeros(args.vocab_size, dtype=torch.int64)
+        sample_ids = torch.full(args.sample_size, -1, dtype=torch.int64)
         all_vocab_idx = torch.arange(0,args.vocab_size, dtype=torch.int64)
+        sample_count = 0
         for vocab_idx in all_vocab_idx:
             tmp = (tvals.flatten()==vocab_idx).nonzero().squeeze(1)
             if tmp.size()==torch.Size([0]):
                 sample_ids[vocab_idx]=-1
                 continue
-            sample_ids[vocab_idx] = tmp[torch.randperm(tmp.size(0))[0]]
-        sample_ids = sample_ids[sample_ids>0]
+            num_per_vocab_idx = min(64, tmp.size(0))
+            sample_ids[sample_count:sample_count+num_per_vocab_idx] = tmp[torch.randperm(tmp.size(0))[:num_per_vocab_idx]]
+            sample_count += num_per_vocab_idx
+        sample_ids = sample_ids[sample_ids!=-1]
         torch.save(sample_ids, args.sample_ids)
     else:
         sample_ids = torch.load(args.sample_ids, map_location='cpu')
@@ -93,15 +96,16 @@ if __name__ == '__main__':
 
     print(samples_correct_count.shape, samples_avg_dist_to_correct.shape, samples_min_dist_to_other_count.shape, gold_samples_targets.shape)
     res = {
+            "target": gold_samples_targets.cpu().numpy(),
            "samples_correct_count": samples_correct_count.cpu().numpy(),
            "samples_avg_dist_to_correct": samples_avg_dist_to_correct.cpu().numpy(),
-           "samples_avg_dist_to_other": samples_avg_dist_to_other.cpu().numpy(),
            "samples_others_count": samples_min_dist_to_other_count.cpu().numpy(),
-            "target": gold_samples_targets.cpu().numpy(),
+            "samples_avg_dist_to_other": samples_avg_dist_to_other.cpu().numpy(),
+
     }
     if args.out_frame is None:
-        args.out_frame = f"{args.faiss_index}_samples_distances.csv"
-    pd.DataFrame(res).to_csv(f"{args.out_frame}")
+        args.out_frame = f"distances_{args.faiss_index}_samples_distances.csv"
+    pd.DataFrame(res).to_csv(f"{args.out_frame}", index=False)
     print(f"Mean min dist: {np.mean(min_dists_batch)}")
 
 
