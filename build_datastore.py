@@ -33,7 +33,7 @@ if __name__ == "__main__":
     else:
 
         keys = np.memmap(args.keys_path, dtype=np.float32, mode='r', shape=(args.dstore_size, args.dim))
-        vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size, args.dim))
+        vals = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(args.dstore_size,))
 
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
