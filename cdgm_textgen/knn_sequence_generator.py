@@ -69,7 +69,9 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_metric = knn_metric
 
             print("load vals to retrieve vocab indices")
-            self.vals = torch.from_numpy(np.load(f"{knn_index_file}_vals.npy")).to(dtype=torch.int64)
+            vals_memmap = np.memmap(f"{knn_index_file}_vals.npy", dtype=np.int32, mode='r', shape=(self.knn_index.ntotal,))
+            self.vals = torch.zeros(self.knn_index.ntotal, dtype=torch.int64)
+            self.vals[:] = vals_memmap[:]
 
     def _generate(
             self,
