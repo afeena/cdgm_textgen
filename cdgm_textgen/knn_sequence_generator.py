@@ -239,18 +239,21 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
                 knn_target_idx = knn_target_idx.to(decoder_out.device)
                 sgn = 1.0 if self.knn_metric == 'cosine' else -1.0
-                knn_p = torch.log_softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
+                knn_p = torch.softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
                 
                 #here sum the log probs for each token
                 #logsumexp for each token
                 #here is the tricky part
-                unique_knn_target_idx = torch.unique(knn_target_idx).unsqueeze(1)
-                uniq_knn_idx_mask = (knn_target_idx == unique_knn_target_idx)
-                knn_p = knn_p.expand(unique_knn_target_idx.shape[0],-1).clone().masked_fill_(~uniq_knn_idx_mask, -1000.0)
-                knn_l_probs_vals = torch.logsumexp(knn_p, dim=-1)
-                knn_l_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype)
-                knn_l_probs[:, unique_knn_target_idx]=knn_l_probs_vals.unsqueeze(1)
-                knn_l_probs[knn_l_probs==0]=-1000.0
+                # unique_knn_target_idx = torch.unique(knn_target_idx).unsqueeze(1)
+                # uniq_knn_idx_mask = (knn_target_idx == unique_knn_target_idx)
+                # knn_p = knn_p.expand(unique_knn_target_idx.shape[0],-1).clone().masked_fill_(~uniq_knn_idx_mask, -1000.0)
+                # knn_l_probs_vals = torch.logsumexp(knn_p, dim=-1)
+                # knn_l_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype)
+                # knn_l_probs[:, unique_knn_target_idx]=knn_l_probs_vals.unsqueeze(1)
+                # knn_l_probs[knn_l_probs==0]=-1000.0
+
+                knn_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype).scatter_add_(1,knn_target_idx,knn_p)
+                knn_l_probs = torch.log(knn_probs)
                 lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
 
             if self.lm_model is not None:
