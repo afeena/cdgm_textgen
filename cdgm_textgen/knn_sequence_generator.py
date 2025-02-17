@@ -251,7 +251,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 knn_scores_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)],
                                                  dtype=torch.float32).to(device=decoder_out.device)
                 knn_scores_by_index[:] = -10000  # -math.inf
-                knn_vals_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)]).to(device=decoder_out.device)
+                knn_vals_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)], dtype=knn_target_idx.dtype).to(device=decoder_out.device)
                 knn_vals_by_index[:] = self.pad
 
                 # (Bxbeam)x1xK
