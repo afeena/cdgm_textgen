@@ -239,22 +239,35 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
                 knn_target_idx = knn_target_idx.to(decoder_out.device)
                 sgn = 1.0 if self.knn_metric == 'cosine' else -1.0
-                knn_p = torch.softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
+                knn_p = torch.log_softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
                 
                 #here sum the log probs for each token
                 #logsumexp for each token
                 #here is the tricky part
-                # unique_knn_target_idx = torch.unique(knn_target_idx).unsqueeze(1)
-                # uniq_knn_idx_mask = (knn_target_idx == unique_knn_target_idx)
-                # knn_p = knn_p.expand(unique_knn_target_idx.shape[0],-1).clone().masked_fill_(~uniq_knn_idx_mask, -1000.0)
-                # knn_l_probs_vals = torch.logsumexp(knn_p, dim=-1)
-                # knn_l_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype)
-                # knn_l_probs[:, unique_knn_target_idx]=knn_l_probs_vals.unsqueeze(1)
-                # knn_l_probs[knn_l_probs==0]=-1000.0
+                #adapted from https://github.com/urvashik/knnmt/blob/master/fairseq/knnlm.py#L160
 
-                knn_probs = torch.zeros_like(lprobs, device=lprobs.device, dtype=lprobs.dtype).scatter_add_(1,knn_target_idx,knn_p)
-                knn_l_probs = torch.log(knn_probs)
-                lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * knn_l_probs
+                unique_indices, mapping = torch.unique(knn_target_idx, return_inverse=True)
+                # (Bxbeam)xKxn where n = num unique vals in indices
+                knn_scores_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)],
+                                                 dtype=torch.float32).to(device=decoder_out.device)
+                knn_scores_by_index[:] = -10000  # -math.inf
+                knn_vals_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)]).to(device=decoder_out.device)
+                knn_vals_by_index[:] = self.pad
+
+                # (Bxbeam)x1xK
+                knn_target_idx = knn_target_idx.unsqueeze(2)
+                knn_p = knn_p.unsqueeze(2)
+                mapping = mapping.unsqueeze(2)
+                knn_scores_by_index.scatter_(dim=2, index=mapping, src=knn_p)
+                knn_vals_by_index.scatter_(dim=2, index=mapping, src=knn_target_idx)
+                # (Bxbeam)xn
+                knn_scores_by_index = knn_scores_by_index.logsumexp(dim=1)
+                knn_vals_by_index = knn_vals_by_index.max(dim=1)[0]
+                full_knn_scores = torch.ones_like(lprobs)
+                full_knn_scores[:] = -10000  # -math.inf
+                full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
+
+                lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * full_knn_scores
 
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
