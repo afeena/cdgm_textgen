@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 """isort:skip_file"""
 
-from .transformer_base import TransformerModelBase, TransformerModelBaseRandom
+from .transformer_base import TransformerModelBase, TransformerModelBaseRandom, TransformerWithDispersionAdapter
 from .transformer_continuous_base import TransformerModelContinuous
 from .transformer_continuous import  TransformerMixtureModelContinuous, \
     TransformerModelProba
@@ -19,5 +19,6 @@ __all__ = [
     "TransformerModelBase",
     "TransformerModelProba",
     "TransformerModelBaseRandom",
-    "RiemannianEmbContTransformer"
+    "RiemannianEmbContTransformer",
+    "TransformerWithDispersionAdapter"
 ]

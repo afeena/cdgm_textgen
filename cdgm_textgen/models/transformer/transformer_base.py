@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
-from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase
+from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase, TransformerDecoderWithDispersionAdapter
 
 
 @register_model("transformer_base", dataclass=TransformerConfig)
@@ -205,6 +205,13 @@ class TransformerDecoderRandomOut(TransformerDecoderBase):
 
         x = x @ self.output_projection.weight.t().detach()
         return x, extra
+
+@register_model("transformer_with_dispersion_adapter", dataclass=TransformerConfig)
+class TransformerWithDispersionAdapter(TransformerModelBase):
+    @classmethod
+    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
+        return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens)
+
 def Embedding(num_embeddings, embedding_dim, padding_idx, **kwargs):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, **kwargs)
     nn.init.normal_(m.weight, mean=0, std=embedding_dim ** -0.5)

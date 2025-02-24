@@ -472,3 +472,72 @@ class TransformerDecoder(TransformerDecoderBase):
         return super().build_decoder_layer(
             TransformerConfig.from_namespace(args), no_encoder_attn=no_encoder_attn
         )
+
+class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
+    def __init__(
+            self,
+            cfg,
+            dictionary,
+            embed_tokens,
+            no_encoder_attn=False,
+            output_projection=None,
+    ):
+
+        super().__init__(
+            cfg = cfg,
+            dictionary = dictionary,
+            embed_tokens = embed_tokens,
+            no_encoder_attn = no_encoder_attn,
+            output_projection = output_projection
+        )
+
+        self.linear_adapter = self.build_linear_adapter(cfg)
+
+    def build_linear_adapter(self, cfg):
+        return torch.nn.Sequential(
+            Linear(cfg.decoder_out_dim, cfg.decoder_embed_dim),
+            torch.nn.ReLU(),
+            Linear(cfg.decoder_embed_dim, cfg.decoder_embed_dim),
+        )
+
+    def forward(
+        self,
+        prev_output_tokens,
+        encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        features_only: bool = False,
+        full_context_alignment: bool = False,
+        alignment_layer: Optional[int] = None,
+        alignment_heads: Optional[int] = None,
+        src_lengths: Optional[Any] = None,
+        return_all_hiddens: bool = False,
+    ):
+        x, extra = self.extract_features(
+            prev_output_tokens,
+            encoder_out=encoder_out,
+            incremental_state=incremental_state,
+            full_context_alignment=full_context_alignment,
+            alignment_layer=alignment_layer,
+            alignment_heads=alignment_heads,
+        )
+        if self.linear_adapter is not None:
+            x = self.forward_linear_adapter(x)
+        extra["features"] = x
+        if not features_only:
+            x = self.output_layer(x)
+
+        return x, extra
+
+    def forward_linear_adapter(self, x):
+        """
+            Args: x (torch.Tensor): input tensor with shape `(batch_size, T, C)`, hidden state
+            Returns: x (torch.Tensor): output tensor with shape `(batch_size, T, C)`
+        """
+        residual = x
+        x = self.linear_adapter(x)
+        x = self.torch.relu(x + residual)
+        #normalize features to keep them on the sphere
+        x = x / x.norm(dim=-1, keepdim=True)
+
+        return x
+
