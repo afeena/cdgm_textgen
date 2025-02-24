@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(args.sample_ids):
         #sample random entry for each target token in the vocabulary
-        sample_ids = torch.full(args.sample_size, -1, dtype=torch.int64)
+        sample_ids = torch.full((args.sample_size,), -1, dtype=torch.int64)
         all_vocab_idx = torch.arange(0,args.vocab_size, dtype=torch.int64)
         sample_count = 0
         for vocab_idx in all_vocab_idx:
@@ -53,8 +53,6 @@ if __name__ == '__main__':
     print(sample_ids.shape)
     tkeys = tkeys[sample_ids].to(device='cuda')
     gold_samples_targets = tvals[sample_ids]
-
-
 
     k = 8
     start = 0
