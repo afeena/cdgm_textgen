@@ -51,7 +51,7 @@ if __name__ == '__main__':
         torch.save(sample_ids, args.sample_ids)
     else:
         sample_ids = torch.load(args.sample_ids, map_location='cpu')
-    final_sample_size = sample_ids.shape
+    final_sample_size = sample_ids.size(0)
 
 
     gold_samples_targets = torch.zeros((final_sample_size, args.dim), dtype=torch.float32)
