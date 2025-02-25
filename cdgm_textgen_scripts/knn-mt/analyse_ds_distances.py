@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     }
     if args.out_frame is None:
-        args.out_frame = f"distances_{args.faiss_index}_samples_distances.csv"
+        args.out_frame = f"{args.faiss_index}_samples_distances.csv"
     pd.DataFrame(res).to_csv(f"{args.out_frame}", index=False)
     print(f"Mean min dist: {np.mean(min_dists_batch)}")
 
