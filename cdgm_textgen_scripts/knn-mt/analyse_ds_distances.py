@@ -8,6 +8,7 @@ import torch
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--sample_size', type=int, required=True, default=100000)
+    parser.add_argument("--dim", type=int, required=True, default=512)
     parser.add_argument('--faiss_index', type=str, required=True)
     parser.add_argument('--keys', type=str, required=True)
     parser.add_argument('--vals', type=str, required=True)
@@ -24,14 +25,14 @@ if __name__ == '__main__':
     index_cpu = faiss.read_index(args.faiss_index)
     index = faiss.index_cpu_to_gpu(res, 0, index_cpu, co)
 
-    vals = np.load(args.vals)
-    tvals = torch.from_numpy(vals).to(dtype=torch.int64)
-    del vals
+    print("load vals to retrieve vocab indices")
+    vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(index.ntotal,))
+    tvals = torch.zeros(index, dtype=torch.int64)
+    tvals[:] = torch.from_numpy(vals_memmap[:])
 
-    keys = np.load(args.keys)
+    keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
 
-    tkeys = torch.from_numpy(keys).to(dtype=torch.float32)
-    del keys
+
 
     if not os.path.exists(args.sample_ids):
         #sample random entry for each target token in the vocabulary
@@ -51,7 +52,10 @@ if __name__ == '__main__':
     else:
         sample_ids = torch.load(args.sample_ids, map_location='cpu')
     print(sample_ids.shape)
-    tkeys = tkeys[sample_ids].to(device='cuda')
+
+
+    tkeys = torch.zeros(args.sample_size, args.dim, dtype=torch.float32)
+    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids]).to(device='cuda')
     gold_samples_targets = tvals[sample_ids]
 
     k = 8
