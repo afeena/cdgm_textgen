@@ -54,7 +54,7 @@ if __name__ == '__main__':
     final_sample_size = sample_ids.shape
 
 
-    gold_samples_targets = torch.zeros(final_sample_size, args.dim, dtype=torch.float32)
+    gold_samples_targets = torch.zeros((final_sample_size, args.dim), dtype=torch.float32)
     gold_samples_targets[:] = torch.from_numpy(keys_memmap[sample_ids,:]).to(device='cuda')
 
     k = 8
