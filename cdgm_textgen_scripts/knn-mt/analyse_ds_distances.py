@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(index.ntotal,))
-    tvals = torch.zeros(index, dtype=torch.int64)
+    tvals = torch.zeros((index.ntotal,), dtype=torch.int64)
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
