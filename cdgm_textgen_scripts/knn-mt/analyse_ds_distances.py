@@ -25,27 +25,29 @@ if __name__ == '__main__':
 
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(index.ntotal,))
-    tvals = torch.zeros((index.ntotal,), dtype=torch.int64)
-    tvals[:] = torch.from_numpy(vals_memmap[:])
-
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
     sample_ids = torch.load(args.sample_ids, map_location='cpu')
 
+    n_samples = sample_ids.size(0)
+    tvals = torch.zeros((index.ntotal,), dtype=torch.int64, device='cuda')
+    tvals[:] = torch.from_numpy(vals_memmap[:])
+
+    tkeys = torch.zeros((n_samples, args.dim), dtype=torch.float32)
+    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids, :]).to(device='cuda')
+
     gold_samples_targets = tvals[sample_ids]
-    tkeys = torch.zeros((sample_ids.size(0), args.dim), dtype=torch.float32)
-    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids,:]).to(device='cuda')
 
     k = 8
     start = 0
     num_to_retrieve = 1000
     min_dists_batch = []
-    n_samples = gold_samples_targets.size(0)
+
     samples_avg_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_correct_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
     samples_avg_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
 
-    while start < sample_ids.size(0):
+    while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
         
@@ -58,7 +60,7 @@ if __name__ == '__main__':
             print("make sure you use index with IP coarse quantizer")
             dist = torch.acos(dist.clamp(-1 + 1e-7, 1 - 1e-7))
         # check avg dist correct target(s)
-        predicted_targets = tvals[I.cpu()]
+        predicted_targets = tvals[I]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1)
         samples_avg_dist_to_correct[start:end] = torch.mean(dist.masked_select(correct_targets_mask))
