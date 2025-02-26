@@ -62,12 +62,12 @@ if __name__ == '__main__':
         # check avg dist correct target(s)
         predicted_targets = tvals[I]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
-        samples_correct_count[start:end] = correct_targets_mask.sum(dim=1)
-        samples_avg_dist_to_correct[start:end] = torch.mean(dist.masked_select(correct_targets_mask))
+        samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
+        samples_avg_dist_to_correct[start:end] = torch.mean(dist.masked_select(correct_targets_mask)).to(device='cuda')
 
         # check avg dist to other targets
-        samples_min_dist_to_other_count[start:end] = k - samples_correct_count[start:end]
-        samples_avg_dist_to_other[start:end] = torch.mean(dist.masked_select(~correct_targets_mask))
+        samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).to(device='cuda')
+        samples_avg_dist_to_other[start:end] = (torch.mean(dist.masked_select(~correct_targets_mask))).to(device='cuda')
         
         average_row = torch.mean(dist, dim=1)
         min_dist = torch.min(average_row)
