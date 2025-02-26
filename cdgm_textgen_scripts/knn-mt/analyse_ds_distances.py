@@ -26,7 +26,7 @@ if __name__ == '__main__':
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(index.ntotal,))
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
-    sample_ids = torch.load(args.sample_ids, map_location='cpu')
+    sample_ids = torch.load(args.sample_ids).to(device='cuda')
 
     n_samples = sample_ids.size(0)
     tvals = torch.zeros((index.ntotal,), dtype=torch.int64, device='cuda')
