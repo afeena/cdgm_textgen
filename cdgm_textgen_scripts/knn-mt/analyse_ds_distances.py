@@ -26,7 +26,7 @@ if __name__ == '__main__':
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(index.ntotal,))
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
-    sample_ids = torch.load(args.sample_ids).to(device='cuda')
+    sample_ids = torch.load(args.sample_ids)
 
     n_samples = sample_ids.size(0)
     tvals = torch.zeros((index.ntotal,), dtype=torch.int64, device='cuda')
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     samples_correct_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
     samples_avg_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
-
+    
     while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
