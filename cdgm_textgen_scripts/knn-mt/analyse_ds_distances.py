@@ -33,8 +33,8 @@ if __name__ == '__main__':
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
 
 
-
-    if not os.path.exists(args.sample_ids):
+    sample_ids_path = f"{args.sample_ids}_{args.sample_size}"
+    if not os.path.exists(sample_ids_path):
         #sample random entry for each target token in the vocabulary
         sample_ids = torch.full((args.sample_size,), -1, dtype=torch.int64)
         all_vocab_idx = torch.arange(0,args.vocab_size, dtype=torch.int64)
