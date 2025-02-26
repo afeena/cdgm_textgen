@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--vals', type=str, required=True)
     parser.add_argument('--sample_ids', type=str)
     parser.add_argument('--vocab_size', type=int, default=10000)
-    parser.add_argument('--max_keys_per_token', type=str, default='l2')
+    parser.add_argument('--max_keys_per_token', type=int, default=1)
 
     args = parser.parse_args()
 
