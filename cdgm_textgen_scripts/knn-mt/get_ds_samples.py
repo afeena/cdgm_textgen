@@ -18,7 +18,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("load vals to retrieve vocab indices")
-    vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(args.faiss_index_size,))
+    vals_memmap = np.memmap(f"{args.vals}", dtype=np.int32, mode='r', shape=(args.faiss_index_size,))
     tvals = torch.zeros((args.faiss_index_size), dtype=torch.int64)
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
