@@ -45,7 +45,7 @@ if __name__ == '__main__':
     samples_avg_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
 
-    while start < args.sample_size:
+    while start < sample_ids.size(0):
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
         
