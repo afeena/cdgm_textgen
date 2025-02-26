@@ -60,6 +60,8 @@ if __name__ == '__main__':
             print("make sure you use index with IP coarse quantizer")
             dist = torch.acos(dist.clamp(-1 + 1e-7, 1 - 1e-7))
         # check avg dist correct target(s)
+        if dist.device != 'cuda':
+            dist.to(device='cuda')
         predicted_targets = tvals[I]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
