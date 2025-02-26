@@ -16,6 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_frame', type=str, default=None)
     parser.add_argument('--vocab_size', type=int, default=10000)
     parser.add_argument('--distance', type=str, default='l2')
+    parser.add_argument('--max_keys_per_token', type=str, default='l2')
 
     args = parser.parse_args()
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
             if tmp.size()==torch.Size([0]):
                 sample_ids[vocab_idx]=-1
                 continue
-            num_per_vocab_idx = min(64, tmp.size(0))
+            num_per_vocab_idx = min(args.max_keys_per_token, tmp.size(0))
             sample_ids[sample_count:sample_count+num_per_vocab_idx] = tmp[torch.randperm(tmp.size(0))[:num_per_vocab_idx]]
             sample_count += num_per_vocab_idx
         sample_ids = sample_ids[sample_ids!=-1]
