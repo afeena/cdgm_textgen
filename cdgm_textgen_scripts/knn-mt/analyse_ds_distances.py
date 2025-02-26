@@ -7,16 +7,13 @@ import torch
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sample_size', type=int, required=True, default=100000)
     parser.add_argument("--dim", type=int, required=True, default=512)
     parser.add_argument('--faiss_index', type=str, required=True)
     parser.add_argument('--keys', type=str, required=True)
     parser.add_argument('--vals', type=str, required=True)
     parser.add_argument('--sample_ids', type=str)
     parser.add_argument('--out_frame', type=str, default=None)
-    parser.add_argument('--vocab_size', type=int, default=10000)
     parser.add_argument('--distance', type=str, default='l2')
-    parser.add_argument('--max_keys_per_token', type=str, default='l2')
 
     args = parser.parse_args()
 
@@ -32,29 +29,8 @@ if __name__ == '__main__':
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
     keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index.ntotal,args.dim))
+    sample_ids = torch.load(args.sample_ids, map_location='cpu')
 
-
-    sample_ids_path = f"{args.sample_ids}_{args.sample_size}"
-    if not os.path.exists(sample_ids_path):
-        #sample random entry for each target token in the vocabulary
-        sample_ids = torch.full((args.sample_size,), -1, dtype=torch.int64)
-        all_vocab_idx = torch.arange(0,args.vocab_size, dtype=torch.int64)
-        sample_count = 0
-        for vocab_idx in all_vocab_idx:
-            tmp = (tvals.flatten()==vocab_idx).nonzero().squeeze(1)
-            if tmp.size()==torch.Size([0]):
-                sample_ids[vocab_idx]=-1
-                continue
-            num_per_vocab_idx = min(args.max_keys_per_token, tmp.size(0))
-            sample_ids[sample_count:sample_count+num_per_vocab_idx] = tmp[torch.randperm(tmp.size(0))[:num_per_vocab_idx]]
-            sample_count += num_per_vocab_idx
-        sample_ids = sample_ids[sample_ids!=-1]
-        torch.save(sample_ids, args.sample_ids)
-    else:
-        sample_ids = torch.load(args.sample_ids, map_location='cpu')
-    final_sample_size = sample_ids.size(0)
-
-    print("amount of samples: ", final_sample_size)
     gold_samples_targets = tvals[sample_ids]
     tkeys = torch.zeros((args.sample_size, args.dim), dtype=torch.float32)
     tkeys[:] = torch.from_numpy(keys_memmap[sample_ids,:]).to(device='cuda')
