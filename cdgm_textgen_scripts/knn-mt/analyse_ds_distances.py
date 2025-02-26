@@ -33,7 +33,8 @@ if __name__ == '__main__':
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
     tkeys = torch.zeros((n_samples, args.dim), dtype=torch.float32)
-    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids, :]).to(device='cuda')
+    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids, :])
+    tkeys = tkeys.to(device='cuda')
 
     gold_samples_targets = tvals[sample_ids]
 
