@@ -53,9 +53,10 @@ if __name__ == '__main__':
         sample_ids = torch.load(args.sample_ids, map_location='cpu')
     final_sample_size = sample_ids.size(0)
 
-
-    gold_samples_targets = torch.zeros((final_sample_size, args.dim), dtype=torch.float32)
-    gold_samples_targets[:] = torch.from_numpy(keys_memmap[sample_ids,:]).to(device='cuda')
+    print("amount of samples: ", final_sample_size)
+    gold_samples_targets = tvals[sample_ids]
+    tkeys = torch.zeros((args.sample_size, args.dim), dtype=torch.float32)
+    tkeys[:] = torch.from_numpy(keys_memmap[sample_ids,:]).to(device='cuda')
 
     k = 8
     start = 0
