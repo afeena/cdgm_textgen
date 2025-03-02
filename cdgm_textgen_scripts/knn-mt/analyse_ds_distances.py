@@ -50,6 +50,7 @@ if __name__ == '__main__':
 
     dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
+    sample_norms = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
@@ -73,14 +74,16 @@ if __name__ == '__main__':
         predicted_targets = tvals[I]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
-        samples_min_dist_to_correct[start:end] = torch.topk(
-            (dist.masked_select(correct_targets_mask)).to(device='cuda'),
-                                                            k=2, largest=False)[0][1]
+        samples_min_dist_to_correct[start:end] = torch.min(
+            (dist.masked_select(correct_targets_mask)).to(device='cuda'))
 
         # check min dist to other targets
         samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).to(device='cuda')
         samples_min_dist_to_other[start:end] = (torch.min(dist.masked_select(~correct_targets_mask)))[0].to(device='cuda')
-        
+
+        #key norms
+        sample_norms[start:end] = torch.norm(tkeys[start:end], dim=-1)
+
         min_dist_row = torch.min(dist[:,1:], dim=1)[0]
 
         min_dists_batch.append(torch.min(min_dist_row).item())
@@ -94,13 +97,18 @@ if __name__ == '__main__':
            "samples_others_count": samples_min_dist_to_other_count.cpu().numpy(),
             "samples_min_dist_to_other": samples_min_dist_to_other.cpu().numpy(),
             "dist_to_first_nn": dist_to_first_nn.cpu().numpy(),
-            "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy()
+            "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy(),
+            "sample_norms": sample_norms.cpu().numpy()
 
     }
     if args.out_frame is None:
-        args.out_frame = f"{args.faiss_index}_samples_distances.csv"
+        args.out_frame = f"{args.faiss_index}_samples_stats.csv"
     pd.DataFrame(res).to_csv(f"{args.out_frame}", index=False)
     print(f"Min dist: {np.min(min_dists_batch)}")
+    print(f"Norms mean: {sample_norms.mean().item()} max: {sample_norms.max().item()} min: {sample_norms.min().item()}")
+    print(f"Dist to first nn mean: {dist_to_first_nn.mean().item()} max: {dist_to_first_nn.max().item()} min: {dist_to_first_nn.min().item()}")
+    print(f"Dist to fith nn mean: {dist_to_fith_nn.mean().item()} max: {dist_to_fith_nn.max().item()} min: {dist_to_fith_nn.min().item()}")
+
 
 
 
