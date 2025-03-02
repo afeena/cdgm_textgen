@@ -38,16 +38,18 @@ if __name__ == '__main__':
 
     gold_samples_targets = tvals[sample_ids]
 
-    k = 8
+    k = 6
     start = 0
     num_to_retrieve = 1000
     min_dists_batch = []
 
-    samples_avg_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
+    samples_min_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_correct_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
-    samples_avg_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
+    samples_min_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
-    
+
+    dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
+    dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
@@ -60,37 +62,49 @@ if __name__ == '__main__':
         if args.distance == 'acos':
             print("make sure you use index with IP coarse quantizer")
             dist = torch.acos(dist.clamp(-1 + 1e-7, 1 - 1e-7))
-        # check avg dist correct target(s)
+
+        # check min dist correct target(s) excluding the 0th one
         if dist.device != 'cuda':
             dist.to(device='cuda')
+
+        dist_to_first_nn[start:end] = dist[:,1]
+        dist_to_fith_nn[start:end] = dist[:,5]
+
         predicted_targets = tvals[I]
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
-        samples_avg_dist_to_correct[start:end] = torch.mean(dist.masked_select(correct_targets_mask)).to(device='cuda')
+        samples_min_dist_to_correct[start:end] = torch.topk(
+            (dist.masked_select(correct_targets_mask)).to(device='cuda'),
+                                                            k=2, largest=False)[0][1]
 
-        # check avg dist to other targets
+        # check min dist to other targets
         samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).to(device='cuda')
-        samples_avg_dist_to_other[start:end] = (torch.mean(dist.masked_select(~correct_targets_mask))).to(device='cuda')
+        samples_min_dist_to_other[start:end] = (torch.min(dist.masked_select(~correct_targets_mask)))[0].to(device='cuda')
         
-        average_row = torch.mean(dist, dim=1)
-        min_dist = torch.min(average_row)
-        min_dists_batch.append(min_dist.item())
-        print(f"Batch {start} - {end} min dist: {min_dist.item()}")
+        min_dist_row = torch.min(dist[:,1:], dim=1)[0]
+
+        min_dists_batch.append(torch.min(min_dist_row).item())
+        print(f"Batch {start} - {end} min dist: {torch.min(min_dist_row).item()}")
         start += num_to_retrieve
 
-    print(samples_correct_count.shape, samples_avg_dist_to_correct.shape, samples_min_dist_to_other_count.shape, gold_samples_targets.shape)
     res = {
             "target": gold_samples_targets.cpu().numpy(),
            "samples_correct_count": samples_correct_count.cpu().numpy(),
-           "samples_avg_dist_to_correct": samples_avg_dist_to_correct.cpu().numpy(),
+           "samples_min_dist_to_correct": samples_min_dist_to_correct.cpu().numpy(),
            "samples_others_count": samples_min_dist_to_other_count.cpu().numpy(),
-            "samples_avg_dist_to_other": samples_avg_dist_to_other.cpu().numpy(),
+            "samples_min_dist_to_other": samples_min_dist_to_other.cpu().numpy(),
+            "dist_to_first_nn": dist_to_first_nn.cpu().numpy(),
+            "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy()
 
     }
     if args.out_frame is None:
         args.out_frame = f"{args.faiss_index}_samples_distances.csv"
     pd.DataFrame(res).to_csv(f"{args.out_frame}", index=False)
-    print(f"Mean min dist: {np.mean(min_dists_batch)}")
+    print(f"Min dist: {np.min(min_dists_batch)}")
+
+
+
+
 
 
 
