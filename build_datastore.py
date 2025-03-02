@@ -4,6 +4,7 @@ import os
 import numpy as np
 import time
 import faiss.contrib.torch_utils
+import torch.nn.functional as F
 
 if __name__ == "__main__":
     datastore_parser = argparse.ArgumentParser()
@@ -56,8 +57,8 @@ if __name__ == "__main__":
         random_sample = np.random.choice(np.arange(vals.shape[0]), size=[min(args.ntrain, vals.shape[0])], replace=False)
         #to be able to search with gpu tensors, we need to build store with gpu tensors
         training_samples = torch.tensor(keys[random_sample], dtype=torch.float32, device='cuda')
-        training_samples = training_samples[torch.all(training_samples<float('1e37'),dim=-1)]
-        print(training_samples.shape)
+        if args.coarse_idx=='ip':
+            training_samples = F.normalize(training_samples, p=2, dim=1)
 
         print(f"train faiss index with {random_sample.shape[0]} samples")
         start = time.time()
@@ -78,6 +79,8 @@ if __name__ == "__main__":
     while start < args.dstore_size:
         end = min(args.dstore_size, start + num_keys_to_add_at_a_time)
         to_add = torch.tensor(keys[start:end].copy(), device='cuda', dtype=torch.float32)
+        if args.coarse_idx=='ip':
+            to_add = F.normalize(to_add, p=2, dim=1)
         idx_to_add = torch.arange(start, end, device='cuda', dtype=torch.int64)
         index.add_with_ids(to_add, idx_to_add)
         start += num_keys_to_add_at_a_time
@@ -90,9 +93,7 @@ if __name__ == "__main__":
 
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
-    print("check distances for first 100 keys")
-    D, I = index.search(torch.tensor(keys[:100], dtype=torch.float32), 10)
-    print(D)
+    
     print('Writing Index')
     start = time.time()
     index_cpu = faiss.index_gpu_to_cpu(index)
