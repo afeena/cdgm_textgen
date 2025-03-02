@@ -75,11 +75,11 @@ if __name__ == '__main__':
         correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
         samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
         samples_min_dist_to_correct[start:end] = torch.min(
-            (dist.masked_select(correct_targets_mask)).to(device='cuda'))
+            (dist.masked_select(correct_targets_mask)).to(device='cuda'),dim=-1)[0]
 
         # check min dist to other targets
         samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).to(device='cuda')
-        samples_min_dist_to_other[start:end] = (torch.min(dist.masked_select(~correct_targets_mask)))[0].to(device='cuda')
+        samples_min_dist_to_other[start:end] = (torch.min(dist.masked_select(~correct_targets_mask),dim=-1))[0].to(device='cuda')
 
         #key norms
         sample_norms[start:end] = torch.norm(tkeys[start:end], dim=-1)
