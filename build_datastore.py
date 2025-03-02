@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     print("Adding total %d keys" % end)
     print('Adding took {} s'.format(time.time() - start_time))
-    
+
     print('Writing Index')
     start = time.time()
     index_cpu = faiss.index_gpu_to_cpu(index)
