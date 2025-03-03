@@ -34,7 +34,7 @@ if __name__ == '__main__':
     sample_ids = torch.load(args.sample_ids)
 
     n_samples = sample_ids.size(0)
-    tvals = torch.zeros((index.ntotal,), dtype=torch.int64)
+    tvals = torch.zeros((index.ntotal,), dtype=torch.int64, device='cuda')
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
     tkeys = torch.zeros((n_samples, args.dim), dtype=torch.float32, device='cuda')
