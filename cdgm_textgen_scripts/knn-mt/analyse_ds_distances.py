@@ -56,6 +56,8 @@ if __name__ == '__main__':
     dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32)
     dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32)
     sample_norms = torch.zeros(n_samples, dtype=torch.float32)
+    predicted_1st_nn = torch.zeros(n_samples, dtype=torch.int32)
+    predicted_5th_nn = torch.zeros(n_samples, dtype=torch.int32)
 
     while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
@@ -76,6 +78,8 @@ if __name__ == '__main__':
         dist_to_fith_nn[start:end] = dist[:,5].cpu()
 
         predicted_targets = tvals[I]
+        predicted_1st_nn[start:end] = predicted_targets[:,1].cpu()
+        predicted_5th_nn[start:end] = predicted_targets[:,5].cpu()
 
         samples_unique_count[start:end]=torch.unique(predicted_targets,dim=-1, return_counts=True)[1].cpu()
 
@@ -106,7 +110,9 @@ if __name__ == '__main__':
             "dist_to_first_nn": dist_to_first_nn.cpu().numpy(),
             "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy(),
             "sample_norms": sample_norms.cpu().numpy(),
-            "samples_unique_count": samples_unique_count.cpu().numpy()
+            "samples_unique_count": samples_unique_count.cpu().numpy(),
+        "predicted 1st": predicted_1st_nn.cpu().numpy(),
+        "predicted 5th": predicted_5th_nn.cpu().numpy()
     }
 
     if args.out_frame is None:
