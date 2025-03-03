@@ -1,7 +1,6 @@
 import faiss.contrib.torch_utils
 import numpy as np
 import argparse
-import os
 import pandas as pd
 import torch
 from datetime import datetime
