@@ -4,6 +4,11 @@ import argparse
 import os
 import pandas as pd
 import torch
+from datetime import datetime
+
+def add_to_bins(x, bins, out):
+    idx = np.digitize(x.cpu().numpy(), bins, right=True)
+    out[idx] += 1
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -14,6 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample_ids', type=str)
     parser.add_argument('--out_frame', type=str, default=None)
     parser.add_argument('--distance', type=str, default='l2')
+
 
     args = parser.parse_args()
 
@@ -29,28 +35,29 @@ if __name__ == '__main__':
     sample_ids = torch.load(args.sample_ids)
 
     n_samples = sample_ids.size(0)
-    tvals = torch.zeros((index.ntotal,), dtype=torch.int64, device='cuda')
+    tvals = torch.zeros((index.ntotal,), dtype=torch.int64)
     tvals[:] = torch.from_numpy(vals_memmap[:])
 
-    tkeys = torch.zeros((n_samples, args.dim), dtype=torch.float32)
+    tkeys = torch.zeros((n_samples, args.dim), dtype=torch.float32, device='cuda')
     tkeys[:] = torch.from_numpy(keys_memmap[sample_ids, :])
     tkeys = tkeys.to(device='cuda')
 
     gold_samples_targets = tvals[sample_ids]
 
-    k = 6
+    k = 8
     start = 0
     num_to_retrieve = 1000
     min_dists_batch = []
 
-    samples_min_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
-    samples_correct_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
-    samples_min_dist_to_other = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
-    samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32, device='cuda')
+    samples_min_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32)
+    samples_correct_count = torch.zeros(n_samples, dtype=torch.int32)
+    samples_min_dist_to_other = torch.zeros(n_samples, dtype=torch.float32)
+    samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32)
+    samples_unique_count = torch.zeros(n_samples, dtype=torch.int32)
+    dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32)
+    dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32)
+    sample_norms = torch.zeros(n_samples, dtype=torch.float32)
 
-    dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
-    dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
-    sample_norms = torch.zeros(n_samples, dtype=torch.float32, device='cuda')
     while start < n_samples:
         end = min(gold_samples_targets.size(0), start + num_to_retrieve)
         gold_targets = gold_samples_targets[start:end].unsqueeze(1)
@@ -65,24 +72,25 @@ if __name__ == '__main__':
             dist = torch.acos(dist.clamp(-1 + 1e-7, 1 - 1e-7))
 
         # check min dist correct target(s) excluding the 0th one
-        if dist.device != 'cuda':
-            dist.to(device='cuda')
 
-        dist_to_first_nn[start:end] = dist[:,1]
-        dist_to_fith_nn[start:end] = dist[:,5]
+        dist_to_first_nn[start:end] = dist[:,1].cpu()
+        dist_to_fith_nn[start:end] = dist[:,5].cpu()
 
         predicted_targets = tvals[I]
-        correct_targets_mask = torch.eq(predicted_targets, gold_targets).to(device='cuda')
-        samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).to(device='cuda')
-        samples_min_dist_to_correct[start:end] = torch.min(
-            (dist.masked_select(correct_targets_mask)).to(device='cuda'),dim=-1)[0]
+
+        samples_unique_count[start:end]=torch.unique(predicted_targets,dim=-1, return_counts=True)[1].cpu()
+
+        correct_targets_mask = torch.eq(predicted_targets, gold_targets)
+        samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).cpu()
+        samples_min_dist_to_correct[start:end] = (torch.min(
+            (dist.masked_select(correct_targets_mask)),dim=-1)[0]).cpu()
 
         # check min dist to other targets
-        samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).to(device='cuda')
-        samples_min_dist_to_other[start:end] = (torch.min(dist.masked_select(~correct_targets_mask),dim=-1))[0].to(device='cuda')
+        samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).cpu()
+        samples_min_dist_to_other[start:end] = ((torch.min(dist.masked_select(~correct_targets_mask),dim=-1))[0]).cpu()
 
         #key norms
-        sample_norms[start:end] = torch.norm(tkeys[start:end], dim=-1)
+        sample_norms[start:end] = torch.norm(tkeys[start:end], dim=-1).cpu()
 
         min_dist_row = torch.min(dist[:,1:], dim=1)[0]
 
@@ -98,11 +106,13 @@ if __name__ == '__main__':
             "samples_min_dist_to_other": samples_min_dist_to_other.cpu().numpy(),
             "dist_to_first_nn": dist_to_first_nn.cpu().numpy(),
             "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy(),
-            "sample_norms": sample_norms.cpu().numpy()
-
+            "sample_norms": sample_norms.cpu().numpy(),
+            "samples_unique_count": samples_unique_count.cpu().numpy()
     }
+
     if args.out_frame is None:
-        args.out_frame = f"{args.faiss_index}_samples_stats.csv"
+        datesig = datetime.today().strftime("%Y%m%d_%H%m")
+        args.out_frame = f"{args.faiss_index}_samples_stats_{n_samples}_{datesig}.csv"
     pd.DataFrame(res).to_csv(f"{args.out_frame}", index=False)
     print(f"Min dist: {np.min(min_dists_batch)}")
     print(f"Norms mean: {sample_norms.mean().item()} max: {sample_norms.max().item()} min: {sample_norms.min().item()}")
