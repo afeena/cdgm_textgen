@@ -81,7 +81,7 @@ if __name__ == '__main__':
         predicted_1st_nn[start:end] = predicted_targets[:,1].cpu()
         predicted_5th_nn[start:end] = predicted_targets[:,5].cpu()
 
-        for i in range(start, end):
+        for i in range(start, end-1):
             samples_unique_count[i] = torch.unique(predicted_targets[i]).shape[0]
 
         correct_targets_mask = torch.eq(predicted_targets, gold_targets)
