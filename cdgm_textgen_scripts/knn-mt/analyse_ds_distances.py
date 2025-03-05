@@ -81,20 +81,22 @@ if __name__ == '__main__':
         predicted_1st_nn[start:end] = predicted_targets[:,1].cpu()
         predicted_5th_nn[start:end] = predicted_targets[:,5].cpu()
 
-        temp_uq = torch.zeros((predicted_targets.size(0),), dtype=torch.int32)
+
+
         for i in range(0,predicted_targets.size(0)):
-            temp_uq[i] = torch.unique(predicted_targets[i]).shape[0]
-
-        samples_unique_count[start:end] = temp_uq.cpu()
-
-        correct_targets_mask = torch.eq(predicted_targets, gold_targets)
-        samples_correct_count[start:end] = correct_targets_mask.sum(dim=1).cpu()
-        samples_min_dist_to_correct[start:end] = (torch.min(
-            (dist.masked_select(correct_targets_mask)),dim=-1)[0]).cpu()
-
-        # check min dist to other targets
-        samples_min_dist_to_other_count[start:end] = (k - samples_correct_count[start:end]).cpu()
-        samples_min_dist_to_other[start:end] = ((torch.min(dist.masked_select(~correct_targets_mask),dim=-1))[0]).cpu()
+            samples_unique_count[start+i] = torch.unique(predicted_targets[i]).shape[0]
+            mask = torch.eq(predicted_targets[i], gold_targets[i])
+            correct_target_idx = torch.topk(dist[i], k=5, largest=False, sorted=True)[1][mask]
+            samples_correct_count[start+i] = len(correct_target_idx)
+            if len(correct_target_idx) > 0:
+                samples_min_dist_to_correct[start+i] = dist[i,correct_target_idx[0]]
+            else:
+                samples_min_dist_to_correct[start+i] = +np.inf
+            incorrect_target_idx = torch.topk(dist[i], k=5, largest=False, sorted=True)[1][~mask]
+            if len(incorrect_target_idx) > 0:
+                samples_min_dist_to_other[start+i] = dist[i,incorrect_target_idx[0]]
+            else:
+                samples_min_dist_to_other[start+i] = +np.inf
 
         #key norms
         sample_norms[start:end] = torch.norm(tkeys[start:end], dim=-1).cpu()
