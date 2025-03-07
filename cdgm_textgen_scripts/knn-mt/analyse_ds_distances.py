@@ -86,13 +86,13 @@ if __name__ == '__main__':
         for i in range(0,predicted_targets.size(0)):
             samples_unique_count[start+i] = torch.unique(predicted_targets[i]).shape[0]
             mask = torch.eq(predicted_targets[i], gold_targets[i])
-            correct_target_idx = torch.topk(dist[i], k=5, largest=False, sorted=True)[1][mask]
+            correct_target_idx = torch.topk(dist[i], k=k, largest=False, sorted=True)[1][mask]
             samples_correct_count[start+i] = len(correct_target_idx)
             if len(correct_target_idx) > 0:
                 samples_min_dist_to_correct[start+i] = dist[i,correct_target_idx[0]]
             else:
                 samples_min_dist_to_correct[start+i] = +np.inf
-            incorrect_target_idx = torch.topk(dist[i], k=5, largest=False, sorted=True)[1][~mask]
+            incorrect_target_idx = torch.topk(dist[i], k=k, largest=False, sorted=True)[1][~mask]
             if len(incorrect_target_idx) > 0:
                 samples_min_dist_to_other[start+i] = dist[i,incorrect_target_idx[0]]
             else:
