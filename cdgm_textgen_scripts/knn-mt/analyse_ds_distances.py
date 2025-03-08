@@ -51,7 +51,7 @@ if __name__ == '__main__':
     samples_min_dist_to_correct = torch.zeros(n_samples, dtype=torch.float32)
     samples_correct_count = torch.zeros(n_samples, dtype=torch.int32)
     samples_min_dist_to_other = torch.zeros(n_samples, dtype=torch.float32)
-    samples_min_dist_to_other_count = torch.zeros(n_samples, dtype=torch.int32)
+    samples_others_count = torch.zeros(n_samples, dtype=torch.int32)
     samples_unique_count = torch.zeros(n_samples, dtype=torch.int32)
     dist_to_first_nn = torch.zeros(n_samples, dtype=torch.float32)
     dist_to_fith_nn = torch.zeros(n_samples, dtype=torch.float32)
@@ -93,6 +93,7 @@ if __name__ == '__main__':
             else:
                 samples_min_dist_to_correct[start+i] = +np.inf
             incorrect_target_idx = torch.topk(dist[i], k=k, largest=False, sorted=True)[1][~mask]
+            samples_others_count[start+i] = len(incorrect_target_idx)
             if len(incorrect_target_idx) > 0:
                 samples_min_dist_to_other[start+i] = dist[i,incorrect_target_idx[0]]
             else:
@@ -111,7 +112,7 @@ if __name__ == '__main__':
             "target": gold_samples_targets.cpu().numpy(),
            "samples_correct_count": samples_correct_count.cpu().numpy(),
            "samples_min_dist_to_correct": samples_min_dist_to_correct.cpu().numpy(),
-           "samples_others_count": samples_min_dist_to_other_count.cpu().numpy(),
+           "samples_others_count": samples_others_count.cpu().numpy(),
             "samples_min_dist_to_other": samples_min_dist_to_other.cpu().numpy(),
             "dist_to_first_nn": dist_to_first_nn.cpu().numpy(),
             "dist_to_fith_nn": dist_to_fith_nn.cpu().numpy(),
