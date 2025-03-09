@@ -273,8 +273,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
 
 
                 full_knn_scores = torch.ones_like(lprobs)
+                full_knn_scores[:] = -10000
                 if rare_prediction_mapping is not None:
-                    full_knn_scores[rare_prediction_mapping] = -10000  # -math.inf
                     mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(device=decoder_out.device)
                     mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
                     mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1))
@@ -283,7 +283,12 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 else:
                     full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
 
-                lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * full_knn_scores
+                lprobs = torch.stack([lprobs, full_knn_scores.to(lprobs)], dim=0)
+                coeffs = torch.ones_like(lprobs)
+                coeffs[0] = np.log(1 - self.knn_lambda)
+                coeffs[1] = np.log(self.knn_lambda)
+                lprobs = torch.logsumexp(lprobs + coeffs, dim=0)
+
 
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
