@@ -15,8 +15,8 @@ class KnnTranslationConfig(TranslationConfig):
     knn_temperature: float = field(default=1.0, metadata={"help": "temperature for knn search"})
     knn_index_file: str = field(default="/", metadata={"help": "path to the knn index file"})
     knn_metric: str = field(default="l2", metadata={"help": "metric for knn search"})
-    knn_rare_only: bool = field(default=False)
-    knn_rare_threshold: int = field(default=0)
+    knn_rare_only: int = field(default=-1, metadata={"help": "only use knn for rare tokens and unl, starting from this index"})
+
 
 
 @register_task("translation_knn", dataclass=KnnTranslationConfig)
@@ -121,7 +121,6 @@ class KnnTranslationTask(TranslationTask):
             knn_lambda=getattr(args, "knn_lambda", 0.5),
             knn_temperature=getattr(args, "knn_temperature", 1.0),
             knn_metric=getattr(args, "knn_metric", "l2"),
-            knn_rare_only = getattr(args, "knn_rare_only", False),
-            knn_rare_threshold = getattr(args, "knn_rare_threshold", 0),
+            knn_rare_only = getattr(int, "knn_rare_only", -1),
             **extra_gen_cls_kwargs,
         )

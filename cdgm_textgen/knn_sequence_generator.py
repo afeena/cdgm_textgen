@@ -34,8 +34,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  knn_lambda=0.5,
                  knn_temperature=1.0,
                  knn_metric="cosine",
-                 knn_rare_only=False,
-                 knn_rare_threshold=20000,
+                 knn_rare_only=-1,
                  ):
         super().__init__(models,
                  tgt_dict,
@@ -70,7 +69,6 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_temperature = knn_temperature
             self.knn_metric = knn_metric
             self.knn_rare_only = knn_rare_only
-            self.knn_rare_threshold = knn_rare_threshold
 
             print("load vals to retrieve vocab indices")
             vals_memmap = np.memmap(f"{knn_index_file}_vals.npy", dtype=np.int32, mode='r', shape=(self.knn_index.ntotal,))
@@ -235,9 +233,9 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 )
             if self.knn_index is not None:
                 rare_prediction_mapping = None
-                if self.knn_rare_only:
+                if self.knn_rare_only>0:
                     _, top_one_idx = lprobs.topk(1, dim=-1)
-                    rare_prediction_mapping = (top_one_idx.ge(self.knn_rare_threshold) | top_one_idx.eq(self.unk)).nonzero().squeeze()
+                    rare_prediction_mapping = (top_one_idx.ge(self.knn_rare_only) | top_one_idx.eq(self.unk)).nonzero().squeeze()
                     decoder_out = decoder_out[rare_prediction_mapping,:]
                 if self.knn_metric == 'cosine':
                     decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
