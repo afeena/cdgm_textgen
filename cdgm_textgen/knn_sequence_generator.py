@@ -34,6 +34,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  knn_lambda=0.5,
                  knn_temperature=1.0,
                  knn_metric="cosine",
+                 knn_rare_only=False,
+                 knn_rare_threshold=20000,
                  ):
         super().__init__(models,
                  tgt_dict,
@@ -67,6 +69,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
             self.knn_metric = knn_metric
+            self.knn_rare_only = knn_rare_only
+            self.knn_rare_threshold = knn_rare_threshold
 
             print("load vals to retrieve vocab indices")
             vals_memmap = np.memmap(f"{knn_index_file}_vals.npy", dtype=np.int32, mode='r', shape=(self.knn_index.ntotal,))
@@ -230,6 +234,11 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                     return_decoder_output=True,
                 )
             if self.knn_index is not None:
+                rare_prediction_mapping = None
+                if self.knn_rare_only:
+                    _, top_one_idx = lprobs.topk(1, dim=-1)
+                    rare_prediction_mapping = (top_one_idx.ge(self.knn_rare_threshold) | top_one_idx.eq(self.unk)).nonzero().squeeze()
+                    decoder_out = decoder_out[rare_prediction_mapping,:]
                 if self.knn_metric == 'cosine':
                     decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
                 knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
@@ -263,9 +272,18 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 # (Bxbeam)xn
                 knn_scores_by_index = knn_scores_by_index.logsumexp(dim=1)
                 knn_vals_by_index = knn_vals_by_index.max(dim=1)[0]
+
+
                 full_knn_scores = torch.ones_like(lprobs)
-                full_knn_scores[:] = -10000  # -math.inf
-                full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
+                if rare_prediction_mapping is not None:
+                    full_knn_scores[rare_prediction_mapping] = -10000  # -math.inf
+                    mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(device=decoder_out.device)
+                    mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
+                    mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1))
+                    mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
+                    full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
+                else:
+                    full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
 
                 lprobs = (1 - self.knn_lambda) * lprobs + self.knn_lambda * full_knn_scores
 

@@ -118,5 +118,7 @@ class KnnTranslationTask(TranslationTask):
             knn_lambda=getattr(args, "knn_lambda", 0.5),
             knn_temperature=getattr(args, "knn_temperature", 1.0),
             knn_metric=getattr(args, "knn_metric", "l2"),
+            knn_rare_only = getattr(args, "knn_rare_only", False),
+            knn_rare_threshold = getattr(args, "knn_rare_threshold", 0),
             **extra_gen_cls_kwargs,
         )
