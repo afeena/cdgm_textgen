@@ -15,6 +15,9 @@ class KnnTranslationConfig(TranslationConfig):
     knn_temperature: float = field(default=1.0, metadata={"help": "temperature for knn search"})
     knn_index_file: str = field(default="/", metadata={"help": "path to the knn index file"})
     knn_metric: str = field(default="l2", metadata={"help": "metric for knn search"})
+    knn_rare_only: bool = field(default=False)
+    knn_rare_threshold: int = field(default=0)
+
 
 @register_task("translation_knn", dataclass=KnnTranslationConfig)
 class KnnTranslationTask(TranslationTask):
