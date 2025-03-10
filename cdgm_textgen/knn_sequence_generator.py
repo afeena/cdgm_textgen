@@ -128,7 +128,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(
                 device=decoder_out.device)
             mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
-            mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1))
+            mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1), device=decoder_out.device)
             mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
             full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
         else:
