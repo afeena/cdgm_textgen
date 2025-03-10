@@ -75,6 +75,66 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.vals = torch.zeros(self.knn_index.ntotal, dtype=torch.int64)
             self.vals[:] = torch.from_numpy(vals_memmap[:])
 
+
+    def get_knn_score(self, lprobs, decoder_out):
+        rare_prediction_mapping = None
+        if self.knn_rare_only > 0:
+            _, top_one_idx = lprobs.topk(1, dim=-1)
+            rare_prediction_mapping = (
+                        top_one_idx.ge(self.knn_rare_only) | top_one_idx.eq(self.unk)).nonzero().squeeze()
+            if rare_prediction_mapping.size(0) > 0:
+                print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
+                decoder_out = decoder_out[rare_prediction_mapping, :]
+            else:
+                return None
+
+        if self.knn_metric == 'cosine':
+            decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
+        knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
+                                                           self.knn_k)
+
+        knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
+        knn_target_idx = knn_target_idx.to(decoder_out.device)
+        sgn = 1.0 if self.knn_metric == 'cosine' else -1.0
+        knn_p = torch.log_softmax(sgn * knn_out_dists / self.knn_temperature, dim=-1)
+
+        # here sum the log probs for each token
+        # logsumexp for each token
+        # here is the tricky part
+        # adapted from https://github.com/urvashik/knnmt/blob/master/fairseq/knnlm.py#L160
+
+        unique_indices, mapping = torch.unique(knn_target_idx, return_inverse=True)
+        # (Bxbeam)xKxn where n = num unique vals in indices
+        knn_scores_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)],
+                                         dtype=torch.float32).to(device=decoder_out.device)
+        knn_scores_by_index[:] = -10000  # -math.inf
+        knn_vals_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)],
+                                       dtype=knn_target_idx.dtype).to(device=decoder_out.device)
+        knn_vals_by_index[:] = self.pad
+
+        # (Bxbeam)x1xK
+        knn_target_idx = knn_target_idx.unsqueeze(2)
+        knn_p = knn_p.unsqueeze(2)
+        mapping = mapping.unsqueeze(2)
+        knn_scores_by_index.scatter_(dim=2, index=mapping, src=knn_p)
+        knn_vals_by_index.scatter_(dim=2, index=mapping, src=knn_target_idx)
+        # (Bxbeam)xn
+        knn_scores_by_index = knn_scores_by_index.logsumexp(dim=1)
+        knn_vals_by_index = knn_vals_by_index.max(dim=1)[0]
+
+        full_knn_scores = torch.ones_like(lprobs)
+        full_knn_scores[:] = -10000
+        if rare_prediction_mapping is not None:
+            mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(
+                device=decoder_out.device)
+            mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
+            mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1))
+            mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
+            full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
+        else:
+            full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
+        return full_knn_scores
+
     def _generate(
             self,
             sample: Dict[str, Dict[str, Tensor]],
@@ -232,63 +292,13 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                     return_decoder_output=True,
                 )
             if self.knn_index is not None:
-                rare_prediction_mapping = None
-                if self.knn_rare_only>0:
-                    _, top_one_idx = lprobs.topk(1, dim=-1)
-                    rare_prediction_mapping = (top_one_idx.ge(self.knn_rare_only) | top_one_idx.eq(self.unk)).nonzero().squeeze()
-                    print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
-                    decoder_out = decoder_out[rare_prediction_mapping,:]
-                if self.knn_metric == 'cosine':
-                    decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
-                knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
-                                                                   self.knn_k)
-
-                
-                knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
-                knn_target_idx = knn_target_idx.to(decoder_out.device)
-                sgn = 1.0 if self.knn_metric == 'cosine' else -1.0
-                knn_p = torch.log_softmax(sgn*knn_out_dists / self.knn_temperature, dim=-1)
-                
-                #here sum the log probs for each token
-                #logsumexp for each token
-                #here is the tricky part
-                #adapted from https://github.com/urvashik/knnmt/blob/master/fairseq/knnlm.py#L160
-
-                unique_indices, mapping = torch.unique(knn_target_idx, return_inverse=True)
-                # (Bxbeam)xKxn where n = num unique vals in indices
-                knn_scores_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)],
-                                                 dtype=torch.float32).to(device=decoder_out.device)
-                knn_scores_by_index[:] = -10000  # -math.inf
-                knn_vals_by_index = torch.ones([knn_target_idx.shape[0], knn_target_idx.shape[1], len(unique_indices)], dtype=knn_target_idx.dtype).to(device=decoder_out.device)
-                knn_vals_by_index[:] = self.pad
-
-                # (Bxbeam)x1xK
-                knn_target_idx = knn_target_idx.unsqueeze(2)
-                knn_p = knn_p.unsqueeze(2)
-                mapping = mapping.unsqueeze(2)
-                knn_scores_by_index.scatter_(dim=2, index=mapping, src=knn_p)
-                knn_vals_by_index.scatter_(dim=2, index=mapping, src=knn_target_idx)
-                # (Bxbeam)xn
-                knn_scores_by_index = knn_scores_by_index.logsumexp(dim=1)
-                knn_vals_by_index = knn_vals_by_index.max(dim=1)[0]
-
-
-                full_knn_scores = torch.ones_like(lprobs)
-                full_knn_scores[:] = -10000
-                if rare_prediction_mapping is not None:
-                    mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(device=decoder_out.device)
-                    mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
-                    mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1))
-                    mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
-                    full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
-                else:
-                    full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
-
-                lprobs = torch.stack([lprobs, full_knn_scores.to(lprobs)], dim=0)
-                coeffs = torch.ones_like(lprobs)
-                coeffs[0] = np.log(1 - self.knn_lambda)
-                coeffs[1] = np.log(self.knn_lambda)
-                lprobs = torch.logsumexp(lprobs + coeffs, dim=0)
+                full_knn_scores  = self.get_knn_score(lprobs,decoder_out)
+                if full_knn_scores is not None:
+                    lprobs = torch.stack([lprobs, full_knn_scores.to(lprobs)], dim=0)
+                    coeffs = torch.ones_like(lprobs)
+                    coeffs[0] = np.log(1 - self.knn_lambda)
+                    coeffs[1] = np.log(self.knn_lambda)
+                    lprobs = torch.logsumexp(lprobs + coeffs, dim=0)
 
 
             if self.lm_model is not None:
