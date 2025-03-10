@@ -236,6 +236,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                 if self.knn_rare_only>0:
                     _, top_one_idx = lprobs.topk(1, dim=-1)
                     rare_prediction_mapping = (top_one_idx.ge(self.knn_rare_only) | top_one_idx.eq(self.unk)).nonzero().squeeze()
+                    print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
                     decoder_out = decoder_out[rare_prediction_mapping,:]
                 if self.knn_metric == 'cosine':
                     decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
