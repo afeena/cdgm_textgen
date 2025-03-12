@@ -96,8 +96,6 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
 
         total_tokens = 0
 
-        features_all = []
-        targets_all = []
         ntotal = ntotal
 
         dim = model.decoder.output_embed_dim
@@ -120,8 +118,9 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
                 mapped_features[total_tokens:total_tokens+len(store_features)]=store_features.cpu().numpy()
                 mapped_keys[total_tokens:total_tokens+len(store_features)] = store_target.cpu().numpy()
                 assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
-                print(f"batch {i}, {len(store_features)} tokens are extracted")
+
                 total_tokens += len(store_features)
+                print(f"batch {i}, {total_tokens} tokens are extracted")
                 mapped_features.flush()
                 mapped_keys.flush()
 
