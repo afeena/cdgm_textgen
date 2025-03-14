@@ -81,16 +81,19 @@ class KnnMTSequenceGenerator(SequenceGenerator):
         if self.knn_rare_only > 0:
             _, top_one_idx = lprobs.topk(1, dim=-1)
             rare_prediction_mapping = (
-                        torch.norm(decoder_out, dim=-1).ge(self.knn_rare_only)).nonzero().squeeze()
+                        torch.norm(decoder_out, dim=-1).pow(2).ge(self.knn_rare_only)).squeeze().nonzero()
             if rare_prediction_mapping.size(0) > 0:
                 print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
                 decoder_out = decoder_out[rare_prediction_mapping, :]
+                assert len(decoder_out.shape)==2
             else:
                 return None
 
         if self.knn_metric == 'cosine':
             decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
-        knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.squeeze(1).detach(),
+        if len(decoder_out.shape) == 3:
+            decoder_out = decoder_out.squeeze(1)
+        knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.detach(),
                                                            self.knn_k)
 
         knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
