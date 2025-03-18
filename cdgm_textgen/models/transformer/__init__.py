@@ -10,7 +10,7 @@ from .transformer_continuous import  TransformerMixtureModelContinuous, \
     TransformerModelProba
 from .transformer_hybrid import TransformerModelHybrid
 from .riemannian_transformer import RiemannianEmbeddingsTransformerModel, RiemannianEmbContTransformer
-
+from .hyptrafo import HypTransformerModel
 __all__ = [
     "TransformerModelContinuous",
     "TransformerMixtureModelContinuous",
@@ -20,5 +20,6 @@ __all__ = [
     "TransformerModelProba",
     "TransformerModelBaseRandom",
     "RiemannianEmbContTransformer",
-    "TransformerWithDispersionAdapter"
+    "TransformerWithDispersionAdapter",
+    "HypTransformerModel"
 ]

@@ -1,23 +1,10 @@
 import math
-from dataclasses import dataclass, field
-from typing import Tuple
-
-import ledoh_torch.utils
 import torch
 from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import LabelSmoothedCrossEntropyCriterion, LabelSmoothedCrossEntropyCriterionConfig
 from ledoh_torch import (
-    LloydSphereDispersion,
     KernelSphereDispersion,
-    AxisAlignedBatchSphereDispersion,
-    SlicedSphereDispersion,
-    MMADispersion,
-    MMCSDispersion,
-    MHEDispersion,
-    KoLeoDispersion,
-    minimum_acos_distance_batch,
-    circular_variance
 )
 
 from cdgm_textgen.criterions import LSCrossEntropyDispersedCriterionConfig
@@ -49,7 +36,7 @@ class LSCrossEntropyAdapterDispersedCriterion(LabelSmoothedCrossEntropyCriterion
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"])
+            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"]/net_output[-1]["features"].norm(dim=-1, keepdim=True))
             loss = loss + self.dispersed_weight * dispersed_loss.mean()
 
         sample_size = 1
