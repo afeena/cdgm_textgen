@@ -21,6 +21,6 @@ keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(index
 
 test_id = 5
 k = 8
-dist, idx = index.search(torch.tensor(keys_memmap[test_id].unsqueeze(0), device='cuda'), k)
+dist, idx = index.search(torch.tensor(keys_memmap[test_id], device='cuda').unsqueeze(0), k)
 print(dist)
 print(idx)
