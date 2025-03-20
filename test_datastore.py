@@ -6,6 +6,7 @@ import torch
 parser = argparse.ArgumentParser(description='Faiss index search')
 parser.add_argument('--faiss_index', type=str, required=True)
 parser.add_argument("--keys", type=str, required=True)
+parser.add_argument("--dim", type=int, required=True)
 args = parser.parse_args()
 
 res = faiss.StandardGpuResources()
