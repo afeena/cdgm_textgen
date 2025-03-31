@@ -90,7 +90,7 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
             data_buffer_size=cfg.dataset.data_buffer_size,
         ).next_epoch_itr(shuffle=False)
 
-        data_folder = os.path.dirname(cfg.common_eval.path)
+        data_folder = os.path.dirname(cfg.common_eval.results_path)
         features_file = os.path.join(data_folder, f"{subset}.features.npy")
         targets_file = os.path.join(data_folder, f"{subset}.targets.npy")
 
