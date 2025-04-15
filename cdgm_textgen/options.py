@@ -124,7 +124,11 @@ def parse_args_and_arch(
 
         suppressed_parser = argparse.ArgumentParser(add_help=False, parents=[parser])
         suppressed_parser.set_defaults(**{k: None for k, v in vars(args).items()})
-        args = suppressed_parser.parse_args(input_args)
+        if not parse_known:
+            args = suppressed_parser.parse_args(input_args)
+            extra = None
+        else:
+            args, extra = suppressed_parser.parse_known_args(input_args)
         return argparse.Namespace(
             **{k: v for k, v in vars(args).items() if v is not None}
         )
