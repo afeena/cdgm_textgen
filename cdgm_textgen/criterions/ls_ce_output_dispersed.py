@@ -22,7 +22,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  ignore_prefix_size=ignore_prefix_size,
                  report_accuracy=report_accuracy)
         self.dispersed_weight = dispersed_weight
-        self.mmd = KernelSphereDispersion(gamma=0.1)
+        self.disp = KernelSphereDispersion(kernel="gaussian", distance="euclidean", kernel_args={"gamma": 1.0})
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -57,7 +57,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_loss(self, features: torch.Tensor) -> torch.Tensor:
         features = features / features.norm(dim=-1, keepdim=True)
-        return self.mmd(features)
+        return self.disp(features)
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
