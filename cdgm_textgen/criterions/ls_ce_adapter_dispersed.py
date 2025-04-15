@@ -36,7 +36,8 @@ class LSCrossEntropyAdapterDispersedCriterion(LabelSmoothedCrossEntropyCriterion
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"]/net_output[-1]["features"].norm(dim=-1, keepdim=True))
+            assert "features" in net_output[-1]
+            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"])
             loss = loss + self.dispersed_weight * dispersed_loss.mean()
 
         sample_size = 1
@@ -56,6 +57,7 @@ class LSCrossEntropyAdapterDispersedCriterion(LabelSmoothedCrossEntropyCriterion
         return loss, sample_size, logging_output
 
     def compute_dispersed_loss(self, features: torch.Tensor) -> torch.Tensor:
+        features = features / features.norm(dim=-1, keepdim=True)
         return self.mmd(features)
 
     @staticmethod

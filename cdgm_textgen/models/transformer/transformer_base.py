@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+from argparse import Namespace
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -15,6 +15,7 @@ from fairseq.models.transformer import (
 )
 from typing import Any, Dict, List, Optional, Tuple
 
+from omegaconf import DictConfig
 from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
@@ -211,6 +212,16 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens)
+
+    def load_state_dict(
+            self,
+            state_dict,
+            strict=False,
+            model_cfg: Optional[DictConfig] = None,
+            args: Optional[Namespace] = None,
+    ):
+        # Load the model state dict
+        super().load_state_dict(state_dict, strict, model_cfg, args)
 
 def Embedding(num_embeddings, embedding_dim, padding_idx, **kwargs):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, **kwargs)

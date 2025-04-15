@@ -498,6 +498,7 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
             Linear(cfg.decoder_out_dim, cfg.decoder_embed_dim),
             torch.nn.ReLU(),
             Linear(cfg.decoder_embed_dim, cfg.decoder_embed_dim),
+
         )
 
     def forward(
@@ -536,8 +537,6 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
         residual = x
         x = self.linear_adapter(x)
         x = self.torch.relu(x + residual)
-        #normalize features to keep them on the sphere
-        x = x / x.norm(dim=-1, keepdim=True)
 
         return x
 
