@@ -495,9 +495,9 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
 
     def build_linear_adapter(self, cfg):
         return torch.nn.Sequential(
-            Linear(cfg.decoder_out_dim, cfg.decoder_embed_dim),
+            Linear(cfg.decoder.embed_dim, cfg.decoder.output_dim),
             torch.nn.ReLU(),
-            Linear(cfg.decoder_embed_dim, cfg.decoder_embed_dim),
+            Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
 
         )
 

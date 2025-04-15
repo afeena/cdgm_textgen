@@ -9,9 +9,8 @@ from ledoh_torch import (
 
 from cdgm_textgen.criterions import LSCrossEntropyDispersedCriterionConfig
 
-
-@register_criterion("ls_ce_unif_adapter", dataclass=LSCrossEntropyDispersedCriterionConfig)
-class LSCrossEntropyAdapterDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
+@register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyDispersedCriterionConfig)
+class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def __init__(self,
                  task,
                  sentence_avg,
