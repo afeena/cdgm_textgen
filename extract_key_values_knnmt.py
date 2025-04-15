@@ -93,6 +93,7 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
         data_folder = os.path.dirname(cfg.common_eval.results_path)
         features_file = os.path.join(data_folder, f"{subset}.features.npy")
         targets_file = os.path.join(data_folder, f"{subset}.targets.npy")
+        ntotal_file = os.path.join(data_folder, f"{subset}.ntotal.txt")
 
         total_tokens = 0
 
@@ -124,8 +125,11 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
                 mapped_features.flush()
                 mapped_keys.flush()
 
-        assert total_tokens == ntotal, f"Total tokens {total_tokens} should be equal to ntotal {ntotal}"
         print(f"Total {total_tokens} tokens are extracted")
+        with open(ntotal_file, 'w') as f:
+            f.write(str(total_tokens))
+        assert total_tokens == ntotal, f"Total tokens {total_tokens} should be equal to ntotal {ntotal}"
+
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
