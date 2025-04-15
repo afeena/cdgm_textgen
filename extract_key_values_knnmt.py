@@ -128,17 +128,18 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
         print(f"Total {total_tokens} tokens are extracted")
 
 if __name__ == "__main__":
+    user_parser = argparse.ArgumentParser(description="Extract features from a model")
+    user_parser.add_argument("--ntotal", type=int, help="Total number of tokens to extract")
+    user_args, _ = user_parser.parse_known_args()
+
     parser = options.get_validation_parser()
-    args = options.parse_args_and_arch(parser)
+    args, _ = options.parse_args_and_arch(parser, parse_known=True)
 
 
     # only override args that are explicitly given on the command line
     override_parser = options.get_validation_parser()
-    override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True)
+    override_args  = options.parse_args_and_arch(override_parser, suppress_defaults=True, parse_known=True)
 
-    user_parser = argparse.ArgumentParser(description="Extract features from a model")
-    user_parser.add_argument("--ntotal", type=int, help="Total number of tokens to extract")
-    user_args = user_parser.parse_args()
 
     distributed_utils.call_main(
         convert_namespace_to_omegaconf(args), main, override_args=override_args, ntotal=user_args.ntotal
