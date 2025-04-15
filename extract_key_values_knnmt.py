@@ -97,8 +97,6 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
 
         total_tokens = 0
 
-        ntotal = ntotal
-
         dim = model.decoder.output_embed_dim
 
         mapped_features = np.memmap(features_file, dtype='float32', mode='w+', shape=(ntotal, dim))
@@ -145,8 +143,8 @@ if __name__ == "__main__":
     override_args  = options.parse_args_and_arch(override_parser, suppress_defaults=True, parse_known=True)
 
 
-    distributed_utils.call_main(
-        convert_namespace_to_omegaconf(args), main, override_args=override_args, ntotal=user_args.ntotal
+    main(
+        convert_namespace_to_omegaconf(args), override_args=override_args, ntotal=user_args.ntotal
     )
 
 
