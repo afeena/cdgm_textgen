@@ -106,12 +106,22 @@ def parse_args_and_arch(
         # Parse args without any default values. This requires us to parse
         # twice, once to identify all the necessary task/model args, and a second
         # time with all defaults set to None.
-        args = parse_args_and_arch(
-            parser,
-            input_args=input_args,
-            parse_known=parse_known,
-            suppress_defaults=False,
-        )
+        if parse_known:
+            args, extra = parse_args_and_arch(
+                parser,
+                input_args=input_args,
+                parse_known=parse_known,
+                suppress_defaults=False,
+            )
+        else:
+            args = parse_args_and_arch(
+                parser,
+                input_args=input_args,
+                parse_known=parse_known,
+                suppress_defaults=False,
+            )
+            extra=None
+
         suppressed_parser = argparse.ArgumentParser(add_help=False, parents=[parser])
         suppressed_parser.set_defaults(**{k: None for k, v in vars(args).items()})
         args = suppressed_parser.parse_args(input_args)
