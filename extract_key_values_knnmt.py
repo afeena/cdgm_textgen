@@ -111,6 +111,7 @@ def main(cfg: DictConfig, ntotal, knnkeytype, override_args=None):
                 sample["net_input"]["prev_output_tokens"], encoder_out=encoder_out,
                 knn_keytype=knnkeytype, **sample["net_input"]
             )
+            #FEATURES ARE IN TxBxD
             features = extra["knn_emb"]
             #Normalize the features
             #features = features / features.norm(p=2, dim=-1, keepdim=True)
@@ -118,9 +119,9 @@ def main(cfg: DictConfig, ntotal, knnkeytype, override_args=None):
             target = model.get_targets(sample, features)
             sample_size = sample["target"].size(-1)
             for j in range(sample_size):
-                store_token_idx = target[:,j].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
-                store_target = torch.index_select(target[:,j], 0, store_token_idx).to(torch.int32)
-                store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
+                store_token_idx = target[j,:].ne(task.target_dictionary.pad()).nonzero().squeeze(-1)
+                store_target = torch.index_select(target[j,:], 0, store_token_idx).to(torch.int32)
+                store_features = torch.index_select(features[j,:], 0, store_token_idx).to(torch.float32)
                 mapped_features[total_tokens:total_tokens+len(store_features)]=store_features.cpu().numpy()
                 mapped_keys[total_tokens:total_tokens+len(store_features)] = store_target.cpu().numpy()
                 assert len(store_features) == len(store_target), f"store_features and store_target should have the same length"
