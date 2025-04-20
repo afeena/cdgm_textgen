@@ -57,6 +57,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     def compute_dispersed_loss(self, features: torch.Tensor) -> torch.Tensor:
         features = features / features.norm(dim=-1, keepdim=True)
+        # here we need 2d matrix to calculate kernel dispersion, so use (BxT) x D instead of B x T x D
+        features = features.view(-1, features.size(2))
         return self.disp(features)
 
     @staticmethod
