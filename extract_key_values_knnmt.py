@@ -17,7 +17,7 @@ import faiss
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
 
-def main(cfg: DictConfig, override_args=None, ntotal = None):
+def main(cfg: DictConfig, ntotal, knnkeytype, override_args=None):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
@@ -96,6 +96,7 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
         ntotal_file = os.path.join(data_folder, f"{subset}.ntotal.txt")
 
         total_tokens = 0
+        ntotal = ntotal
 
         dim = model.decoder.output_embed_dim
 
@@ -104,7 +105,13 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             #we are interested in the last layer only
-            features, _ = model.extract_features(**sample["net_input"])
+
+            encoder_out = model.encoder(**sample["net_input"])
+            out, extra = model.decoder.extract_features(
+                sample["net_input"]["prev_output_tokens"], encoder_out=encoder_out,
+                knn_keytype=knnkeytype, **sample["net_input"]
+            )
+            features = extra["knn_emb"]
             #Normalize the features
             #features = features / features.norm(p=2, dim=-1, keepdim=True)
 
@@ -132,6 +139,7 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
     user_parser.add_argument("--ntotal", type=int, help="Total number of tokens to extract")
+    user_parser.add_argument("--knnkeytype", type=str, default="last_ffn_inp", help="Key type for KNN")
     user_args, _ = user_parser.parse_known_args()
 
     parser = options.get_validation_parser()
@@ -144,7 +152,7 @@ if __name__ == "__main__":
 
 
     main(
-        convert_namespace_to_omegaconf(args), override_args=override_args, ntotal=user_args.ntotal
+        convert_namespace_to_omegaconf(args), user_args.ntotal, user_args.knnkeytype, override_args=override_args
     )
 
 

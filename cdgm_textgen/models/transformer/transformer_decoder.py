@@ -22,11 +22,11 @@ from fairseq.modules import (
     LayerNorm,
     PositionalEmbedding,
     SinusoidalPositionalEmbedding,
-    transformer_layer,
 )
 from fairseq.modules.checkpoint_activations import checkpoint_wrapper
 from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 
+from cdgm_textgen.modules import transformer_layer
 
 # rewrite name for backward compatibility in `make_generation_fast_`
 def module_name_fordropout(module_name: str) -> str:
@@ -235,6 +235,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        knn_keytype: Optional[str] = "last_ffn_inp",
     ):
         return self.extract_features_scriptable(
             prev_output_tokens,
@@ -243,6 +244,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
             full_context_alignment,
             alignment_layer,
             alignment_heads,
+            knn_keytype
         )
 
     """
@@ -259,6 +261,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        knn_keytype: Optional[str] = "last_ffn_inp",
     ):
         """
         Similar to *forward* but only return features.
@@ -336,6 +339,10 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
                 self_attn_mask = self.buffered_future_mask(x)
             else:
                 self_attn_mask = None
+            if knn_keytype == 'last_ffn_inp' and idx == (len(self.layers) - 1):
+                get_ffn_inp = True
+            else:
+                get_ffn_inp = False
 
             x, layer_attn, _ = layer(
                 x,
@@ -346,8 +353,14 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
                 self_attn_padding_mask=self_attn_padding_mask,
                 need_attn=bool((idx == alignment_layer)),
                 need_head_weights=bool((idx == alignment_layer)),
+                return_last_ffn_input=get_ffn_inp,
             )
             inner_states.append(x)
+            if get_ffn_inp:
+                if layer_attn is None:
+                    raise ValueError("Cannot use layerdrop with knnlm!")
+                knn_emb = layer_attn[1]
+                layer_attn = layer_attn[0]
             if layer_attn is not None and idx == alignment_layer:
                 attn = layer_attn.float().to(x)
 
@@ -361,12 +374,21 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
+        if self.knn_keytype == 'out_after_layernorm':
+            knn_emb = x.clone()
+
         # T x B x C -> B x T x C
         x = x.transpose(0, 1)
 
         if self.project_out_dim is not None:
             x = self.project_out_dim(x)
 
+        if knn_keytype:
+            return x,{
+                "attn": [attn],
+                "inner_states": inner_states,
+                "knn_emb": knn_emb,
+            }
         return x, {"attn": [attn], "inner_states": inner_states}
 
     def output_layer(self, features):
@@ -495,9 +517,9 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
 
     def build_linear_adapter(self, cfg):
         return torch.nn.Sequential(
-            Linear(cfg.decoder.embed_dim, cfg.decoder.output_dim),
+            Linear(cfg.decoder.embed_dim, cfg.decoder.adapter_dim),
             torch.nn.ReLU(),
-            Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
+            Linear(cfg.decoder.adapter_dim, cfg.decoder.output_dim),
 
         )
 
