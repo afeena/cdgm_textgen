@@ -20,7 +20,7 @@ from omegaconf import DictConfig
 from torch import Tensor
 
 from cdgm_textgen.dataclass.utils import gen_parser_from_dataclass
-from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase, TransformerDecoderWithDispersionAdapter
+from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase
 
 
 @register_model("transformer_base", dataclass=TransformerConfig)
