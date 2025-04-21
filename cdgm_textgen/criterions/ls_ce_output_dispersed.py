@@ -77,7 +77,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     @staticmethod
     def compute_dispersed_metrics(features: torch.Tensor) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            min_acos_dist = minimum_acos_distance(features.detach(),features.detach().T)
+            min_acos_dist = minimum_acos_distance(features.detach(),features.detach())
             var = circular_variance(features.detach())
         return min_acos_dist, var
 
