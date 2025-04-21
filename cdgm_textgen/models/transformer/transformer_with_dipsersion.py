@@ -106,14 +106,11 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
         )
         self.adapter_dim = adapter_dim
 
-        self.linear_adapter = self.build_linear_adapter(cfg)
+        self.linear_adapter = Linear(self.embed_dim, self.adapter_dim)
         if self.adapter_dim!=self.output_embed_dim:
             self.adapter_to_dim_proj = Linear(self.adapter_dim, self.embed_dim)
         else:
             self.adapter_to_dim_proj = None
-
-    def build_linear_adapter(self, cfg):
-        return Linear(cfg.decoder.embed_dim, cfg.decoder.adapter_dim)
 
     def forward(
         self,
