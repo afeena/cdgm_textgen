@@ -25,7 +25,7 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens, adapter_dim=cfg.adapter_dim)
-
+    @classmethod
     def build_model(cls, cfg, task):
         cfg.decoder.input_dim = int(cfg.decoder.input_dim)
         cfg.decoder.output_dim = int(cfg.decoder.output_dim)
