@@ -276,10 +276,12 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
             x = self.layer_norm(x)
 
         if self.linear_adapter:
+            residual = x
             x = self.forward_linear_adapter(x)
             embed_after_adapter = x.clone()
             if self.adapter_to_dim_proj is not None:
                 x = self.adapter_to_dim_proj(x)
+                x = torch.relu(x+residual)
 
 
         # T x B x C -> B x T x C
