@@ -24,7 +24,7 @@ class TransformerWithDispersionAdapterConfig(TransformerConfig):
 class TransformerWithDispersionAdapter(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens)
+        return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens, adapter_dim=cfg.adapter_dim)
 
     def build_model(cls, cfg, task):
         super().build_model(cfg, task)
@@ -53,6 +53,7 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
             embed_tokens,
             no_encoder_attn=False,
             output_projection=None,
+            adapter_dim=128,
     ):
 
         super().__init__(
@@ -62,7 +63,7 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
             no_encoder_attn = no_encoder_attn,
             output_projection = output_projection
         )
-        self.adapter_dim = cfg.decoder.adapter_dim
+        self.adapter_dim = adapter_dim
 
         self.linear_adapter = self.build_linear_adapter(cfg)
         if self.adapter_dim!=self.output_embed_dim:
