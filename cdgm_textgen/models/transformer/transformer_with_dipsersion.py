@@ -68,13 +68,13 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
         encoder = cls.build_encoder(cfg, src_dict, encoder_embed_tokens)
         decoder = cls.build_decoder(cfg, tgt_dict, decoder_embed_tokens)
 
-
-        for name, param in cls.named_parameters():
+        model = cls(cfg, encoder, decoder)
+        for name, param in model.named_parameters():
             if "dispersion_adapter" in name or "adapter_to_dim_proj" in name:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
-        return cls(cfg, encoder, decoder)
+        return model
 
     def load_state_dict(
             self,
