@@ -213,6 +213,12 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens)
 
+    def build_model(cls, cfg, task):
+        super().build_model(cfg, task)
+
+        for name, param in cls.named_parameters():
+            if not "dispersion_adapter" in name:
+                param.requires_grad = False
     def load_state_dict(
             self,
             state_dict,
