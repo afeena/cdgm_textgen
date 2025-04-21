@@ -1,6 +1,7 @@
 from argparse import Namespace
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
+import torch
 
 from fairseq.models.transformer import TransformerConfig
 from omegaconf import DictConfig
@@ -296,6 +297,6 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
         """
         residual = x
         x = self.linear_adapter(x)
-        x = self.torch.relu(x + residual)
+        x = torch.relu(x + residual)
 
         return x
