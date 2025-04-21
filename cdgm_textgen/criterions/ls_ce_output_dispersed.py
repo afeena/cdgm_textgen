@@ -25,6 +25,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  ignore_prefix_size=0,
                  report_accuracy=False,
                  dispersed_weight=0.0,
+                 report_dispersed=True,
                  features_type="last_ff_out"):
 
         super().__init__(task, sentence_avg,label_smoothing,
@@ -32,6 +33,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  report_accuracy=report_accuracy)
 
         self.dispersed_weight = dispersed_weight
+        self.report_dispersed = report_dispersed
         self.disp = KernelSphereDispersion(kernel="gaussian", distance="euclidean", kernel_args={"gamma": 1.0})
         self.features_type = features_type
         if self.features_type not in ["last_ff_out", "embed_after_adapter"]:
