@@ -27,13 +27,54 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
         return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens, adapter_dim=cfg.adapter_dim)
 
     def build_model(cls, cfg, task):
-        super().build_model(cfg, task)
+        cfg.decoder.input_dim = int(cfg.decoder.input_dim)
+        cfg.decoder.output_dim = int(cfg.decoder.output_dim)
+        # --
+
+        if cfg.encoder.layers_to_keep:
+            cfg.encoder.layers = len(cfg.encoder.layers_to_keep.split(","))
+        if cfg.decoder.layers_to_keep:
+            cfg.decoder.layers = len(cfg.decoder.layers_to_keep.split(","))
+
+        src_dict, tgt_dict = task.source_dictionary, task.target_dictionary
+
+        if cfg.share_all_embeddings:
+            if src_dict != tgt_dict:
+                raise ValueError("--share-all-embeddings requires a joined dictionary")
+            if cfg.encoder.embed_dim != cfg.decoder.embed_dim:
+                raise ValueError(
+                    "--share-all-embeddings requires --encoder-embed-dim to match --decoder-embed-dim"
+                )
+            if cfg.decoder.embed_path and (
+                    cfg.decoder.embed_path != cfg.encoder.embed_path
+            ):
+                raise ValueError(
+                    "--share-all-embeddings not compatible with --decoder-embed-path"
+                )
+            encoder_embed_tokens = cls.build_embedding(
+                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
+            )
+            decoder_embed_tokens = encoder_embed_tokens
+            cfg.share_decoder_input_output_embed = True
+        else:
+            encoder_embed_tokens = cls.build_embedding(
+                cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
+            )
+            decoder_embed_tokens = cls.build_embedding(
+                cfg, tgt_dict, cfg.decoder.embed_dim, cfg.decoder.embed_path
+            )
+        if cfg.offload_activations:
+            cfg.checkpoint_activations = True  # offloading implies checkpointing
+        encoder = cls.build_encoder(cfg, src_dict, encoder_embed_tokens)
+        decoder = cls.build_decoder(cfg, tgt_dict, decoder_embed_tokens)
+
 
         for name, param in cls.named_parameters():
             if "dispersion_adapter" in name or "adapter_to_dim_proj" in name:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
+        return cls(cfg, encoder, decoder)
 
     def load_state_dict(
             self,
