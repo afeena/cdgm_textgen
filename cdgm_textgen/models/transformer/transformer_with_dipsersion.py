@@ -295,8 +295,7 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
             Args: x (torch.Tensor): input tensor with shape `(batch_size, T, C)`, hidden state
             Returns: x (torch.Tensor): output tensor with shape `(batch_size, T, C)`
         """
-        residual = x
         x = self.linear_adapter(x)
-        x = torch.relu(x + residual)
+        x = torch.relu(x)
 
         return x
