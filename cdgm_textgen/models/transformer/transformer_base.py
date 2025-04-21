@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 from argparse import Namespace
+from dataclasses import field, dataclass
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -207,27 +208,7 @@ class TransformerDecoderRandomOut(TransformerDecoderBase):
         x = x @ self.output_projection.weight.t().detach()
         return x, extra
 
-@register_model("transformer_with_dispersion_adapter", dataclass=TransformerConfig)
-class TransformerWithDispersionAdapter(TransformerModelBase):
-    @classmethod
-    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        return TransformerDecoderWithDispersionAdapter(cfg, tgt_dict, embed_tokens)
 
-    def build_model(cls, cfg, task):
-        super().build_model(cfg, task)
-
-        for name, param in cls.named_parameters():
-            if not "dispersion_adapter" in name:
-                param.requires_grad = False
-    def load_state_dict(
-            self,
-            state_dict,
-            strict=False,
-            model_cfg: Optional[DictConfig] = None,
-            args: Optional[Namespace] = None,
-    ):
-        # Load the model state dict
-        super().load_state_dict(state_dict, strict, model_cfg, args)
 
 def Embedding(num_embeddings, embedding_dim, padding_idx, **kwargs):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx, **kwargs)
