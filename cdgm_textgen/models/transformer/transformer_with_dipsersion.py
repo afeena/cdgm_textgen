@@ -84,6 +84,7 @@ class TransformerWithDispersionAdapter(TransformerModelBase):
             args: Optional[Namespace] = None,
     ):
         # Load the model state dict
+        strict = False
         super().load_state_dict(state_dict, strict, model_cfg, args)
 
 class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
