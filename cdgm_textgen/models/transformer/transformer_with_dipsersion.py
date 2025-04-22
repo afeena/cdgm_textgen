@@ -96,7 +96,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
                 print("skipping decoder.project_out_dim.weight")
                 continue
             pretrained_dict[k] = v
-        self.load_state_dict(pretrained_dict, strict=False)
+        super().load_state_dict(pretrained_dict, strict, model_cfg, args)
 
 class TransformerDecoderOutDispersion(TransformerDecoderBase):
     def __init__(
