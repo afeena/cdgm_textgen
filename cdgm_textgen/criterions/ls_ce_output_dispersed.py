@@ -21,8 +21,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  ignore_prefix_size=0,
                  report_accuracy=False,
                  dispersed_weight=0.0,
-                 report_dispersed=True,
-                 features_type="last_ff_out"):
+                 report_dispersed=True):
 
         super().__init__(task, sentence_avg,label_smoothing,
                  ignore_prefix_size=ignore_prefix_size,
