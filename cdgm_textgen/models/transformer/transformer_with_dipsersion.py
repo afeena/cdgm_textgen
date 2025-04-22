@@ -12,11 +12,6 @@ from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
 from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase
 
-
-
-
-
-
 @register_model("transformer_dispersion_ft", dataclass=TransformerConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
     '''
@@ -89,9 +84,19 @@ class TransformerOutDispersionFT(TransformerModelBase):
             model_cfg: Optional[DictConfig] = None,
             args: Optional[Namespace] = None,
     ):
-        # Load the model state dict
-        strict = False
-        super().load_state_dict(state_dict, strict, model_cfg, args)
+
+        pretrained_dict = {}
+        for k,v in state_dict.items():
+            if k not in self.state_dict():
+                print(f"Key {k} not found in state_dict")
+            elif k=="decoder.output_projection.weight":
+                print("skipping decoder.output_projection.weight")
+                continue
+            elif k=="decoder.project_out_dim.weight":
+                print("skipping decoder.project_out_dim.weight")
+                continue
+            pretrained_dict[k] = v
+        self.load_state_dict(pretrained_dict, strict=False)
 
 class TransformerDecoderOutDispersion(TransformerDecoderBase):
     def __init__(
