@@ -42,7 +42,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["last_ff_out"])
+            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"])
             loss = loss + self.dispersed_weight * dispersed_loss.mean()
 
         sample_size = 1
@@ -60,7 +60,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["total"] = utils.item(total.data)
 
         if self.report_dispersed:
-            cosine_min_dist, var = self.compute_dispersed_metrics(net_output[-1]["last_ff_out"])
+            cosine_min_dist, var = self.compute_dispersed_metrics(net_output[-1]["features"])
             logging_output["min_acos_dist"] = cosine_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
