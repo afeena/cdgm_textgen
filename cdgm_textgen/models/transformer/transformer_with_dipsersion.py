@@ -141,7 +141,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        extra["last_ff_out"] = x.clone()
+        extra["features"] = x.clone()
 
         if not features_only:
             x = self.output_layer(x)
