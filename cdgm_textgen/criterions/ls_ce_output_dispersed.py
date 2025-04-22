@@ -60,7 +60,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["total"] = utils.item(total.data)
 
         if self.report_dispersed:
-            cosine_min_dist, var = self.compute_dispersed_metrics(net_output[-1][self.features_type])
+            cosine_min_dist, var = self.compute_dispersed_metrics(net_output[-1]["last_ff_out"])
             logging_output["min_acos_dist"] = cosine_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
