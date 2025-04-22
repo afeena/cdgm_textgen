@@ -12,10 +12,6 @@ from ledoh_torch import (
 from torch import Tensor
 
 from cdgm_textgen.criterions import LSCrossEntropyDispersedCriterionConfig
-@dataclass
-class LSCrossEntropyDispersedCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
-    features_type: str = field(default="last_ff_out",
-                               metadata={"help": "The type of features to use for dispersion. choice=[last_ff_out, embed_after_adapter]"})
 @register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyDispersedCriterionConfig)
 class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def __init__(self,
@@ -35,9 +31,6 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         self.dispersed_weight = dispersed_weight
         self.report_dispersed = report_dispersed
         self.disp = KernelSphereDispersion(kernel="gaussian", distance="euclidean", kernel_args={"gamma": 1.0})
-        self.features_type = features_type
-        if self.features_type not in ["last_ff_out", "embed_after_adapter"]:
-            raise ValueError(f"Invalid features_type: {self.features_type}. Must be one of ['last_ff_out', 'embed_after_adapter']")
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -50,7 +43,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.compute_dispersed_loss(net_output[-1][self.features_type])
+            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["last_ff_out"])
             loss = loss + self.dispersed_weight * dispersed_loss.mean()
 
         sample_size = 1
