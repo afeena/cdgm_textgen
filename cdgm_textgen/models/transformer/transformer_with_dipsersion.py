@@ -134,12 +134,17 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
         self.dispersion_block = self.build_dispersion_block(cfg, dictionary, embed_tokens)
 
     def build_dispersion_block(self, cfg, dictionary, embed_tokens):
-        return nn.Sequential(
+        def weights_init(m):
+            if isinstance(m, nn.Linear):
+                nn.init.eye_(m.weight)
+
+        disp_block =  nn.Sequential(
             nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
             nn.ReLU(),
-            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim)
+            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim, bias=False)
         )
-
+        disp_block.apply(weights_init)
+        return disp_block
 
     def forward(
             self,
