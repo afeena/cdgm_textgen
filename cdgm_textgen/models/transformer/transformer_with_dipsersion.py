@@ -104,10 +104,9 @@ class TransformerOutDispersionFT(TransformerModelBase):
             if k not in self.state_dict():
                 logger.info(f"Key {k} not found in state_dict")
             elif k.startswith("decoder.output_projection"):
-                logger.info("skipping decoder.output_projection")
-                continue
-            elif k.startswith("decoder.dispersion_block"):
-                logger.info("decoder.dispersion_block")
+                if v.shape != self.state_dict()[k].shape:
+                    logger.info(f"Key {k} shape mismatch: {v.shape} vs {self.state_dict()[k].shape}")
+                    logger.info("skipping decoder.output_projection")
                 continue
             pretrained_dict[k] = v
         strict = False
@@ -138,7 +137,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             if isinstance(m, nn.Linear):
                 nn.init.eye_(m.weight)
 
-        disp_block =  nn.Sequential(
+        disp_block = nn.Sequential(
             nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
             nn.ReLU(),
             nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim, bias=False)
