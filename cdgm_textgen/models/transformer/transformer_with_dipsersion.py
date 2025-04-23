@@ -83,8 +83,9 @@ class TransformerOutDispersionFT(TransformerModelBase):
         model = cls(cfg, encoder, decoder)
 
         for name, param in model.named_parameters():
-            if "project_out_dim" in name or "output_layer" in name:
+            if "project_out_dim" in name or "output_projection" in name:
                 param.requires_grad = True
+                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
                 param.requires_grad = False
         return model
