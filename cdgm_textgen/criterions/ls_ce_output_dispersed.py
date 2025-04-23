@@ -7,12 +7,22 @@ from fairseq import metrics, utils
 from fairseq.criterions import register_criterion
 from fairseq.criterions.label_smoothed_cross_entropy import LabelSmoothedCrossEntropyCriterion, LabelSmoothedCrossEntropyCriterionConfig
 from ledoh_torch import (
-    KernelSphereDispersion, minimum_acos_distance_batch, circular_variance, minimum_acos_distance,
+    KernelSphereDispersion,
+    circular_variance,
+    minimum_acos_distance,
+    SlicedSphereDispersion
 )
 from torch import Tensor
 
 from cdgm_textgen.criterions import LSCrossEntropyDispersedCriterionConfig
-@register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyDispersedCriterionConfig)
+
+@dataclass
+class LSCrossEntropyOutDispCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
+    dispersion_type: str = field(
+        default='mhe-gaussian',
+        metadata={"help": "dispersion type"}
+    )
+@register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyOutDispCriterionConfig)
 class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def __init__(self,
                  task,
@@ -21,7 +31,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  ignore_prefix_size=0,
                  report_accuracy=False,
                  dispersed_weight=0.0,
-                 report_dispersed=True):
+                 report_dispersed=True,
+                 dispersion_type='mhe-gaussian'):
 
         super().__init__(task, sentence_avg,label_smoothing,
                  ignore_prefix_size=ignore_prefix_size,
@@ -29,7 +40,12 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
         self.dispersed_weight = dispersed_weight
         self.report_dispersed = report_dispersed
-        self.disp = KernelSphereDispersion(kernel="gaussian", distance="euclidean", kernel_args={"gamma": 1.0})
+        if dispersion_type == 'mhe-gaussian':
+            self.disp = KernelSphereDispersion(kernel="gaussian",
+                                               distance="euclidean",
+                                               kernel_args={"gamma": 1.0})
+        elif dispersion_type == 'sliced':
+            self.disp = SlicedSphereDispersion()
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
