@@ -96,12 +96,13 @@ class TransformerOutDispersionFT(TransformerModelBase):
             if f"decoder.layers.{model.decoder.num_layers-1}.fc1" in name or f"decoder.layers.{model.decoder.num_layers-1}.fc2" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-            if not model.freeze_output_layer:
-                if "decoder.output_projection" in name:
-                    param.requires_grad = True
-                    logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
                 param.requires_grad = False
+
+            if not model.freeze_output_layer and "decoder.output_projection" in name:
+                param.requires_grad = True
+                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
+
         return model
 
     def load_state_dict(
