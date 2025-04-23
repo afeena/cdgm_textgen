@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from argparse import Namespace
+from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 
 from fairseq.models.transformer import TransformerConfig
@@ -22,8 +23,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("model.transformer_dispersion_ft")
 
+@dataclass
+class TransformerOutDispersionFTConfig(TransformerConfig):
+    freeze_output_layer: bool = field(default=True, metadata={"help": "freeze output layer"})
 
-@register_model("transformer_dispersion_ft", dataclass=TransformerConfig)
+@register_model("transformer_dispersion_ft", dataclass=TransformerOutDispersionFTConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
     '''
     This class loads pre-trained model and freeze all layers except project_out_dim and output_layer.
@@ -32,6 +36,10 @@ class TransformerOutDispersionFT(TransformerModelBase):
     Output of the project_out_dim layer is stored in extra['last_ff_out'] and used for calculating dispersion loss.
     Intended objective is ls_ce_output_dispersed objective.
     '''
+
+    def __init__(self, cfg, encoder, decoder):
+        super().__init__(cfg, encoder, decoder)
+        self.freeze_output_layer = cfg.freeze_output_layer
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
@@ -88,6 +96,10 @@ class TransformerOutDispersionFT(TransformerModelBase):
             if f"decoder.layers.{model.decoder.num_layers-1}.fc1" in name or f"decoder.layers.{model.decoder.num_layers-1}.fc2" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
+            if not model.freeze_output_layer:
+                if "decoder.output_projection" in name:
+                    param.requires_grad = True
+                    logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
                 param.requires_grad = False
         return model
