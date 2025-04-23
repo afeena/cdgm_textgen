@@ -7,8 +7,8 @@ from typing import Optional, Dict, List, Any
 from fairseq.models.transformer import TransformerConfig
 from fairseq.utils import reset_logging
 from omegaconf import DictConfig
-from torch import Tensor
-from torch.nn import Linear
+from torch import Tensor, nn
+import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
@@ -83,7 +83,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
         model = cls(cfg, encoder, decoder)
 
         for name, param in model.named_parameters():
-            if "project_out_dim" in name or "output_projection" in name:
+            if "dispersion_block" in name or "output_projection" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
@@ -106,8 +106,8 @@ class TransformerOutDispersionFT(TransformerModelBase):
             elif k.startswith("decoder.output_projection"):
                 logger.info("skipping decoder.output_projection")
                 continue
-            elif k.startswith("decoder.project_out_dim"):
-                logger.info("skipping decoder.project_out_dim")
+            elif k.startswith("decoder.dispersion_block"):
+                logger.info("decoder.dispersion_block")
                 continue
             pretrained_dict[k] = v
         strict = False
@@ -131,10 +131,15 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             no_encoder_attn=no_encoder_attn,
             output_projection=output_projection
         )
-        if self.project_out_dim is None:
-            self.project_out_dim = Linear(
-                cfg.decoder.embed_dim, cfg.decoder.output_dim, bias=False
-            )
+        self.dispersion_block = self.build_dispersion_block(cfg, dictionary, embed_tokens)
+
+    def build_dispersion_block(self, cfg, dictionary, embed_tokens):
+        return nn.Sequential(
+            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
+            nn.ReLU(),
+            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim)
+        )
+
 
     def forward(
             self,
@@ -156,7 +161,9 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        extra["features"] = x.clone()
+        features = self.dispersion_block(x)
+        features = F.relu(features)
+        extra["features"] = features.clone()
 
         if not features_only:
             x = self.output_layer(x)
