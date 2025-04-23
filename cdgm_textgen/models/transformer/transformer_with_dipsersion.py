@@ -1,9 +1,11 @@
+import logging
+import os
+import sys
 from argparse import Namespace
-from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
-import torch
 
 from fairseq.models.transformer import TransformerConfig
+from fairseq.utils import reset_logging
 from omegaconf import DictConfig
 from torch import Tensor
 from torch.nn import Linear
@@ -11,6 +13,15 @@ from torch.nn import Linear
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer import TransformerModelBase
 from cdgm_textgen.models.transformer.transformer_decoder import TransformerDecoderBase
+
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=os.environ.get("LOGLEVEL", "INFO").upper(),
+    stream=sys.stdout,
+)
+logger = logging.getLogger("model.transformer_dispersion_ft")
+
 
 @register_model("transformer_dispersion_ft", dataclass=TransformerConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
@@ -21,9 +32,11 @@ class TransformerOutDispersionFT(TransformerModelBase):
     Output of the project_out_dim layer is stored in extra['last_ff_out'] and used for calculating dispersion loss.
     Intended objective is ls_ce_output_dispersed objective.
     '''
+
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
         return TransformerDecoderOutDispersion(cfg, tgt_dict, embed_tokens)
+
     @classmethod
     def build_model(cls, cfg, task):
         cfg.decoder.input_dim = int(cfg.decoder.input_dim)
@@ -69,7 +82,6 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
         model = cls(cfg, encoder, decoder)
 
-
         for name, param in model.named_parameters():
             if "project_out_dim" in name or "output_layer" in name:
                 param.requires_grad = True
@@ -84,20 +96,25 @@ class TransformerOutDispersionFT(TransformerModelBase):
             model_cfg: Optional[DictConfig] = None,
             args: Optional[Namespace] = None,
     ):
+        reset_logging()
 
         pretrained_dict = {}
-        for k,v in state_dict.items():
+        for k, v in state_dict.items():
             if k not in self.state_dict():
-                print(f"Key {k} not found in state_dict")
-            elif k=="decoder.output_projection.weight":
-                print("skipping decoder.output_projection.weight")
+                logger.info(f"Key {k} not found in state_dict")
+            elif k == "decoder.output_projection.weight":
+                logger.info("skipping decoder.output_projection.weight")
                 continue
-            elif k=="decoder.project_out_dim.weight":
-                print("skipping decoder.project_out_dim.weight")
+            elif k == "decoder.output_projection.bias":
+                logger.info("skipping decoder.output_projection.bias")
+                continue
+            elif k == "decoder.project_out_dim.weight":
+                logger.info("skipping decoder.project_out_dim.weight")
                 continue
             pretrained_dict[k] = v
-        strict=False
+        strict = False
         super().load_state_dict(pretrained_dict, strict, model_cfg, args)
+
 
 class TransformerDecoderOutDispersion(TransformerDecoderBase):
     def __init__(
@@ -110,11 +127,11 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
     ):
 
         super().__init__(
-            cfg = cfg,
-            dictionary = dictionary,
-            embed_tokens = embed_tokens,
-            no_encoder_attn = no_encoder_attn,
-            output_projection = output_projection
+            cfg=cfg,
+            dictionary=dictionary,
+            embed_tokens=embed_tokens,
+            no_encoder_attn=no_encoder_attn,
+            output_projection=output_projection
         )
         if self.project_out_dim is None:
             self.project_out_dim = Linear(
@@ -122,16 +139,16 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             )
 
     def forward(
-        self,
-        prev_output_tokens,
-        encoder_out: Optional[Dict[str, List[Tensor]]] = None,
-        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
-        features_only: bool = False,
-        full_context_alignment: bool = False,
-        alignment_layer: Optional[int] = None,
-        alignment_heads: Optional[int] = None,
-        src_lengths: Optional[Any] = None,
-        return_all_hiddens: bool = False,
+            self,
+            prev_output_tokens,
+            encoder_out: Optional[Dict[str, List[Tensor]]] = None,
+            incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+            features_only: bool = False,
+            full_context_alignment: bool = False,
+            alignment_layer: Optional[int] = None,
+            alignment_heads: Optional[int] = None,
+            src_lengths: Optional[Any] = None,
+            return_all_hiddens: bool = False,
     ):
         x, extra = self.extract_features(
             prev_output_tokens,
