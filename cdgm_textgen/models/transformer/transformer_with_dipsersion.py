@@ -102,14 +102,11 @@ class TransformerOutDispersionFT(TransformerModelBase):
         for k, v in state_dict.items():
             if k not in self.state_dict():
                 logger.info(f"Key {k} not found in state_dict")
-            elif k == "decoder.output_projection.weight":
-                logger.info("skipping decoder.output_projection.weight")
+            elif k.startswith("decoder.output_projection"):
+                logger.info("skipping decoder.output_projection")
                 continue
-            elif k == "decoder.output_projection.bias":
-                logger.info("skipping decoder.output_projection.bias")
-                continue
-            elif k == "decoder.project_out_dim.weight":
-                logger.info("skipping decoder.project_out_dim.weight")
+            elif k.startswith("decoder.project_out_dim"):
+                logger.info("skipping decoder.project_out_dim")
                 continue
             pretrained_dict[k] = v
         strict = False
