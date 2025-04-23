@@ -85,7 +85,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
         # Freeze all layers except last fc layers of last decoder layer
 
         for name, param in model.named_parameters():
-            if f"decoder.layers.{model.decoder.num_layers}.fc1" in name or f"decoder.layers.{model.decoder.num_layers}.fc2" in name:
+            if f"decoder.layers.{model.decoder.num_layers-1}.fc1" in name or f"decoder.layers.{model.decoder.num_layers-1}.fc2" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
