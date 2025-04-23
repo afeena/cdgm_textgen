@@ -82,8 +82,10 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
         model = cls(cfg, encoder, decoder)
 
+        # Freeze all layers except last fc layers of last decoder layer
+
         for name, param in model.named_parameters():
-            if "dispersion_block" in name or "output_projection" in name:
+            if f"decoder.layers.{model.num_layers}.fc1" in name or f"decoder.layers.{model.num_layers}.fc2" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
@@ -103,48 +105,12 @@ class TransformerOutDispersionFT(TransformerModelBase):
         for k, v in state_dict.items():
             if k not in self.state_dict():
                 logger.info(f"Key {k} not found in state_dict")
-            elif k.startswith("decoder.output_projection"):
-                if v.shape != self.state_dict()[k].shape:
-                    logger.info(f"Key {k} shape mismatch: {v.shape} vs {self.state_dict()[k].shape}")
-                    logger.info("skipping decoder.output_projection")
-                continue
             pretrained_dict[k] = v
         strict = False
         super().load_state_dict(pretrained_dict, strict, model_cfg, args)
 
 
 class TransformerDecoderOutDispersion(TransformerDecoderBase):
-    def __init__(
-            self,
-            cfg,
-            dictionary,
-            embed_tokens,
-            no_encoder_attn=False,
-            output_projection=None,
-    ):
-
-        super().__init__(
-            cfg=cfg,
-            dictionary=dictionary,
-            embed_tokens=embed_tokens,
-            no_encoder_attn=no_encoder_attn,
-            output_projection=output_projection
-        )
-        self.dispersion_block = self.build_dispersion_block(cfg, dictionary, embed_tokens)
-
-    def build_dispersion_block(self, cfg, dictionary, embed_tokens):
-        def weights_init(m):
-            if isinstance(m, nn.Linear):
-                nn.init.eye_(m.weight)
-
-        disp_block = nn.Sequential(
-            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim),
-            nn.ReLU(),
-            nn.Linear(cfg.decoder.output_dim, cfg.decoder.output_dim, bias=False)
-        )
-        disp_block.apply(weights_init)
-        return disp_block
-
     def forward(
             self,
             prev_output_tokens,
@@ -165,11 +131,127 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        features = self.dispersion_block(x)
-        features = F.relu(features)
-        extra["features"] = features.clone()
+        extra["features"] = extra["last_ff_out"].clone()
 
         if not features_only:
             x = self.output_layer(x)
 
         return x, extra
+    def extract_features_scriptable(
+        self,
+        prev_output_tokens,
+        encoder_out: Optional[Dict[str, List[Tensor]]],
+        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        full_context_alignment: bool = False,
+        alignment_layer: Optional[int] = None,
+        alignment_heads: Optional[int] = None,
+    ):
+        """
+        Similar to *forward* but only return features.
+
+        Includes several features from "Jointly Learning to Align and
+        Translate with Transformer Models" (Garg et al., EMNLP 2019).
+
+        Args:
+            full_context_alignment (bool, optional): don't apply
+                auto-regressive mask to self-attention (default: False).
+            alignment_layer (int, optional): return mean alignment over
+                heads at this layer (default: last layer).
+            alignment_heads (int, optional): only average alignment over
+                this many heads (default: all heads).
+
+        Returns:
+            tuple:
+                - the decoder's features of shape `(batch, tgt_len, embed_dim)`
+                - a dictionary with any model-specific outputs
+        """
+        bs, slen = prev_output_tokens.size()
+        if alignment_layer is None:
+            alignment_layer = self.num_layers - 1
+
+        enc: Optional[Tensor] = None
+        padding_mask: Optional[Tensor] = None
+        if encoder_out is not None and len(encoder_out["encoder_out"]) > 0:
+            enc = encoder_out["encoder_out"][0]
+        if encoder_out is not None and len(encoder_out["encoder_padding_mask"]) > 0:
+            padding_mask = encoder_out["encoder_padding_mask"][0]
+
+        # embed positions
+        positions = None
+        if self.embed_positions is not None:
+            positions = self.embed_positions(
+                prev_output_tokens, incremental_state=incremental_state
+            )
+
+        if incremental_state is not None:
+            prev_output_tokens = prev_output_tokens[:, -1:]
+            if positions is not None:
+                positions = positions[:, -1:]
+
+        # Prevent torchscript exporting issue for dynamic quant embedding
+        prev_output_tokens = prev_output_tokens.contiguous()
+        # embed tokens and positions
+        x = self.embed_scale * self.embed_tokens(prev_output_tokens)
+
+        if self.quant_noise is not None:
+            x = self.quant_noise(x)
+
+        if self.project_in_dim is not None:
+            x = self.project_in_dim(x)
+
+        if positions is not None:
+            x += positions
+
+        if self.layernorm_embedding is not None:
+            x = self.layernorm_embedding(x)
+
+        x = self.dropout_module(x)
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        self_attn_padding_mask: Optional[Tensor] = None
+        if self.cross_self_attention or prev_output_tokens.eq(self.padding_idx).any():
+            self_attn_padding_mask = prev_output_tokens.eq(self.padding_idx)
+
+        # decoder layers
+        attn: Optional[Tensor] = None
+        inner_states: List[Optional[Tensor]] = [x]
+        for idx, layer in enumerate(self.layers):
+            if incremental_state is None and not full_context_alignment:
+                self_attn_mask = self.buffered_future_mask(x)
+            else:
+                self_attn_mask = None
+
+            x, layer_attn, _ = layer(
+                x,
+                enc,
+                padding_mask,
+                incremental_state,
+                self_attn_mask=self_attn_mask,
+                self_attn_padding_mask=self_attn_padding_mask,
+                need_attn=bool((idx == alignment_layer)),
+                need_head_weights=bool((idx == alignment_layer)),
+            )
+            inner_states.append(x)
+            if layer_attn is not None and idx == alignment_layer:
+                attn = layer_attn.float().to(x)
+
+        if attn is not None:
+            if alignment_heads is not None:
+                attn = attn[:alignment_heads]
+
+            # average probabilities over heads
+            attn = attn.mean(dim=0)
+
+        if self.layer_norm is not None:
+            x = self.layer_norm(x)
+        last_ff_out = x.clone()
+
+        # T x B x C -> B x T x C
+        x = x.transpose(0, 1)
+
+        if self.project_out_dim is not None:
+            x = self.project_out_dim(x)
+
+        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
