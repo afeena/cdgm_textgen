@@ -40,10 +40,30 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
         self.dispersed_weight = dispersed_weight
         self.report_dispersed = report_dispersed
-        if dispersion_type == 'mhe-gaussian':
+        if dispersion_type == 'mhe-gaussian-eucl':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="euclidean",
                                                kernel_args={"gamma": 1.0})
+        if dispersion_type == 'mhe-gaussian-geo':
+            self.disp = KernelSphereDispersion(kernel="gaussian",
+                                               distance="geodesic",
+                                               kernel_args={"gamma": 1.0})
+        elif dispersion_type == 'mhe-laplace-eucl':
+            self.disp = KernelSphereDispersion(kernel="laplace",
+                                               distance="euclidean",
+                                               kernel_args={"gamma": 1.0})
+        elif dispersion_type == 'mhe-laplace-geo':
+            self.disp = KernelSphereDispersion(kernel="laplace",
+                                               distance="geodesic",
+                                               kernel_args={"gamma": 1.0})
+        elif dispersion_type == 'mhe-riesz-eucl':
+            self.disp = KernelSphereDispersion(kernel="riesz",
+                                               distance="euclidean",
+                                               kernel_args={"s": 1.0})
+        elif dispersion_type == 'mhe-riesz-geo':
+            self.disp = KernelSphereDispersion(kernel="riesz",
+                                               distance="geodesic",
+                                               kernel_args={"s": 1.0})
         elif dispersion_type == 'sliced':
             self.disp = SlicedSphereDispersion()
 
