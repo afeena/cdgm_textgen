@@ -147,10 +147,11 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             no_encoder_attn=no_encoder_attn,
             output_projection=output_projection)
         self.project_for_dispersion = None
-        if dispersion_dim != self.output_embed_dim:
+        self.dispersion_dim = dispersion_dim
+        if self.dispersion_dim != self.output_embed_dim:
             self.project_for_dispersion = nn.Linear(
-                cfg.output_embed_dim,
-                cfg.dispersion_dim,
+                self.output_embed_dim,
+                self.dispersion_dim,
                 bias=False,
             )
 
