@@ -92,7 +92,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
         if self.knn_metric == 'cosine':
             decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
         if len(decoder_out.shape) == 3:
-            decoder_out = decoder_out.squeeze(1)
+            decoder_out = decoder_out.squeeze()
         knn_out_dists, knn_out_idx = self.knn_index.search(decoder_out.detach(),
                                                            self.knn_k)
 
