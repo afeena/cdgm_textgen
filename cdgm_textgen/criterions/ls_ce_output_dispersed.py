@@ -106,7 +106,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def compute_dispersed_metrics(features: torch.Tensor) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
             features = features.detach() / features.detach().norm(dim=-1, keepdim=True)
-            features2d = features.view(-1,features.size(2))
+            features2d = features.reshape(-1,features.size(2))
             min_acos_dist = minimum_acos_distance(features2d,features2d)
             var = circular_variance(features2d)
         return min_acos_dist, var
@@ -114,7 +114,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def compute_dispersed_loss(self, features: torch.Tensor) -> torch.Tensor:
         features = features / features.norm(dim=-1, keepdim=True)
         # here we need 2d matrix to calculate kernel dispersion, so use (BxT) x D instead of B x T x D
-        features = features.view(-1, features.size(2))
+        features = features.reshape(-1, features.size(2))
         return self.disp(features)
 
     @staticmethod
