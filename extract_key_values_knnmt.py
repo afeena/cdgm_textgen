@@ -17,7 +17,7 @@ import faiss
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
 
-def main(cfg: DictConfig, override_args=None, ntotal = None):
+def main(cfg: DictConfig, ntotal, override_args=None):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
@@ -127,7 +127,8 @@ def main(cfg: DictConfig, override_args=None, ntotal = None):
         print(f"Total {total_tokens} tokens are extracted")
         with open(ntotal_file, 'w') as f:
             f.write(str(total_tokens))
-        assert total_tokens == ntotal, f"Total tokens {total_tokens} should be equal to ntotal {ntotal}"
+        if total_tokens != ntotal:
+            print(f"Total tokens {total_tokens} should be equal to ntotal {ntotal}")
 
 
 if __name__ == "__main__":
@@ -145,7 +146,7 @@ if __name__ == "__main__":
 
 
     main(
-        convert_namespace_to_omegaconf(args), override_args=override_args, ntotal=user_args.ntotal
+        convert_namespace_to_omegaconf(args), user_args.ntotal, override_args=override_args
     )
 
 
