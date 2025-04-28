@@ -269,7 +269,6 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
         x = x.transpose(0, 1)
 
         if self.project_out_dim is not None:
-            last_ff_out = self.project_out_dim(x).clone()
-        else:
-            last_ff_out = x.clone()
+            x = self.project_out_dim(x)
+        last_ff_out = x.clone()
         return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
