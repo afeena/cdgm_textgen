@@ -26,6 +26,7 @@ logger = logging.getLogger("model.transformer_dispersion_ft")
 @dataclass
 class TransformerOutDispersionFTConfig(TransformerConfig):
     freeze_output_layer: bool = field(default=True, metadata={"help": "freeze output layer"})
+    dispersion_dim: int = field(default=512, metadata={"help": "dimension of the dispersion layer"})
 
 @register_model("transformer_dispersion_ft", dataclass=TransformerOutDispersionFTConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
@@ -128,6 +129,27 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
 
 class TransformerDecoderOutDispersion(TransformerDecoderBase):
+    def __init__(
+            self,
+            cfg,
+            dictionary,
+            embed_tokens,
+            no_encoder_attn=False,
+            output_projection=None,
+    ):
+        super().__init__(cfg,
+            dictionary,
+            embed_tokens,
+            no_encoder_attn=no_encoder_attn,
+            output_projection=output_projection)
+        self.project_for_dispersion = None
+        if cfg.dispersion_dim !=cfg.output_embed_dim:
+            self.project_for_dispersion = nn.Linear(
+                cfg.output_embed_dim,
+                cfg.dispersion_dim,
+                bias=False,
+            )
+
     def forward(
             self,
             prev_output_tokens,
@@ -270,5 +292,9 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
 
         if self.project_out_dim is not None:
             x = self.project_out_dim(x)
-        last_ff_out = x.clone()
+
+        if self.project_for_dispersion is not None:
+            last_ff_out = self.project_for_dispersion(x)
+        else:
+         last_ff_out = x.clone()
         return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
