@@ -44,7 +44,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        return TransformerDecoderOutDispersion(cfg, tgt_dict, embed_tokens)
+        return TransformerDecoderOutDispersion(cfg, tgt_dict, embed_tokens, dispersion_dim=cfg.dispersion_dim)
 
     @classmethod
     def build_model(cls, cfg, task):
@@ -139,6 +139,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             embed_tokens,
             no_encoder_attn=False,
             output_projection=None,
+            dispersion_dim=512
     ):
         super().__init__(cfg,
             dictionary,
@@ -146,7 +147,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             no_encoder_attn=no_encoder_attn,
             output_projection=output_projection)
         self.project_for_dispersion = None
-        if cfg.dispersion_dim !=cfg.output_embed_dim:
+        if dispersion_dim != self.output_embed_dim:
             self.project_for_dispersion = nn.Linear(
                 cfg.output_embed_dim,
                 cfg.dispersion_dim,
