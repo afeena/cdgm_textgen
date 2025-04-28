@@ -99,6 +99,10 @@ class TransformerOutDispersionFT(TransformerModelBase):
             else:
                 param.requires_grad = False
 
+            if "project_out_dim" in name:
+                param.requires_grad = True
+                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
+
             if not model.freeze_output_layer and "decoder.output_projection" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
