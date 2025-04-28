@@ -77,17 +77,17 @@ class KnnMTSequenceGenerator(SequenceGenerator):
 
 
     def get_knn_score(self, lprobs, decoder_out):
-        rare_prediction_mapping = None
-        if self.knn_rare_only > 0:
-            _, top_one_idx = lprobs.topk(1, dim=-1)
-            rare_prediction_mapping = (
-                        torch.norm(decoder_out, dim=-1).pow(2).ge(self.knn_rare_only)).squeeze().nonzero()
-            if rare_prediction_mapping.size(0) > 0:
-                print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
-                decoder_out = decoder_out[rare_prediction_mapping, :]
-                assert len(decoder_out.shape)==2
-            else:
-                return None
+        #rare_prediction_mapping = None
+        # if self.knn_rare_only > 0:
+        #     _, top_one_idx = lprobs.topk(1, dim=-1)
+        #     rare_prediction_mapping = (
+        #                 torch.norm(decoder_out, dim=-1).pow(2).ge(self.knn_rare_only)).squeeze().nonzero()
+        #     if rare_prediction_mapping.size(0) > 0:
+        #         print(f"run knn for {len(rare_prediction_mapping)} rare tokens out of {len(top_one_idx)}")
+        #         decoder_out = decoder_out[rare_prediction_mapping, :]
+        #         assert len(decoder_out.shape)==2
+        #     else:
+        #         return None
 
         if self.knn_metric == 'cosine':
             decoder_out = decoder_out / decoder_out.norm(dim=-1, keepdim=True)
@@ -126,15 +126,15 @@ class KnnMTSequenceGenerator(SequenceGenerator):
 
         full_knn_scores = torch.ones_like(lprobs)
         full_knn_scores[:] = -10000
-        if rare_prediction_mapping is not None:
-            mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(
-                device=decoder_out.device)
-            mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
-            mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1), device=decoder_out.device)
-            mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
-            full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
-        else:
-            full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
+        # if rare_prediction_mapping is not None:
+        #     mapped_knn_vals_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1)).long().to(
+        #         device=decoder_out.device)
+        #     mapped_knn_vals_by_index[rare_prediction_mapping] = knn_vals_by_index
+        #     mapped_knn_scores_by_index = torch.zeros(lprobs.size(0), knn_vals_by_index.size(1), device=decoder_out.device)
+        #     mapped_knn_scores_by_index[rare_prediction_mapping] = knn_scores_by_index
+        #     full_knn_scores.scatter_(dim=1, index=mapped_knn_vals_by_index, src=mapped_knn_scores_by_index)
+        # else:
+        full_knn_scores.scatter_(dim=1, index=knn_vals_by_index, src=knn_scores_by_index)
         return full_knn_scores
 
     def _generate(
