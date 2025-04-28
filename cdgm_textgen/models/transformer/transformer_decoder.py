@@ -361,12 +361,13 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
-        last_ff_out = x.clone()
         # T x B x C -> B x T x C
         x = x.transpose(0, 1)
 
         if self.project_out_dim is not None:
             x = self.project_out_dim(x)
+
+        last_ff_out = x.clone()
 
         return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
 
