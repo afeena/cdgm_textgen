@@ -97,7 +97,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
 
         total_tokens = 0
 
-        dim = model.decoder.output_embed_dim
+        dim = model.decoder.dispersion_dim if hasattr(model.decoder,"dispersion_dim") else model.decoder.output_embed_dim
 
         mapped_features = np.memmap(features_file, dtype='float32', mode='w+', shape=(ntotal, dim))
         mapped_keys = np.memmap(targets_file, dtype='int32', mode='w+', shape=(ntotal,))
