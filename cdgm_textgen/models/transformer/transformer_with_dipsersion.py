@@ -103,7 +103,6 @@ class TransformerOutDispersionFT(TransformerModelBase):
             if "project_out_dim" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-
             if "project_for_dispersion" in name:
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
@@ -153,6 +152,9 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
                 self.output_embed_dim,
                 self.dispersion_dim,
                 bias=False,
+            )
+            self.project_for_dispersion.weight.data.normal_(
+                mean=0, std=self.output_embed_dim ** -0.5
             )
 
     def forward(
