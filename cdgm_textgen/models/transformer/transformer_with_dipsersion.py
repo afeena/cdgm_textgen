@@ -27,7 +27,12 @@ logger = logging.getLogger("model.transformer_dispersion_ft")
 class TransformerOutDispersionFTConfig(TransformerConfig):
     freeze_output_layer: bool = field(default=True, metadata={"help": "freeze output layer"})
     dispersion_dim: int = field(default=512, metadata={"help": "dimension of the dispersion layer"})
-
+    train_layers: set = field(default=("decoder.layers.5.fc1",
+                                        "decoder.layers.5.fc1",
+                                        "decoder.final_layer_norm",
+                                       "decoder.project_out_dim",
+                                       "decoder.project_for_dispersion"),
+                               metadata={"help": "list of layers to freeze"})
 @register_model("transformer_dispersion_ft", dataclass=TransformerOutDispersionFTConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
     '''
@@ -41,6 +46,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
     def __init__(self, cfg, encoder, decoder):
         super().__init__(cfg, encoder, decoder)
         self.freeze_output_layer = cfg.freeze_output_layer
+        self.layers_to_train = cfg.train_layers
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
@@ -94,16 +100,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
         # Freeze all layers except last fc layers of last decoder layer
 
         for name, param in model.named_parameters():
-            if f"decoder.layers.{model.decoder.num_layers-1}.fc1" in name or f"decoder.layers.{model.decoder.num_layers-1}.fc2" in name:
-                param.requires_grad = True
-                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-            else:
-                param.requires_grad = False
-
-            if "project_out_dim" in name:
-                param.requires_grad = True
-                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-            if "project_for_dispersion" in name:
+            if any(layer in name for layer in model.layers_to_train):
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             if not model.freeze_output_layer and "decoder.output_projection" in name:
