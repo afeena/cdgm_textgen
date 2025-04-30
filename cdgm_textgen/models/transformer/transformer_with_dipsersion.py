@@ -46,7 +46,6 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
     def __init__(self, cfg, encoder, decoder):
         super().__init__(cfg, encoder, decoder)
-        self.freeze_output_layer = cfg.freeze_output_layer
         self.layers_to_train = cfg.train_layers
 
     @classmethod
