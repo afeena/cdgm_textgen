@@ -165,7 +165,7 @@ class TransformerDecoderLayerBase(nn.Module):
         self_attn_padding_mask: Optional[torch.Tensor] = None,
         need_attn: bool = False,
         need_head_weights: bool = False,
-        return_fc1_output: bool = False,
+        return_fc1_out: bool = False,
     ):
         """
         Args:
