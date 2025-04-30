@@ -86,6 +86,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         logging_output = {
             "loss": loss.data,
             "nll_loss": nll_loss.data,
+            "dispersion_loss": dispersed_loss.data if self.dispersed_weight > 0.0 else 0,
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),
             "sample_size": sample_size,
