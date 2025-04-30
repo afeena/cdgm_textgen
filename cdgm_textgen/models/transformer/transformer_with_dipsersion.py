@@ -28,11 +28,13 @@ class TransformerOutDispersionFTConfig(TransformerConfig):
     freeze_output_layer: bool = field(default=True, metadata={"help": "freeze output layer"})
     dispersion_dim: int = field(default=512, metadata={"help": "dimension of the dispersion layer"})
     train_layers: set = field(default=("decoder.layers.5.fc1",
-                                        "decoder.layers.5.fc1",
+                                        "decoder.layers.5.fc2",
                                         "decoder.final_layer_norm",
-                                       "decoder.project_out_dim",
-                                       "decoder.project_for_dispersion"),
-                               metadata={"help": "list of layers to freeze"})
+                                       "decoder.project_out_dim"),
+                               metadata={"help": "list of layers to train"}
+                              )
+
+    features_to_disperse: str = field(default="decoder_out")
 @register_model("transformer_dispersion_ft", dataclass=TransformerOutDispersionFTConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
     '''
@@ -50,7 +52,9 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        return TransformerDecoderOutDispersion(cfg, tgt_dict, embed_tokens, dispersion_dim=cfg.dispersion_dim)
+        return TransformerDecoderOutDispersion(cfg, tgt_dict, embed_tokens,
+                                               dispersion_dim=cfg.dispersion_dim,
+                                               feature_to_disperse=cfg.features_to_disperse)
 
     @classmethod
     def build_model(cls, cfg, task):
@@ -122,7 +126,11 @@ class TransformerOutDispersionFT(TransformerModelBase):
         for k, v in state_dict.items():
             if k not in self.state_dict():
                 logger.info(f"Key {k} not found in state_dict")
-            pretrained_dict[k] = v
+            elif k in self.state_dict():
+                if v.shape != self.state_dict()[k].shape:
+                    logger.info(f"Key {k} has shape {v.shape} but state_dict has shape {self.state_dict()[k].shape}")
+                else:
+                    pretrained_dict[k] = v
         strict = False
         super().load_state_dict(pretrained_dict, strict, model_cfg, args)
 
@@ -135,24 +143,21 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             embed_tokens,
             no_encoder_attn=False,
             output_projection=None,
-            dispersion_dim=512
+            dispersion_dim=512,
+            feature_to_disperse="decoder_out",
     ):
         super().__init__(cfg,
             dictionary,
             embed_tokens,
             no_encoder_attn=no_encoder_attn,
             output_projection=output_projection)
-        self.project_for_dispersion = None
+
         self.dispersion_dim = dispersion_dim
-        if self.dispersion_dim != self.output_embed_dim:
-            self.project_for_dispersion = nn.Linear(
-                self.output_embed_dim,
-                self.dispersion_dim,
-                bias=False,
-            )
-            self.project_for_dispersion.weight.data.normal_(
-                mean=0, std=self.output_embed_dim ** -0.5
-            )
+
+        self.features_to_disperse = feature_to_disperse
+        if self.features_to_disperse=='fc1_out' and self.dispersion_dim != cfg.decoder.ffn_embed_dim:
+            self.layers[-1].fc1 = nn.Linear(self.embed_dim, self.dispersion_dim)
+            self.layers[-1].fc2 = nn.Linear(self.dispersion_dim, self.embed_dim)
 
     def forward(
             self,
@@ -174,7 +179,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        extra["features"] = extra["last_ff_out"]
+        extra["features"] = extra["features_to_disperse"]
 
         if not features_only:
             x = self.output_layer(x)
@@ -189,6 +194,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
     ):
+
         """
         Similar to *forward* but only return features.
 
@@ -208,6 +214,8 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
                 - the decoder's features of shape `(batch, tgt_len, embed_dim)`
                 - a dictionary with any model-specific outputs
         """
+
+        features_to_disperse = None
         bs, slen = prev_output_tokens.size()
         if alignment_layer is None:
             alignment_layer = self.num_layers - 1
@@ -266,7 +274,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             else:
                 self_attn_mask = None
 
-            x, layer_attn, _ = layer(
+            x, layer_attn, extra = layer(
                 x,
                 enc,
                 padding_mask,
@@ -275,10 +283,13 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
                 self_attn_padding_mask=self_attn_padding_mask,
                 need_attn=bool((idx == alignment_layer)),
                 need_head_weights=bool((idx == alignment_layer)),
+                return_fc1_out=bool(idx == self.num_layers - 1)&(self.features_to_disperse=="fc1_out"),
             )
             inner_states.append(x)
             if layer_attn is not None and idx == alignment_layer:
                 attn = layer_attn.float().to(x)
+            if extra is not None and type(extra) is dict and "fc1_out" in extra:
+                features_to_disperse = extra["fc1_out"]
 
         if attn is not None:
             if alignment_heads is not None:
@@ -297,8 +308,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
         if self.project_out_dim is not None:
             x = self.project_out_dim(x)
 
-        if self.project_for_dispersion is not None:
-            last_ff_out = self.project_for_dispersion(x)
-        else:
-         last_ff_out = x.clone()
-        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
+        if self.features_to_disperse=='decoder_out':
+            features_to_disperse = x.clone()
+
+        return x, {"attn": [attn], "inner_states": inner_states, "features_to_disperse": features_to_disperse}

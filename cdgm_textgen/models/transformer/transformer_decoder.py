@@ -22,12 +22,11 @@ from fairseq.modules import (
     LayerNorm,
     PositionalEmbedding,
     SinusoidalPositionalEmbedding,
-    transformer_layer,
 )
 from fairseq.modules.checkpoint_activations import checkpoint_wrapper
 from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 
-
+from cdgm_textgen.modules import TransformerDecoderLayerBase
 # rewrite name for backward compatibility in `make_generation_fast_`
 def module_name_fordropout(module_name: str) -> str:
     if module_name == "TransformerDecoderBase":
@@ -172,7 +171,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
             )
 
     def build_decoder_layer(self, cfg, no_encoder_attn=False):
-        layer = transformer_layer.TransformerDecoderLayerBase(cfg, no_encoder_attn)
+        layer = TransformerDecoderLayerBase(cfg, no_encoder_attn)
         checkpoint = cfg.checkpoint_activations
         if checkpoint:
             offload_to_cpu = cfg.offload_activations
@@ -280,6 +279,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
                 - a dictionary with any model-specific outputs
         """
         bs, slen = prev_output_tokens.size()
+
         if alignment_layer is None:
             alignment_layer = self.num_layers - 1
 
@@ -369,7 +369,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
 
         last_ff_out = x.clone()
 
-        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
+        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": x}
 
     def output_layer(self, features):
         """Project features to the vocabulary size."""
