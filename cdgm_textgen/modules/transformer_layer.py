@@ -278,7 +278,10 @@ class TransformerDecoderLayerBase(nn.Module):
 
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
-        fc1_out = x.clone()
+        if return_fc1_out:
+            fc1_out = x.clone()
+        else:
+            fc1_out = None
         if self.ffn_layernorm is not None:
             x = self.ffn_layernorm(x)
         x = self.fc2(x)
@@ -300,6 +303,6 @@ class TransformerDecoderLayerBase(nn.Module):
             else:
                 self_attn_state = [saved_state["prev_key"], saved_state["prev_value"]]
             return x, attn, self_attn_state
-        if return_fc1_output:
+        if return_fc1_out:
             return x, attn, {"att_state":None, "fc1_out":fc1_out}
         return x, attn, None
