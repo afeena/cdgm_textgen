@@ -101,13 +101,15 @@ class TransformerOutDispersionFT(TransformerModelBase):
 
         # Freeze all layers except last fc layers of last decoder layer
 
+        freezed_count = 0
         for name, param in model.named_parameters():
             if any(layer in name for layer in model.layers_to_train):
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
             else:
                 param.requires_grad = False
-                logger.info(f"Freezing {name} with shape {param.shape} and requires_grad {param.requires_grad}")
+                freezed_count+=1
+                logger.info(f"Freezing {freezed_count} parameters")
         return model
 
     def load_state_dict(
