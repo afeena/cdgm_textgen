@@ -280,7 +280,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
                 self_attn_padding_mask=self_attn_padding_mask,
                 need_attn=bool((idx == alignment_layer)),
                 need_head_weights=bool((idx == alignment_layer)),
-                return_fc1_out=bool(idx == self.num_layers - 1)&(self.features_to_disperse=="fc1_out"),
+                return_fc1_out=bool((idx == self.num_layers - 1) and (self.features_to_disperse=="fc1_out")),
             )
             inner_states.append(x)
             if layer_attn is not None and idx == alignment_layer:
