@@ -177,6 +177,7 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
             alignment_heads=alignment_heads,
         )
         extra["features"] = extra["features_to_disperse"]
+        assert extra["features"] is not None, "features_to_disperse is None"
 
         if not features_only:
             x = self.output_layer(x)
