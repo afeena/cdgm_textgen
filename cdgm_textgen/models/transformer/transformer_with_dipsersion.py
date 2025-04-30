@@ -25,11 +25,10 @@ logger = logging.getLogger("model.transformer_dispersion_ft")
 
 @dataclass
 class TransformerOutDispersionFTConfig(TransformerConfig):
-    freeze_output_layer: bool = field(default=True, metadata={"help": "freeze output layer"})
     dispersion_dim: int = field(default=512, metadata={"help": "dimension of the dispersion layer"})
     train_layers: set = field(default=("decoder.layers.5.fc1",
                                         "decoder.layers.5.fc2",
-                                        "decoder.final_layer_norm",
+                                        "decoder.layers.5.final_layer_norm",
                                        "decoder.project_out_dim"),
                                metadata={"help": "list of layers to train"}
                               )
@@ -107,10 +106,9 @@ class TransformerOutDispersionFT(TransformerModelBase):
             if any(layer in name for layer in model.layers_to_train):
                 param.requires_grad = True
                 logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-            if not model.freeze_output_layer and "decoder.output_projection" in name:
-                param.requires_grad = True
-                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-
+            else:
+                param.requires_grad = False
+                logger.info(f"Freezing {name} with shape {param.shape} and requires_grad {param.requires_grad}")
         return model
 
     def load_state_dict(
