@@ -80,7 +80,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(model,net_output[-1]["features"])
+            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(model,net_output,sample)
             loss = loss + dispersed_loss.mean()
 
         sample_size = 1
@@ -99,19 +99,20 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["total"] = utils.item(total.data)
 
         if self.report_dispersed:
-            cosine_min_dist, var = self.compute_dispersed_metrics(net_output[-1]["features"])
+            cosine_min_dist, var = self.compute_dispersed_metrics(model,net_output,sample,self.padding_idx)
             logging_output["min_acos_dist"] = cosine_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
         return loss, sample_size, logging_output
 
     @staticmethod
-    def compute_dispersed_metrics(features: torch.Tensor) -> Tuple[Tensor, Tensor]:
+    def compute_dispersed_metrics(model, sample, net_output, pad_idx) -> Tuple[Tensor, Tensor]:
+        target = model.get_targets(sample, net_output)
         with torch.no_grad():
-            features = features.detach() / features.detach().norm(dim=-1, keepdim=True)
-            features2d = features.reshape(-1,features.size(2))
-            min_acos_dist = minimum_acos_distance(features2d,features2d)
-            var = circular_variance(features2d)
+            pad_mask = target.eq(pad_idx)
+            features = (net_output[-1]["features"][~pad_mask]).detach()
+            min_acos_dist = minimum_acos_distance(features,features)
+            var = circular_variance(features)
         return min_acos_dist, var
 
     def compute_dispersed_loss(self, model, sample, net_output) -> torch.Tensor:
