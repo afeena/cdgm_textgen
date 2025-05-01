@@ -66,6 +66,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                                                kernel_args={"s": 1.0})
         elif dispersion_type == 'sliced':
             self.disp = SlicedSphereDispersion()
+        else:
+            raise ValueError(f"dispersion_type {dispersion_type} not supported")
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
