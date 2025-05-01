@@ -109,7 +109,7 @@ class TransformerOutDispersionFT(TransformerModelBase):
             else:
                 param.requires_grad = False
                 freezed_count+=1
-                logger.info(f"Freezing {freezed_count} parameters")
+        logger.info(f"Freezing {freezed_count} parameters")
         return model
 
     def load_state_dict(
