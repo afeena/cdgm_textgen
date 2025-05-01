@@ -78,8 +78,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.compute_dispersed_loss(net_output[-1]["features"])
-            loss = loss + self.dispersed_weight * dispersed_loss.mean()
+            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(net_output[-1]["features"])
+            loss = loss + dispersed_loss.mean()
 
         sample_size = 1
 
