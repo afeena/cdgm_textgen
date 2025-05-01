@@ -106,7 +106,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         return loss, sample_size, logging_output
 
     @staticmethod
-    def compute_dispersed_metrics(model, sample, net_output, pad_idx) -> Tuple[Tensor, Tensor]:
+    def compute_dispersed_metrics(model, net_output, sample, pad_idx) -> Tuple[Tensor, Tensor]:
         target = model.get_targets(sample, net_output)
         with torch.no_grad():
             pad_mask = target.eq(pad_idx)
@@ -115,7 +115,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             var = circular_variance(features)
         return min_acos_dist, var
 
-    def compute_dispersed_loss(self, model, sample, net_output) -> torch.Tensor:
+    def compute_dispersed_loss(self, model, net_output,sample) -> torch.Tensor:
         target = model.get_targets(sample, net_output)
         pad_mask = target.eq(self.padding_idx)
         features = net_output[-1]["features"][~pad_mask]
