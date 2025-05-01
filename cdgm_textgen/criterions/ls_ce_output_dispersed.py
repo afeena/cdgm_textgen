@@ -43,7 +43,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         if dispersion_type == 'mhe-gaussian-eucl':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="euclidean",
-                                               kernel_args={"gamma": 10.0})
+                                               kernel_args={"gamma": 1.0})
         elif dispersion_type == 'mhe-gaussian-geo':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="geodesic",
@@ -107,10 +107,11 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
 
     @staticmethod
     def compute_dispersed_metrics(model, net_output, sample, pad_idx) -> Tuple[Tensor, Tensor]:
-        target = model.get_targets(sample, net_output)
         with torch.no_grad():
+            target = model.get_targets(sample, net_output)
             pad_mask = target.eq(pad_idx)
             features = (net_output[-1]["features"][~pad_mask]).detach()
+            features = features / features.norm(dim=-1, keepdim=True)
             min_acos_dist = minimum_acos_distance(features,features)
             var = circular_variance(features)
         return min_acos_dist, var
