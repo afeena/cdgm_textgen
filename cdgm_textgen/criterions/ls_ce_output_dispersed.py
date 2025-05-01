@@ -44,7 +44,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="euclidean",
                                                kernel_args={"gamma": 1.0})
-        if dispersion_type == 'mhe-gaussian-geo':
+        elif dispersion_type == 'mhe-gaussian-geo':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="geodesic",
                                                kernel_args={"gamma": 1.0})
