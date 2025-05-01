@@ -19,7 +19,7 @@ from cdgm_textgen.criterions import LSCrossEntropyDispersedCriterionConfig
 @dataclass
 class LSCrossEntropyOutDispCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
     dispersion_type: str = field(
-        default='mhe-gaussian',
+        default='mhe-gaussian-eucl',
         metadata={"help": "dispersion type"}
     )
 @register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyOutDispCriterionConfig)
@@ -43,7 +43,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         if dispersion_type == 'mhe-gaussian-eucl':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="euclidean",
-                                               kernel_args={"gamma": 1.0})
+                                               kernel_args={"gamma": 10.0})
         elif dispersion_type == 'mhe-gaussian-geo':
             self.disp = KernelSphereDispersion(kernel="gaussian",
                                                distance="geodesic",
@@ -80,7 +80,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(net_output[-1]["features"])
+            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(model,net_output[-1]["features"])
             loss = loss + dispersed_loss.mean()
 
         sample_size = 1
@@ -114,10 +114,11 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             var = circular_variance(features2d)
         return min_acos_dist, var
 
-    def compute_dispersed_loss(self, features: torch.Tensor) -> torch.Tensor:
+    def compute_dispersed_loss(self, model, sample, net_output) -> torch.Tensor:
+        target = model.get_targets(sample, net_output)
+        pad_mask = target.eq(self.padding_idx)
+        features = net_output[-1]["features"][~pad_mask]
         features = features / features.norm(dim=-1, keepdim=True)
-        # here we need 2d matrix to calculate kernel dispersion, so use (BxT) x D instead of B x T x D
-        features = features.reshape(-1, features.size(2))
         return self.disp(features)
 
     @staticmethod
