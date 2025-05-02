@@ -105,7 +105,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             #we are interested in the last layer only
             _, exra = model.extract_features(**sample["net_input"])
-            features = exra["last_ff_out"]
+            features = exra["features"]
             #Normalize the features
             #features = features / features.norm(p=2, dim=-1, keepdim=True)
 
