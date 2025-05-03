@@ -119,7 +119,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 if total_tokens + len(store_features) > buffer_size:
                     # we need to flush the buffer
                     features_buffer = features_buffer[:total_tokens]
-                    min_dist_buffer = ledoh_torch.utils.minimum_acos_distance(features, features)
+                    min_dist_buffer = ledoh_torch.utils.minimum_acos_distance(store_features, store_features)
                     circ_var_buffer = ledoh_torch.utils.circular_variance(min_dist_buffer)
                     min_dists.append(min_dist_buffer)
                     circ_vars.append(circ_var_buffer)
