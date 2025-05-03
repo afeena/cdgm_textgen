@@ -118,9 +118,9 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 store_features = torch.index_select(features[:,j], 0, store_token_idx).to(torch.float32)
                 if total_tokens + len(store_features) > buffer_size:
                     # we need to flush the buffer
-                    features_buffer = features_buffer[:total_tokens]
-                    min_dist_buffer = ledoh_torch.utils.minimum_acos_distance(store_features, store_features)
-                    circ_var_buffer = ledoh_torch.utils.circular_variance(min_dist_buffer)
+                    features_to_calc = features_buffer[:total_tokens]
+                    min_dist_buffer = ledoh_torch.utils.minimum_acos_distance(features_to_calc, features_to_calc)
+                    circ_var_buffer = ledoh_torch.utils.circular_variance(features_to_calc)
                     min_dists.append(min_dist_buffer)
                     circ_vars.append(circ_var_buffer)
                     print(f"buffer {len(min_dists)} mindist: {min_dist_buffer} cv: {circ_var_buffer}")
