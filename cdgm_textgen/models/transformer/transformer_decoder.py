@@ -369,7 +369,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
 
         last_ff_out = x.clone()
 
-        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": x}
+        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
 
     def output_layer(self, features):
         """Project features to the vocabulary size."""
