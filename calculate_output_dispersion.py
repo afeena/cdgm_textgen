@@ -128,7 +128,6 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 features_buffer[total_tokens:total_tokens + len(store_features)] = store_features.cpu()
 
                 total_tokens += len(store_features)
-                print(f"batch {i}, {total_tokens} tokens are extracted")
 
 
         print(f"buffers processed: {len(min_dists)}")
