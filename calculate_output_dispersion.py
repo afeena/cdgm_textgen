@@ -97,7 +97,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
 
         dim = model.decoder.dispersion_dim if hasattr(model.decoder,"dispersion_dim") else model.decoder.output_embed_dim
         buffer_size = 10000
-        features_buffer = np.zeros((buffer_size, dim), dtype=np.float32)
+        features_buffer = torch.zeros(buffer_size, dim).to(torch.float32)
         total_tokens = 0
         min_dists = []
         circ_vars = []
@@ -123,8 +123,9 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                     circ_var_buffer = ledoh_torch.utils.circular_variance(min_dist_buffer)
                     min_dists.append(min_dist_buffer)
                     circ_vars.append(circ_var_buffer)
+                    print(f"buffer {len(min_dists)} mindist: {min_dist_buffer} cv: {circ_var_buffer}")
                     total_tokens=0
-                features_buffer[total_tokens:total_tokens + len(store_features)] = store_features
+                features_buffer[total_tokens:total_tokens + len(store_features)] = store_features.cpu()
 
                 total_tokens += len(store_features)
                 print(f"batch {i}, {total_tokens} tokens are extracted")
