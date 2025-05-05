@@ -55,7 +55,7 @@ class CDGMGenerationConfig(GenerationConfig):
     knn_k: Optional[int] = field(default=5, metadata={"help": "number of nearest neighbors ofr knn-MT decoding"})
     knn_lambda: Optional[float] = field(default=0.5, metadata={"help": "lambda for knn-MT decoding"})
     knn_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for knn-MT decoding"})
-    knn_rare_only: Optional[int] = field(default=-1, metadata={"help": "use rare words only for knn-MT decoding starting with index"})
+    knn_nprobe: Optional[int] = field(default=32, metadata={"help": "nprobe for knn-MT decoding"})
 
 @dataclass
 class CDGMCommonConfig(CommonConfig):
