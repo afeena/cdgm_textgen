@@ -165,7 +165,7 @@ class TransformerDecoderLayerBase(nn.Module):
         self_attn_padding_mask: Optional[torch.Tensor] = None,
         need_attn: bool = False,
         need_head_weights: bool = False,
-        return_fc1_out: bool = False,
+        return_out_keys: bool = False,
     ):
         """
         Args:
@@ -182,6 +182,8 @@ class TransformerDecoderLayerBase(nn.Module):
         """
         if need_head_weights:
             need_attn = True
+
+        extra = {}
 
         residual = x
         if self.normalize_before:
@@ -275,22 +277,26 @@ class TransformerDecoderLayerBase(nn.Module):
         residual = x
         if self.normalize_before:
             x = self.final_layer_norm(x)
-
+        if return_out_keys:
+            extra['out_before_ffn'] = x.clone()
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
-        if return_fc1_out:
-            fc1_out = x.clone()
-        else:
-            fc1_out = None
+        if return_out_keys:
+            extra["fc1_out"] = x.clone()
         if self.ffn_layernorm is not None:
             x = self.ffn_layernorm(x)
         x = self.fc2(x)
         x = self.dropout_module(x)
+        if return_out_keys:
+            extra["fc2_out"] = x.clone()
+
         if self.w_resid is not None:
             residual = torch.mul(self.w_resid, residual)
         x = self.residual_connection(x, residual)
         if not self.normalize_before:
             x = self.final_layer_norm(x)
+        if return_out_keys:
+            extra['out_after_ln'] = x.clone()
         if self.onnx_trace and incremental_state is not None:
             saved_state = self.self_attn._get_input_buffer(incremental_state)
             assert saved_state is not None
@@ -303,6 +309,6 @@ class TransformerDecoderLayerBase(nn.Module):
             else:
                 self_attn_state = [saved_state["prev_key"], saved_state["prev_value"]]
             return x, attn, self_attn_state
-        if return_fc1_out:
-            return x, attn, {"att_state":None, "fc1_out":fc1_out}
+        if return_out_keys:
+            return x, attn, extra
         return x, attn, None

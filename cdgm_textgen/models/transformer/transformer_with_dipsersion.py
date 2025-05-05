@@ -33,7 +33,7 @@ class TransformerOutDispersionFTConfig(TransformerConfig):
                                metadata={"help": "list of layers to train"}
                               )
 
-    features_to_disperse: str = field(default="decoder_out")
+    features_to_disperse: str = field(default="decoder_out", metadata={"help": "features to disperse, choices are: decoder_out, out_before_ffn, fc1_out, fc2_out, out_after_ln"})
 @register_model("transformer_dispersion_ft", dataclass=TransformerOutDispersionFTConfig)
 class TransformerOutDispersionFT(TransformerModelBase):
     '''
@@ -100,16 +100,16 @@ class TransformerOutDispersionFT(TransformerModelBase):
         model = cls(cfg, encoder, decoder)
 
         # Freeze all layers except last fc layers of last decoder layer
-
-        freezed_count = 0
-        for name, param in model.named_parameters():
-            if any(layer in name for layer in model.layers_to_train):
-                param.requires_grad = True
-                logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
-            else:
-                param.requires_grad = False
-                freezed_count+=1
-        logger.info(f"Freezing {freezed_count} parameters")
+        if model.training:
+            freezed_count = 0
+            for name, param in model.named_parameters():
+                if any(layer in name for layer in model.layers_to_train):
+                    param.requires_grad = True
+                    logger.info(f"Training {name} with shape {param.shape} and requires_grad {param.requires_grad}")
+                else:
+                    param.requires_grad = False
+                    freezed_count+=1
+            logger.info(f"Freezing {freezed_count} parameters")
         return model
 
     def load_state_dict(
@@ -283,13 +283,14 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
                 self_attn_padding_mask=self_attn_padding_mask,
                 need_attn=bool((idx == alignment_layer)),
                 need_head_weights=bool((idx == alignment_layer)),
-                return_fc1_out=bool((idx == self.num_layers - 1) and (self.features_to_disperse=="fc1_out")),
+                return_out_keys=bool((idx == self.num_layers - 1) and self.features_to_disperse!='decoder_out'),
             )
             inner_states.append(x)
             if layer_attn is not None and idx == alignment_layer:
                 attn = layer_attn.float().to(x)
-            if extra is not None and type(extra) is dict and "fc1_out" in extra:
-                features_to_disperse = extra["fc1_out"]
+            if extra is not None:
+                assert self.features_to_disperse in extra, f"{self.features_to_disperse} is not in extra"
+                features_to_disperse = extra[self.features_to_disperse]
 
         if attn is not None:
             if alignment_heads is not None:
@@ -297,10 +298,6 @@ class TransformerDecoderOutDispersion(TransformerDecoderBase):
 
             # average probabilities over heads
             attn = attn.mean(dim=0)
-
-        if self.layer_norm is not None:
-            x = self.layer_norm(x)
-
 
         # T x B x C -> B x T x C
         x = x.transpose(0, 1)
