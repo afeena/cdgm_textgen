@@ -34,7 +34,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  knn_lambda=0.5,
                  knn_temperature=1.0,
                  knn_metric="cosine",
-                 knn_rare_only=-1,
+                 knn_nprobe=32,
                  ):
         super().__init__(models,
                  tgt_dict,
@@ -64,11 +64,12 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             co.useFloat16 = True
             self.knn_index = faiss.read_index(knn_index_file)
             self.knn_index = faiss.index_cpu_to_gpu(res,0,self.knn_index,co)
+            self.knn_index.nprobe = knn_nprobe
             self.knn_k = knn_k
             self.knn_lambda = knn_lambda
             self.knn_temperature = knn_temperature
             self.knn_metric = knn_metric
-            self.knn_rare_only = knn_rare_only
+
 
             print("load vals to retrieve vocab indices")
             vals_memmap = np.memmap(f"{knn_index_file}_vals.npy", dtype=np.int32, mode='r', shape=(self.knn_index.ntotal,))
