@@ -278,17 +278,17 @@ class TransformerDecoderLayerBase(nn.Module):
         if self.normalize_before:
             x = self.final_layer_norm(x)
         if return_out_keys:
-            extra['out_before_ffn'] = x.clone()
+            extra['out_before_ffn'] = x.clone().transpose(0, 1)
         x = self.activation_fn(self.fc1(x))
         x = self.activation_dropout_module(x)
         if return_out_keys:
-            extra["fc1_out"] = x.clone()
+            extra["fc1_out"] = x.clone().transpose(0, 1)
         if self.ffn_layernorm is not None:
             x = self.ffn_layernorm(x)
         x = self.fc2(x)
         x = self.dropout_module(x)
         if return_out_keys:
-            extra["fc2_out"] = x.clone()
+            extra["fc2_out"] = x.clone().transpose(0, 1)
 
         if self.w_resid is not None:
             residual = torch.mul(self.w_resid, residual)
