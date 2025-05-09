@@ -2,7 +2,7 @@ import argparse
 
 if __name__ == "__main__":
     argp = argparse.ArgumentParser()
-    argp.add_argument("-h", "--hyp", help="hypothesis file")
+    argp.add_argument("--hyp", help="hypothesis file")
 
     args = argp.parse_args()
 
