@@ -9,7 +9,7 @@ if __name__ == "__main__":
     num_tokens = []
     seconds = []
 
-    with open(args.hyp_file, "r") as f:
+    with open(args.hyp, "r") as f:
         line = f.readline()
         line = line.strip("\n")
         if line.startswith("W-"):
