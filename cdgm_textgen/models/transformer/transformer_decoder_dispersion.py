@@ -357,22 +357,17 @@ class TransformerDecoderWithDispersionAdapter(TransformerDecoderBase):
         return x, {"attn": [attn], "inner_states": inner_states, "features_to_disperse": features_to_disperse}
 
 class DispersionAdapter(nn.Module):
-    def  __init__(self, decoder_out_dim, inner_dim=1024):
+    def  __init__(self, decoder_out_dim, inner_dim=1024, dropout=0.1):
         super().__init__()
         self.fc1 = nn.Linear(decoder_out_dim, inner_dim)
         self.activation = nn.ReLU()
-        self.bn1 = nn.BatchNorm1d(inner_dim)
-        self.fc2 = nn.Linear(inner_dim, inner_dim)
-        self.bn2 = nn.BatchNorm1d(inner_dim)
-        self.fc3 = nn.Linear(inner_dim, decoder_out_dim)
+        self.dropout = nn.Dropout(0.1)
+        self.fc2 = nn.Linear(inner_dim, decoder_out_dim)
 
 
     def forward(self, x):
-        x = self.activation(self.fc1(x)
-                            )
-        x = self.bn1(x.transpose(1,2)).transpose(1,2)
-        x = self.activation(self.fc2(x))
-        x = self.bn2(x.transpose(1,2)).transpose(1,2)
-        x = self.fc3(x)
+        x = self.activation(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
 
         return x
