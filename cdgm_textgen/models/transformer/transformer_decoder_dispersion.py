@@ -360,9 +360,11 @@ class DispersionAdapter(nn.Module):
     def  __init__(self, decoder_out_dim, inner_dim=1024, dropout=0.1):
         super().__init__()
         self.fc1 = nn.Linear(decoder_out_dim, inner_dim)
+        nn.init.eye_(self.fc1.weight)
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
         self.fc2 = nn.Linear(inner_dim, decoder_out_dim)
+        nn.init.eye_(self.fc2.weight)
 
 
     def forward(self, x):
