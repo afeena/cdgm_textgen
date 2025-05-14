@@ -14,12 +14,18 @@ def load_yaml(yaml_path):
         return yaml.safe_load(f)
 
 class Embedding:
-    def __init__(self, name, base_path, features_path, targets_path, yaml_path, faiss_path):
+    def __init__(self, name, base_path, features_path, targets_path, yaml_path=None, faiss_path=None, args=None):
         self.name = name
         self.features_path = Path(base_path) / features_path
         self.targets_path = Path(base_path) / targets_path
         self.faiss_path = Path(base_path) / faiss_path
-        self.args = Namespace(**load_yaml(Path(base_path) / yaml_path))
+
+        if args is not None:
+            self.args = Namespace(**args)
+        elif yaml_path is not None:
+            self.args = Namespace(**load_yaml(Path(base_path) / yaml_path))
+        else:
+            raise ValueError("Either args or yaml_path must be provided")
         print(self.args)
         self.keys = None
         self.targets = None
