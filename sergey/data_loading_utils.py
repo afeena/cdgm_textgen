@@ -5,6 +5,7 @@ import faiss
 import numpy as np
 from argparse import Namespace
 from tqdm.auto import tqdm
+from itertools import groupby
 
 import torch
 
@@ -51,7 +52,48 @@ class Embedding:
         # /ivi/ilps/projects/cnmt/knn-mt-dispersion/datastores/model_512_no_dispersion/train.features.npy
         self.keys = np.memmap(self.features_path, dtype=np.float32, mode='r', shape=(self.args.ntotal, self.args.dim))
         self.targets = np.memmap(self.targets_path, dtype=np.int32, mode='r', shape=(self.args.ntotal,))
+        self.sampled_keys = None
+        self.sampled_targets = None
         self.load_faiss(self.device.type == 'cuda')
+
+    def cache_features_and_targets(
+        self,
+        cache_folder: str,
+        cache_name='subsampled_features_targets',
+        subsample_size: int = 1000000,
+        seed: int = 42,
+    ):
+        """
+        saving a subsample of keys/targets for analysis
+        """
+        np.random.seed(seed)
+        cache_path = Path(cache_folder) / f"{cache_name}" / f"{self.name}.npz"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        print("caching features and targets to", cache_path)
+        ids = np.random.choice(self.keys.shape[0], subsample_size, replace=False)
+        ids.sort() # to read in contiguous chunks
+
+        print("size of subsample / total size", subsample_size / len(self.keys) * 100, "%")
+        out_keys = self.keys[ids]
+        out_targets = self.targets[ids]
+        np.savez(cache_path, keys=out_keys, targets=out_targets)
+        print(f"saved subsample of keys and targets to {cache_path}")
+
+    def load_subsampled_features_and_targets(
+        self,
+        cache_folder: str,
+        cache_name='subsampled_features_targets',
+    ):
+        """
+        loading a subsample of keys/targets for analysis
+        """
+        cache_path = Path(cache_folder) / f"{cache_name}" / f"{self.name}.npz"
+        print(f"loading subsample of keys and targets from {cache_path}")
+        data = np.load(cache_path)
+        self.sampled_keys = data['keys']
+        self.sampled_targets = data['targets']
+        print("size of all keys/targets", len(self.keys))
+        print("size of subsample", len(self.sampled_targets))
 
     def load_faiss(self, gpu=False):
         if gpu:
