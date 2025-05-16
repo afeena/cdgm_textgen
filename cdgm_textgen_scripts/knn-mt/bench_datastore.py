@@ -20,7 +20,7 @@ knn_index = faiss.index_cpu_to_gpu(res, 0, knn_index, co)
 
 
 nqueries = 100000
-query_idx = np.sort(np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=False))
+query_idx = np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=False)
 
 times = []
 for i in range(query_idx):
