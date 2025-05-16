@@ -29,6 +29,7 @@ for i in range(query_idx):
     knn_index.search(query, k)
     times.append(time.time() - start)
 
+print(index)
 print("Average time for index: ", np.mean(times))
 
 
