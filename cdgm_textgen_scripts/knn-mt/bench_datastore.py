@@ -6,10 +6,11 @@ import numpy as np
 
 index = sys.argv[1]
 features = sys.argv[2]
+dim = int(sys.argv[3])
 
 k = 8
 
-keys = np.memmap(features, dtype=np.float32, mode='r', shape=(10000000, 1024))
+keys = np.memmap(features, dtype=np.float32, mode='r', shape=(10000000, dim))
 
 
 res = faiss.StandardGpuResources()
@@ -19,11 +20,13 @@ knn_index = faiss.read_index(index)
 knn_index = faiss.index_cpu_to_gpu(res, 0, knn_index, co)
 
 
-nqueries = 10000
+nqueries = 100000
 query_idx = np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=False)
 batch_size = 10
 
 print(index)
+print("total keys: ", keys.shape[0])
+print("dim: ", dim)
 print("nqueries: ", nqueries)
 print("batch_size: ", batch_size)
 print("k : ", k)
