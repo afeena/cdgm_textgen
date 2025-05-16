@@ -19,15 +19,18 @@ knn_index = faiss.read_index(index)
 knn_index = faiss.index_cpu_to_gpu(res, 0, knn_index, co)
 
 
-nqueries = 100000
+nqueries = 10000
 query_idx = np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=False)
-
+batch_size = 10
 times = []
-for i in query_idx:
-    query = torch.tensor(keys[i], device='cuda').unsqueeze(0)
+start_batch=0
+for _ in query_idx:
+    end_batch=min(keys.shape[0], start_batch + batch_size)
+    query = torch.tensor(keys[start_batch:end_batch], device='cuda')
     start = time.time()
     knn_index.search(query, k)
     times.append(time.time() - start)
+    start_batch+= batch_size
 
 print(index)
 print("Average time for index: ", np.mean(times))
