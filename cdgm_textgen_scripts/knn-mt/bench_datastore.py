@@ -26,6 +26,7 @@ batch_size = 10
 print(index)
 print("nqueries: ", nqueries)
 print("batch_size: ", batch_size)
+print("k : ", k)
 
 times = []
 start_batch=0
