@@ -22,6 +22,11 @@ knn_index = faiss.index_cpu_to_gpu(res, 0, knn_index, co)
 nqueries = 10000
 query_idx = np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=False)
 batch_size = 10
+
+print(index)
+print("nqueries: ", nqueries)
+print("batch_size: ", batch_size)
+
 times = []
 start_batch=0
 for _ in query_idx:
@@ -32,7 +37,7 @@ for _ in query_idx:
     times.append(time.time() - start)
     start_batch+= batch_size
 
-print(index)
+
 print("Average time for index: ", np.mean(times))
 
 
