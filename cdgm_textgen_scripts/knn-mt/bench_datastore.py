@@ -24,7 +24,7 @@ query_idx = np.random.choice(np.arange(keys.shape[0]), size=[nqueries], replace=
 
 times = []
 for i in query_idx:
-    query = torch.tensor(keys[i], device='cuda')
+    query = torch.tensor(keys[i], device='cuda').unsqueeze(0)
     start = time.time()
     knn_index.search(query, k)
     times.append(time.time() - start)
