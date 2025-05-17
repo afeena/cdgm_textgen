@@ -19,6 +19,7 @@ if __name__ == "__main__":
     datastore_parser.add_argument("--dry_run", action="store_true")
     datastore_parser.add_argument("--ntrain", type=int, default=1000000)
     datastore_parser.add_argument("--coarse_idx", type=str, default='l2')
+    datastore_parser.add_argument("--pca", type=int, default=0, help="number of PCA components to use")
 
     args = datastore_parser.parse_args()
 
@@ -48,6 +49,10 @@ if __name__ == "__main__":
                                args.code_size, 8)
     index = faiss.index_cpu_to_gpu(res, 0, cpu_idx, co)
     index.nprobe = args.nprobe
+
+    if args.pca > 0:
+        pca_matrix = faiss.PCAMatrix(args.dim, args.pca, 0, True)
+        index = faiss.IndexPreTransform(pca_matrix, index)
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("create faiss index")
