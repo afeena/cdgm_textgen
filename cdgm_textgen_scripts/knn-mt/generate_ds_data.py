@@ -13,14 +13,13 @@ argp.add_argument("--ps_kappa",dest="ps_kappa", type=float, default=0, help="Kap
 argp.add_argument("--output")
 
 args = argp.parse_args()
-
-
-synth_features = np.memmap(f"{args.output}_{args.num_samples}_synth_features_{args.dist}_d{args.dim}_kappa{args.ps_kappa}.npy", dtype=np.float32, mode="w+", shape=(args.num_samples, args.dim))
-synth_labels = np.memmap(f"{args.output}_{args.num_samples}_synth_labels_{args.dist}_d{args.dim}_kappa{args.ps_kappa}.npy", dtype=np.int32, mode="w+", shape=(args.num_samples,))
-
+num_samples = args.num_samples
 n_mixtures = args.n_mixtures
 dim = args.dim
 ps_kappa = args.ps_kappa
+
+synth_features = np.memmap(f"{args.output}_{num_samples}_synth_features_psmix{n_mixtures}_d{dim}_kappa{ps_kappa}.npy", dtype=np.float32, mode="w+", shape=(num_samples, dim))
+synth_labels = np.memmap(f"{args.output}_{num_samples}_synth_labels_psmix{n_mixtures}_d{dim}_kappa{ps_kappa}.npy", dtype=np.int32, mode="w+", shape=(num_samples,))
 
 mix = torch.distributions.Categorical(torch.ones(n_mixtures,))
 locs = F.normalize(torch.randn(n_mixtures,dim).float(), dim=-1)
