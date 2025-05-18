@@ -40,11 +40,12 @@ if __name__ == "__main__":
     res = faiss.StandardGpuResources()
     co = faiss.GpuClonerOptions()
     co.useFloat16 = True
+    index_dim = args.dim if args.pca == 0 else args.pca
     if args.coarse_idx== 'l2':
-        indexa = faiss.IndexFlatL2(args.dim)
+        indexa = faiss.IndexFlatL2(index_dim)
     elif args.coarse_idx=='ip':
-        indexa = faiss.IndexFlatIP(args.dim)
-    cpu_idx = faiss.IndexIVFPQ(indexa, args.dim,
+        indexa = faiss.IndexFlatIP(index_dim)
+    cpu_idx = faiss.IndexIVFPQ(indexa, index_dim,
                                args.ncentroids,
                                args.code_size, 8)
     index = faiss.index_cpu_to_gpu(res, 0, cpu_idx, co)
