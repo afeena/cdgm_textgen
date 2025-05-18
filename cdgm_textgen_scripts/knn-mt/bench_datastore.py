@@ -41,6 +41,8 @@ for _ in query_idx:
 
 
 print("Average time for index: ", np.mean(times))
+print("Req per second ", float(nqueries)/np.sum(times))
+
 
 
 
