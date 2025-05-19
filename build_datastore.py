@@ -48,12 +48,13 @@ if __name__ == "__main__":
     cpu_idx = faiss.IndexIVFPQ(indexa, index_dim,
                                args.ncentroids,
                                args.code_size, 8)
-    index = faiss.index_cpu_to_gpu(res, 0, cpu_idx, co)
-    index.nprobe = args.nprobe
 
     if args.pca > 0:
         pca_matrix = faiss.PCAMatrix(args.dim, args.pca, 0, True)
-        index = faiss.IndexPreTransform(pca_matrix, index)
+        cpu_idx = faiss.IndexPreTransform(pca_matrix, cpu_idx)
+
+    index = faiss.index_cpu_to_gpu(res, 0, cpu_idx, co)
+    index.nprobe = args.nprobe
 
     if not os.path.exists(args.faiss_index + ".trained"):
         print("create faiss index")
