@@ -10,7 +10,7 @@ argp.add_argument("-n",dest="num_samples", type=int, default=1000000, help="Numb
 argp.add_argument("-d",dest="dim", type=int, default=768, help="Dimension of the samples")
 argp.add_argument("--n_mixtures",dest="n_mixtures", type=int, default=1, help="Number of mixtures to use")
 argp.add_argument("--ps_kappa",dest="ps_kappa", type=float, default=0, help="Kappa parameter for the power spherical distribution")
-argp.add_argument("--ps_loc",dest="ps_loc", type=str, default=None, help="path to ps locs")
+argp.add_argument("--ps_loc",dest="ps_loc", type=str, default="ps_locs.pt", help="path to ps locs")
 argp.add_argument("--output")
 
 args = argp.parse_args()
