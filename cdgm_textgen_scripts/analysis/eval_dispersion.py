@@ -44,9 +44,9 @@ if __name__ == "__main__":
     ssw = ot.sliced_wasserstein_sphere_unif(embed, n_projections=100)
     print(args.model, args.txt)
 
-    print(f"min dist: {md}, avg dist: {avg}, median: {median}")
-    print(f"circular variance: {cv}")
-    print(f"sliced wasserstein: {ssw}")
+    print(f"min dist: {np.round(md, 2)}")
+    print(f"circular variance: {np.round(cv, 2)}")
+    print(f"sliced wasserstein: {np.round(ssw, 4)}")
 
     if args.hist:
         row_md = minimum_acos_distance_row(embed, embed)
