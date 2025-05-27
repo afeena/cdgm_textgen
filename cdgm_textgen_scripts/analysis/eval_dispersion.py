@@ -41,7 +41,7 @@ if __name__ == "__main__":
     md = minimum_acos_distance_batch(embed, args.bs)
     median = median_acos_distance_batch(embed, args.bs)
     cv = circular_variance(embed)
-    ssw = ot.sliced_wasserstein_sphere_unif(embed, 1000, device)
+    ssw = ot.sliced_wasserstein_sphere_unif(embed, n_projections=100)
     print(args.model, args.txt)
 
     print(f"min dist: {md}, avg dist: {avg}, median: {median}")

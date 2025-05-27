@@ -316,7 +316,7 @@ class SphereSlicedWassersteinCriterion(LSCrossEntropyDispersedCriterion):
                  report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True,
-                 nproj=1000):
+                 nproj=100):
         super().__init__(task, sentence_avg, label_smoothing,
                          ignore_prefix_size=ignore_prefix_size,
                          report_accuracy=report_accuracy,
@@ -326,6 +326,5 @@ class SphereSlicedWassersteinCriterion(LSCrossEntropyDispersedCriterion):
         self.nproj = nproj
 
     def compute_dispersed_loss(self, model):
-        ssw = self.sliced_wasserstein(model.decoder.embed_tokens.weight, self.nproj,
-                                      model.decoder.embed_tokens.weight.device)
+        ssw = self.sliced_wasserstein(model.decoder.embed_tokens.weight, n_projections=self.nproj)
         return ssw
