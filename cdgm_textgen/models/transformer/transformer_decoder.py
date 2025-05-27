@@ -221,7 +221,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
-        extra["features"] = extra["last_ff_out"].clone()
+        extra["features"] = x.clone()
         if not features_only:
             x = self.output_layer(x)
         return x, extra
@@ -367,9 +367,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         if self.project_out_dim is not None:
             x = self.project_out_dim(x)
 
-        last_ff_out = x.clone()
-
-        return x, {"attn": [attn], "inner_states": inner_states, "last_ff_out": last_ff_out}
+        return x, {"attn": [attn], "inner_states": inner_states}
 
     def output_layer(self, features):
         """Project features to the vocabulary size."""
