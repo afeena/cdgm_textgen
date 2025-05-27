@@ -19,6 +19,8 @@ from ledoh_torch import (
     circular_variance
 )
 
+import ot
+
 
 
 @dataclass
@@ -320,8 +322,7 @@ class SphereSlicedWassersteinCriterion(LSCrossEntropyDispersedCriterion):
                          report_accuracy=report_accuracy,
                          dispersed_weight=dispersed_weight,
                          report_dispersed=report_dispersed)
-        from spherical_sliced_wasserstein.sw_sphere import sliced_wasserstein_sphere_unif
-        self.sliced_wasserstein = sliced_wasserstein_sphere_unif
+        self.sliced_wasserstein = ot.sliced_wasserstein_sphere_unif
         self.nproj = nproj
 
     def compute_dispersed_loss(self, model):

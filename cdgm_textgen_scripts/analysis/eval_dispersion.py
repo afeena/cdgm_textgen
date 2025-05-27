@@ -4,7 +4,7 @@ from ledoh_torch import avg_acos_distance_batch, circular_variance, \
     minimum_acos_distance_batch, median_acos_distance_batch, \
     minimum_acos_distance_row
 
-from spherical_sliced_wasserstein.sw_sphere import sliced_wasserstein_sphere_unif
+import ot
 from utils import txt_to_pt
 import numpy as np
 import plotext as plt
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     md = minimum_acos_distance_batch(embed, args.bs)
     median = median_acos_distance_batch(embed, args.bs)
     cv = circular_variance(embed)
-    ssw = sliced_wasserstein_sphere_unif(embed, 1000, device)
+    ssw = ot.sliced_wasserstein_sphere_unif(embed, 1000, device)
     print(args.model, args.txt)
 
     print(f"min dist: {md}, avg dist: {avg}, median: {median}")
