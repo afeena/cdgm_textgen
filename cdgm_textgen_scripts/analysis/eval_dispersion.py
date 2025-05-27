@@ -38,15 +38,15 @@ if __name__ == "__main__":
     if not torch.allclose(norms, torch.tensor([1.0], device=device)):
         embed = embed / norms.unsqueeze(-1)
     avg = avg_acos_distance_batch(embed, args.bs)
-    md = minimum_acos_distance_batch(embed, args.bs)
+    md = np.round(minimum_acos_distance_batch(embed, args.bs), decimals=2)
     median = median_acos_distance_batch(embed, args.bs)
-    cv = circular_variance(embed)
-    ssw = ot.sliced_wasserstein_sphere_unif(embed, n_projections=100)
-    print(args.model, args.txt)
+    cv =np.round(circular_variance(embed), decimals=2)
+    ssw = np.round(ot.sliced_wasserstein_sphere_unif(embed, n_projections=100), decimals=4)
+    print(args.model, args.txt, args.npy)
 
-    print(f"min dist: {np.round(md, decimals=2)}")
-    print(f"circular variance: {np.round(cv, decimals=2)}")
-    print(f"sliced wasserstein: {np.round(ssw, decimals=4)}")
+    print(f"min dist: {md}")
+    print(f"circular variance: {cv}")
+    print(f"sliced wasserstein: {ssw}")
 
     if args.hist:
         row_md = minimum_acos_distance_row(embed, embed)
