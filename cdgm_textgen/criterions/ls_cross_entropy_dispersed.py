@@ -299,3 +299,32 @@ class LSCrossEntropyKoLeoCriterion(LSCrossEntropyDispersedCriterion):
     def compute_dispersed_loss(self, model):
         koleo_loss = self.koleo(model.decoder.embed_tokens.weight)
         return koleo_loss
+
+
+@dataclass
+class SphereSlicedWassersteinCriterionConfig(LSCrossEntropyDispersedCriterionConfig):
+    nproj: int = field(default=1, metadata={"help": "number of projections for sliced Wasserstein distance"})
+@register_criterion("ls_ce_ssw_dispersion", dataclass=SphereSlicedWassersteinCriterionConfig)
+class SphereSlicedWassersteinCriterion(LSCrossEntropyDispersedCriterion):
+    def __init__(self,
+                 task,
+                 sentence_avg,
+                 label_smoothing,
+                 ignore_prefix_size=0,
+                 report_accuracy=False,
+                 dispersed_weight=0.0,
+                 report_dispersed=True,
+                 nproj=1000):
+        super().__init__(task, sentence_avg, label_smoothing,
+                         ignore_prefix_size=ignore_prefix_size,
+                         report_accuracy=report_accuracy,
+                         dispersed_weight=dispersed_weight,
+                         report_dispersed=report_dispersed)
+        from spherical_sliced_wasserstein.sw_sphere import sliced_wasserstein_sphere_unif
+        self.sliced_wasserstein = sliced_wasserstein_sphere_unif
+        self.nproj = nproj
+
+    def compute_dispersed_loss(self, model):
+        ssw = self.sliced_wasserstein(model.decoder.embed_tokens.weight, self.nproj,
+                                      model.decoder.embed_tokens.weight.device)
+        return ssw
