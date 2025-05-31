@@ -326,5 +326,5 @@ class SphereSlicedWassersteinCriterion(LSCrossEntropyDispersedCriterion):
         self.nproj = nproj
 
     def compute_dispersed_loss(self, model):
-        ssw = self.sliced_wasserstein(model.decoder.embed_tokens.weight, n_projections=self.nproj)
+        ssw = -1.0 * self.sliced_wasserstein(model.decoder.embed_tokens.weight, n_projections=self.nproj)
         return ssw
