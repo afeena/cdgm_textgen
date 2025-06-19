@@ -175,7 +175,7 @@ class DispersedDistanceCriterion(DistanceCriterion):
             "ntokens": sample["ntokens"],
             "nsentences": sample["target"].size(0),
             "sample_size": 1,
-            "dispersion_loss": logging["dispersion_loss"]
+            "dispersion_loss": logging["disp_loss"]
         }
         if self.report_dispersed:
             acos_min_dist, cvar = self.compute_dispersed_metrics(model, net_output, sample)
