@@ -226,7 +226,7 @@ class DispersedDistanceCriterion(DistanceCriterion):
     def compute_dispersed_metrics(self,model, net_output, sample):
         with torch.no_grad():
             out, _ = self.get_masked_target_and_out_normalized(model, net_output, sample)
-            min_cosine_dist = minimum_acos_distance(out, out.T)
+            min_cosine_dist = minimum_acos_distance(out, out)
             cvar = circular_variance(out)
         return min_cosine_dist.detach(), cvar.detach()
 
