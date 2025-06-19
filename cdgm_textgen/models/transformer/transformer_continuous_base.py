@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Dict, List
 import torch
 from fairseq.models.transformer import TransformerConfig
 from torch import Tensor
+import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous_base import \
@@ -24,25 +25,37 @@ class ContinuousTransformerConfig(TransformerConfig):
         default=True,
         metadata={"help": "don't add an layernorm after the last decoder block"},
     )
+    freeze_decoder_embed: bool = field(default=True)
 
 
 @register_model("continuous_transformer", dataclass=ContinuousTransformerConfig)
 class TransformerModelContinuous(TransformerModelBase):
     @classmethod
     def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.target_embed_path is not None
-        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-        target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
-        )
+        if cfg.target_embed_path is not None:
+            logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
+            target_embed = cls.build_embedding(
+                cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
+            )
+        else:
+            target_embed = cls.build_embedding(
+                cfg, tgt_dict, cfg.decoder.output_dim,
+            )
+            target_embed.weight.data = F.normalize(torch.randn(len(tgt_dict),cfg.decoder.output_dim), dim=-1)
+
+        assert target_embed is not None
         decoder = ContinuousTransformerDecoderBase(
             cfg,
             tgt_dict,
             embed_tokens,
             target_embed
         )
-
-        decoder.target_embed.weight.requires_grad = False
+        if cfg.freeze_decoder_embed:
+            logger.info("freezing decoder target embeddings")
+            decoder.target_embed.weight.requires_grad = False
+        else:
+            logger.info("not freezing decoder target embeddings")
+            decoder.target_embed.weight.requires_grad = True
         return decoder
 
     def forward(
