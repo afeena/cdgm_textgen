@@ -872,7 +872,7 @@ class EnsembleModel(nn.Module):
             probs = probs[:, -1, :]
             if self.models_size == 1:
                 if return_decoder_output:
-                    return probs, attn, getattr(decoder_out[1],"features")
+                    return probs, attn, decoder_out[1].get("features", None)
                 else:
                     return probs, attn
 
