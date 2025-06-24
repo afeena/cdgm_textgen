@@ -206,7 +206,7 @@ class DispersedDistanceCriterion(DistanceCriterion):
             loss = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
 
         if self.dispersed_weight > 0:
-            disp_loss = self.dispersion(out)
+            disp_loss = self.dispersion(model.decoder.target_embed.weight)
             reg = (self.dispersed_weight * disp_loss).mean()
             loss = loss + reg
 
@@ -225,9 +225,8 @@ class DispersedDistanceCriterion(DistanceCriterion):
 
     def compute_dispersed_metrics(self,model, net_output, sample):
         with torch.no_grad():
-            out, _ = self.get_masked_target_and_out_normalized(model, net_output, sample)
-            min_cosine_dist = minimum_acos_distance(out, out)
-            cvar = circular_variance(out)
+            min_cosine_dist = minimum_acos_distance(model.decoder.target_embed.weight, model.decoder.target_embed.weight)
+            cvar = circular_variance(model.decoder.target_embed.weight)
         return min_cosine_dist.detach(), cvar.detach()
 
     @staticmethod
