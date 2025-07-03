@@ -59,7 +59,7 @@ class DistanceCriterion(FairseqCriterion):
                 dist = (1.0 - dot_prod).diag().mean()
 
             elif self.distance_metric == "acos":
-                dist = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
+                dist = torch.acos(dot_prod.clamp(-1 + 1e-7, 1 - 1e-7)).diag().mean()
         elif self.distance_metric == "l22":
             dist = torch.pow(torch.norm(out[mask] - target[mask], p=2.0, dim=-1), 2)
             dist = dist.mean(-1)
