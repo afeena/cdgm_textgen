@@ -202,9 +202,9 @@ class DispersedDistanceCriterion(DistanceCriterion):
         return loss, 1, logging_output
 
     def calc_dispersion_loss(self, model, net_output, sample, mask):
-        if self.dispersed_features == 'target':
+        if self.dispersion_features == 'target':
             features = model.decoder.target_embed.weight
-        elif self.dispersed_features == 'output':
+        elif self.dispersion_features == 'output':
             features = net_output[0][mask]
 
         return self.dispersion(features)
