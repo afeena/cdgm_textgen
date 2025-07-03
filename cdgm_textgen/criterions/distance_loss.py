@@ -21,7 +21,7 @@ class DistanceCriterionConfig(FairseqDataclass):
 class DistanceCriterion(FairseqCriterion):
     def __init__(self, task, distance_metric):
         super().__init__(task)
-        assert distance_metric in ["cosine", "acos"], 'Distance metric must be either "cosine" or "acos"'
+        assert distance_metric in ["cosine", "acos", "l22"], 'Distance metric must be either "cosine" or "acos"'
         self.distance_metric = distance_metric
 
     def forward(self, model, sample, reduce=True):
@@ -45,22 +45,32 @@ class DistanceCriterion(FairseqCriterion):
             logging_output = {**logging_output, **logging}
         return loss, 1, logging_output
 
+    def compute_distance(self, out, target, mask):
+        dist = None
+        extra = {}
+        if self.distance_metric in ['cosine','acos']:
+            out = F.normalize(out[mask], dim=-1)
+            target = F.normalize(target[mask], dim=-1)
+
+            dot_prod = out @ target.T
+            extra["dotprod"] = dot_prod.detach().mean()
+
+            if self.distance_metric == "cosine":
+                dist = (1.0 - dot_prod).diag().mean()
+
+            elif self.distance_metric == "acos":
+                dist = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
+        elif self.distance_metric == "l22":
+            dist = torch.pow(torch.norm(out[mask] - target[mask], p=2.0, dim=-1), 2)
+            dist = dist.mean(-1)
+        return dist, extra
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
 
-        out = F.normalize(net_output[0][mask], dim=-1)
-        target = F.normalize(target[mask], dim=-1)
+        loss, extra = self.compute_distance(net_output[0], target, mask)
 
-        dot_prod = out @ target.T
-
-        if self.distance_metric == "cosine":
-            loss = (1.0 - dot_prod).diag().mean()
-
-        elif self.distance_metric == "acos":
-            loss = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
-
-        return loss, {"dotprod": dot_prod.detach().mean()}
+        return loss, extra
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -146,18 +156,23 @@ class DispersedDistCriterionConfig(DistanceCriterionConfig):
     )
     report_dispersed: bool = field(default=True,
                                    metadata={"help": "report dispersed loss"})
-    dispersion_type: str = field(default='sliced')
+    dispersion_type: str = field(default='ssw')
+    dispersion_features: str = field(default='target',
+                                     metadata={"help": "features to use for dispersion calculation"})
 
 
 @register_criterion("dist_criterion_with_dispersion", dataclass=DispersedDistCriterionConfig)
 class DispersedDistanceCriterion(DistanceCriterion):
-    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, dispersion_type):
+    def __init__(self, task, distance_metric, dispersed_weight, report_dispersed, dispersion_type, dispersion_features):
         super().__init__(task, distance_metric)
 
         self.dispersed_weight = dispersed_weight
         self.report_dispersed = report_dispersed
 
         self.dispersion = self.get_dispersion_by_type(dispersion_type)
+        assert dispersion_features in ['target', 'output'], "dispersion_features must be either 'target' or 'output'"
+        self.dispersion_features = dispersion_features
+
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -186,31 +201,27 @@ class DispersedDistanceCriterion(DistanceCriterion):
             logging_output = {**logging_output, **logging}
         return loss, 1, logging_output
 
-    def get_masked_target_and_out_normalized(self, model, net_output, sample):
+    def calc_dispersion_loss(self, model, net_output, sample, mask):
+        if self.dispersed_features == 'target':
+            features = model.decoder.target_embed.weight
+        elif self.dispersed_features == 'output':
+            features = net_output[0][mask]
+
+        return self.dispersion(features)
+    def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
 
-        out = F.normalize(net_output[0][mask], dim=-1)
-        target = F.normalize(target[mask], dim=-1)
-
-        return out, target
-
-    def compute_loss(self, model, net_output, sample, reduce=True):
-        out, target = self.get_masked_target_and_out_normalized(model, net_output, sample)
-        dot_prod = out @ target.T
-
-        if self.distance_metric == "cosine":
-            loss = (1.0 - dot_prod).diag().mean()
-
-        elif self.distance_metric == "acos":
-            loss = torch.acos(dot_prod.clamp(-1 + 1e-4, 1 - 1e-4)).diag().mean()
+        loss, extra = self.compute_distance(net_output[0], target, mask)
 
         if self.dispersed_weight > 0:
-            disp_loss = self.dispersion(model.decoder.target_embed.weight)
+            disp_loss = self.calc_dispersion_loss(model, net_output, sample, mask)
+            extra["disp_loss"] = disp_loss.detach().mean()
             reg = (self.dispersed_weight * disp_loss).mean()
             loss = loss + reg
 
-        return loss, {"dotprod": dot_prod.detach().mean(), "disp_loss": disp_loss.detach().mean() if self.dispersed_weight > 0 else 0}
+        return loss, extra
+
     def get_dispersion_by_type(self, dispersion_type):
         if dispersion_type == 'mhe-gaussian-eucl':
             return ledoh_torch.KernelSphereDispersion(kernel="gaussian",
@@ -219,7 +230,8 @@ class DispersedDistanceCriterion(DistanceCriterion):
                                                       )
         elif dispersion_type == 'sliced':
             return ledoh_torch.SlicedSphereDispersion()
-
+        elif dispersion_type == 'ssw':
+            return ledoh_torch.SphericalSlicedWassersteinDispersion()
         else:
             raise ValueError(f"Unknown dispersion type: {dispersion_type}")
 
