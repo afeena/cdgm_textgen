@@ -6,11 +6,11 @@
 
 from .transformer_base import TransformerModelBase, TransformerModelBaseRandom
 from .transformer_continuous_base import TransformerModelContinuous
-from .transformer_continuous import TransformerMixtureModelContinuous, \
-    TransformerModelProba
+from .transformer_continuous import TransformerMixtureModelContinuous
 from .transformer_hybrid import TransformerModelHybrid
 from .riemannian_transformer import RiemannianEmbeddingsTransformerModel, RiemannianEmbContTransformer
 from .transformer_with_dipsersion import TransformerOutDispersionFT
+from .transformer_proba import TransformerModelProba
 __all__ = [
     "TransformerModelContinuous",
     "TransformerMixtureModelContinuous",

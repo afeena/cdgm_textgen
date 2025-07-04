@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple, Dict, List
 
 from torch import Tensor
+import torch
+import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous import \
@@ -35,38 +37,7 @@ class ContinuousTransformerManifold(TransformerModelContinuous):
         decoder.target_embed.weight.requires_grad = False
         return decoder
 
-@dataclass
-class ProbaTransformerConfig(ContinuousTransformerConfig):
-    kappa: str = field(default="norm", metadata={"help": "kappa to use"})
-@register_model("proba_transformer", dataclass=ProbaTransformerConfig)
-class TransformerModelProba(TransformerModelContinuous):
-    def forward_kappa(self, decoder_out: Tuple[Tensor, Dict]) -> Tensor:
-        return self.decoder.forward_kappa(decoder_out)
 
-    @classmethod
-    def build_decoder(cls, cfg, tgt_dict, embed_tokens):
-        assert cfg.target_embed_path is not None
-        logger.info(f"loading target embeddings from {cfg.target_embed_path}...")
-        target_embed = cls.build_embedding(
-            cfg, tgt_dict, cfg.decoder.output_dim, cfg.target_embed_path
-        )
-        decoder = ProbaTransformerDecoder(
-            cfg,
-            tgt_dict,
-            embed_tokens,
-            target_embed
-        )
-
-        decoder.target_embed.weight.requires_grad = False
-        return decoder
-
-    def forward_decoder_scores(self, decoder_out: Tuple[Tensor, Dict], metric: str) -> Tensor:
-        assert metric is not None
-        scores = None
-        model_out = decoder_out[0]
-
-        scores = self.decoder.get_ps_likelihood_scores(model_out)
-        return scores
 
 @dataclass
 class MixtureContinuousTransformerConfig(ContinuousTransformerConfig):

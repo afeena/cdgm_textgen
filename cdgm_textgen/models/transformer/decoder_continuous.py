@@ -93,65 +93,6 @@ class ManifoldDecoderContinuous(ContinuousTransformerDecoderBase):
                 scores = self.get_cosine_similarity_scores(net_output[0])
 
         return scores
-class ProbaTransformerDecoder(ContinuousTransformerDecoderBase):
-    def __init__(self, cfg,
-                 dictionary,
-                 embed_tokens,
-                 target_embed: Optional[Embedding] = None,
-                 no_encoder_attn=False,
-                 output_projection=torch.nn.Identity()):
-
-        super().__init__(cfg,
-                         dictionary,
-                         embed_tokens,
-                         target_embed,
-                         no_encoder_attn=no_encoder_attn,
-                         output_projection=output_projection)
-
-        if cfg.kappa == "ff":
-            self.kappa_ff = torch.nn.Sequential(
-                torch.nn.Linear(self.output_embed_dim, 1),
-                torch.nn.Softplus()
-            )
-        else:
-            self.kappa_ff = None
-
-    def forward_kappa(self, features: Tensor) -> Tensor:
-        """get kappa for the output PS distribution"""
-        if self.kappa_ff is None:
-            return torch.norm(features, dim=-1)
-        else:
-            return self.kappa_ff(features).squeeze()
-
-    def get_ps_likelihood_scores(self, features: Tensor) -> Tensor:
-        """get likelihood of target tokens based on output PS distribution"""
-        with torch.no_grad():
-            bsz = features.shape[0]
-            features = features.view(-1, self.output_embed_dim)
-            kappa = torch.norm(features, dim=-1).unsqueeze(1)
-            features = F.normalize(features, p=2.0, dim=-1).unsqueeze(1)
-
-            q_dist = power_spherical.PowerSpherical(features, kappa)
-            log_probs = q_dist.log_prob(self.target_embed_normalized)
-
-            output_proj = log_probs.view(bsz, -1, self.dict_len)
-            return output_proj
-
-    def get_normalized_probs(
-            self,
-            net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
-            log_probs: bool,
-            sample: Optional[Dict[str, Tensor]] = None,
-            metric: Optional[str] = "cosine",
-    ):
-        with torch.no_grad():
-            scores = None
-            if metric == "cosine":
-                scores = self.get_cosine_similarity_scores(net_output[0])
-            elif metric == "ps":
-                scores = self.get_ps_likelihood_scores(net_output[0])
-
-        return scores
 
 
 class PseudoContinuousTransformerDecoder(ContinuousTransformerDecoderBase):

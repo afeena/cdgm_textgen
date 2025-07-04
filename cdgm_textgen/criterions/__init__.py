@@ -6,3 +6,4 @@ from .hybrid_loss import *
 from .cross_entropy_dispersed import *
 from .ls_cross_entropy_dispersed import *
 from .ls_ce_output_dispersed import *
+from .prob_loss import *
