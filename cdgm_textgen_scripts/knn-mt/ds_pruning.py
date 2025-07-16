@@ -65,7 +65,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
         centers = torch.tensor(centers, dtype=torch.float32).to(keys_subset.device)
 
         new_keys = torch.zeros(keys_subset.shape, dtype=torch.float32, device=keys_subset.device)
-        new_probs = torch.zeros((len(centers),num_clusters), counts[i], dtype=torch.float32, device=keys_subset.device)
+        new_probs = torch.zeros((len(centers),num_clusters), dtype=torch.float32, device=keys_subset.device)
         for _ in range(n_iters):
             sq_cdists = sq_cdist(keys_subset, centers)
             logp_xIz = -sq_cdists / (2 * sigma ** 2)
@@ -92,7 +92,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
             mapped_weights[new_total:new_total+j] = new_probs.cpu().numpy()
 
 
-if __name__=='main':
+if __name__=='__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument("--keys_path", type=str, required=True)
     argp.add_argument("--values_path", type=str, required=True)
