@@ -121,7 +121,7 @@ if __name__=='__main__':
 
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(ntotal,))
-    vals = torch.zeros(knn_index.ntotal, dtype=torch.int64, device='cuda' if torch.cuda.is_available() else 'cpu')
+    vals = torch.zeros(ntotal, dtype=torch.int64, device='cuda' if torch.cuda.is_available() else 'cpu')
     vals[:] = torch.from_numpy(vals_memmap[:])
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r', shape=(ntotal, args.dim))
