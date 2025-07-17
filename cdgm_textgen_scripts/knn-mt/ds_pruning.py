@@ -57,17 +57,23 @@ def sq_cdist_chunked(X, Y, chunk_size=1024):
     return torch.cat(results, dim=0)
 
 def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
-    total = len(vals)
+    with torch.no_grad():
+        total = len(vals)
 
-    unique_vals, counts = torch.unique(vals, return_inverse=False, return_counts=True)
-    print(f"Unique values: {len(unique_vals)}")
-    new_total = 0
-    # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
-    mapped_keys = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
-                                shape=(total, args.dim))
-    mapped_vals = np.memmap(f"{args.merged_path}.vals.npy", dtype='int32', mode='w+', shape=(total,))
-    #mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
-                               #shape=(total,))
+        unique_vals, counts = torch.unique(vals, return_inverse=False, return_counts=True)
+        print(f"Unique values: {len(unique_vals)}")
+        # dry run first to get the total number of clusters
+
+        num_components = (counts*0.05).int()
+        new_total = num_components.sum()
+
+        # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
+        mapped_keys = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
+                                    shape=(new_total, args.dim))
+        mapped_vals = np.memmap(f"{args.merged_path}.vals.npy", dtype='int32', mode='w+', shape=(new_total,))
+        mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
+                                   shape=(new_total,))
+
 
     for i,vocab_idx in enumerate(unique_vals):
         with torch.no_grad():
@@ -75,13 +81,12 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
 
             keys_subset = torch.from_numpy(keys[mask.cpu()]).to(device=vals.device, dtype=torch.float32)
 
-            num_clusters = torch.tensor([max(1, int(counts[i]*0.05))])
+            num_clusters = num_components[i]
 
             # Initialize centroids using k-means++
             centers, _ = kmeans_plusplus(keys_subset.cpu().numpy(), n_clusters=num_clusters, random_state=42)
             centers = torch.tensor(centers, dtype=torch.float32).to(keys_subset.device)
 
-            #new_probs = torch.zeros((centers.shape[0],num_clusters), dtype=torch.float32, device=keys_subset.device)i
 
             print(f"fitting gmm for index {vocab_idx} with cluster centers {num_clusters}")
 
@@ -102,11 +107,13 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
                 # recalculate center means
                 centers = ((q_zIx.T @ keys_subset) / q_zIx.sum(dim=0).unsqueeze(dim=-1)).detach()
 
+        #calculate soft counts for each mixture component
 
         mapped_keys[new_total:new_total + len(centers)] = centers.cpu().numpy()
         mapped_vals[new_total:new_total+len(centers)] = vocab_idx.cpu().numpy()
-         #   mapped_weights[new_total:new_total+j] = new_probs.cpu().numpy(p)
-        new_total += len(centers)
+        #save probability of the mixture
+        mapped_weights[new_total:new_total+i] = q_zIx.sum(dim=0) / keys_subset.shape[0]
+
     print(f"size before pruning: {total} new total size after pruning: {new_total}")
     with open(f"{args.merged_path}.ntotal.txt",'w') as tf:
         tf.write(new_total)
