@@ -56,6 +56,7 @@ class CDGMGenerationConfig(GenerationConfig):
     knn_lambda: Optional[float] = field(default=0.5, metadata={"help": "lambda for knn-MT decoding"})
     knn_temperature: Optional[float] = field(default=1.0, metadata={"help": "temperature for knn-MT decoding"})
     knn_nprobe: Optional[int] = field(default=32, metadata={"help": "nprobe for knn-MT decoding"})
+    knn_pruning_weights: Optional[str] = field(default=None, metadata={"help": "weight of the pruned datastore"})
 
 @dataclass
 class CDGMCommonConfig(CommonConfig):

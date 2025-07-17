@@ -120,5 +120,6 @@ class KnnTranslationTask(TranslationTask):
             knn_temperature=getattr(args, "knn_temperature", 1.0),
             knn_metric=getattr(args, "knn_metric", "l2"),
             knn_nprobe=getattr(args, "knn_nprobe", 32),
+            knn_pruning_weights=getattr(args, "knn_pruning_weights", None),
             **extra_gen_cls_kwargs,
         )

@@ -35,6 +35,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
                  knn_temperature=1.0,
                  knn_metric="cosine",
                  knn_nprobe=32,
+                 knn_pruning_weights = None,
                  ):
         super().__init__(models,
                  tgt_dict,
@@ -76,7 +77,12 @@ class KnnMTSequenceGenerator(SequenceGenerator):
             self.vals = torch.zeros(self.knn_index.ntotal, dtype=torch.int64)
             self.vals[:] = torch.from_numpy(vals_memmap[:])
 
-
+            if knn_pruning_weights is not None:
+                print("load knn pruning weights")
+                pruning_weights_memmap = np.memmap(knn_pruning_weights, dtype=np.float32, mode='r',
+                                                   shape=(self.knn_index.ntotal,))
+                self.knn_pruning_weights = torch.zeros(self.knn_index.ntotal, dtype=torch.float32)
+                self.knn_pruning_weights[:] = torch.from_numpy(pruning_weights_memmap[:])
     def get_knn_score(self, lprobs, decoder_out):
         #rare_prediction_mapping = None
         # if self.knn_rare_only > 0:
@@ -100,6 +106,8 @@ class KnnMTSequenceGenerator(SequenceGenerator):
         knn_target_idx = self.vals[knn_out_idx.cpu().to(torch.int32)]
         knn_target_idx = knn_target_idx.to(decoder_out.device)
         knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
+        if self.knn_pruning_weights is not None:
+            knn_p = knn_p * self.knn_pruning_weights[knn_target_idx]
 
         # here sum the log probs for each token
         # logsumexp for each token
