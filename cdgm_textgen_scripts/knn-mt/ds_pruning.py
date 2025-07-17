@@ -67,14 +67,14 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         num_components = (counts*cluster_ratio).int()
         new_total = num_components.sum()
         print(f"Total number of clusters: {new_total}, original total: {total}")
-        with open(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.ntotal.txt", 'w') as tf:
+        with open(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.ntotal.txt", 'w') as tf:
             tf.write(new_total)
 
         # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
-        mapped_keys = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.keys.npy", dtype='float32', mode='w+',
+        mapped_keys = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.keys.npy", dtype='float32', mode='w+',
                                     shape=(new_total, args.dim))
-        mapped_vals = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.vals.npy", dtype='int32', mode='w+', shape=(new_total,))
-        mapped_weights = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.merge_weights.npy", dtype='int32', mode='w+',
+        mapped_vals = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.vals.npy", dtype='int32', mode='w+', shape=(new_total,))
+        mapped_weights = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.merge_weights.npy", dtype='int32', mode='w+',
                                    shape=(new_total,))
 
     partical_count = 0
