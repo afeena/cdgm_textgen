@@ -8,8 +8,7 @@ import torch.nn.functional as F
 
 from cdgm_textgen.models import register_model
 from cdgm_textgen.models.transformer.decoder_continuous import \
-    ManifoldDecoderContinuous, \
-    ProbaTransformerDecoder
+    ManifoldDecoderContinuous
 from cdgm_textgen.models.transformer.mixture_decoder_continuous import MixtureContinuousTransformerDecoder
 from cdgm_textgen.models.transformer.transformer_continuous_base import TransformerModelContinuous, ContinuousTransformerConfig
 from cdgm_textgen.modules.utils import output_with_temperature_scriptable
