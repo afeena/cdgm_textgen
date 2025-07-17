@@ -36,8 +36,7 @@ def greedy_merging(keys, vals, knn_index, args, knn_k=8):
 
 def sq_cdist(X, Y):
     """result[i,j] is squared eucl distance between X[i] and Y[j]"""
-    diff = X.unsqueeze(dim=1) - Y.unsqueeze(dim=0)  # len(X) by len(Y)
-    return diff.square().sum(dim=-1)
+    return (X.unsqueeze(dim=1) - Y.unsqueeze(dim=0)).pow_(2).sum(dim=-1)  # len(X) by len(Y)
 
 def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
 
@@ -47,49 +46,57 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
     print(f"Unique values: {len(unique_vals)}")
     new_total = 0
     # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
-    mapped_features = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
+    mapped_keys = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
                                 shape=(total, args.dim))
-    mapped_keys = np.memmap(f"{args.merged_path}.vals.npy", dtype='int32', mode='w+', shape=(total,))
-    mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
-                               shape=(total,))
-    new_total = 0
+    mapped_vals = np.memmap(f"{args.merged_path}.vals.npy", dtype='int32', mode='w+', shape=(total,))
+    #mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
+                               #shape=(total,))
 
     for i,vocab_idx in enumerate(unique_vals):
         mask = vals == vocab_idx
-        keys_subset = torch.tensor(keys[mask], device=vals.device, dtype=torch.float32)
 
-        num_clusters = min(1, counts[i]*0.05)
+        keys_subset = torch.from_numpy(keys[mask.cpu()]).to(device=vals.device, dtype=torch.float32)
+
+        num_clusters = torch.tensor([max(1, int(counts[i]*0.01))])
 
         # Initialize centroids using k-means++
         centers, _ = kmeans_plusplus(keys_subset.cpu().numpy(), n_clusters=num_clusters, random_state=42)
         centers = torch.tensor(centers, dtype=torch.float32).to(keys_subset.device)
 
-        new_keys = torch.zeros(keys_subset.shape, dtype=torch.float32, device=keys_subset.device)
-        new_probs = torch.zeros((len(centers),num_clusters), dtype=torch.float32, device=keys_subset.device)
-        for _ in range(n_iters):
-            sq_cdists = sq_cdist(keys_subset, centers)
-            logp_xIz = -sq_cdists / (2 * sigma ** 2)
+        new_keys = torch.zeros((num_clusters,args.dim), dtype=torch.float32, device=keys_subset.device)
+        #new_probs = torch.zeros((centers.shape[0],num_clusters), dtype=torch.float32, device=keys_subset.device)i
+        with torch.no_grad():
+            for it in range(n_iters):
+                print(f"fitting gmm for index {vocab_idx} iter: {it}")
+                print(keys_subset.shape, centers.shape)
+                sq_cdists = sq_cdist(keys_subset, centers)
+                logp_xIz = -sq_cdists / (2 * sigma ** 2)
             # version 1: in log domain, then take exp
             # logq_zIx = logp_xIz - torch.logsumexp(logp_xIz, dim=1, keepdim=True)
             # q_zIx = torch.exp(logq_zIx)
             #
             # version 2 (more readable?)
-            q_zIx = torch.softmax(logp_xIz, dim=1)
+                q_zIx = torch.softmax(logp_xIz, dim=1)
 
-            new_keys[:] = centers
-            new_probs[:] = q_zIx
+
+                new_keys[:] = centers.clone()
+            #new_probs[:] = q_zIx
 
             #elbo = (q_zIx * logp_xIz).sum() - (q_zIx * torch.log(q_zIx)).sum()
 
             # recalculate center means
-            centers = (q_zIx.T @ keys_subset) / q_zIx.sum(dim=0).unsqueeze(dim=-1)
+                centers = (q_zIx.T @ keys_subset) / q_zIx.sum(dim=0).unsqueeze(dim=-1)
+                del q_zIx
+                del sq_cdists
+                del logp_xIz
+                torch.cuda.empty_cache()
 
         new_total += len(centers)
 
         for j, center in enumerate(centers):
-            mapped_features[new_total:new_total + j] = new_keys.cpu().numpy()
-            mapped_keys[new_total:new_total+j] = vocab_idx
-            mapped_weights[new_total:new_total+j] = new_probs.cpu().numpy()
+            mapped_keys[new_total:new_total + j] = new_keys.cpu().numpy()
+            mapped_vals[new_total:new_total+j] = vocab_idx
+         #   mapped_weights[new_total:new_total+j] = new_probs.cpu().numpy()
 
 
 if __name__=='__main__':
@@ -125,7 +132,6 @@ if __name__=='__main__':
     vals[:] = torch.from_numpy(vals_memmap[:])
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r', shape=(ntotal, args.dim))
-
     gmm_merge(keys, vals, args, n_iters=10, sigma=1.0)
 
 
