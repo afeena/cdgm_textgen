@@ -107,7 +107,7 @@ class KnnMTSequenceGenerator(SequenceGenerator):
         knn_target_idx = knn_target_idx.to(decoder_out.device)
         knn_p = torch.log_softmax(-knn_out_dists / self.knn_temperature, dim=-1)
         if self.knn_pruning_weights is not None:
-            knn_p = knn_p * self.knn_pruning_weights[knn_target_idx]
+            knn_p = knn_p * (self.knn_pruning_weights[knn_out_idx.cpu().to(torch.int32)]).to(knn_p.device)
 
         # here sum the log probs for each token
         # logsumexp for each token
