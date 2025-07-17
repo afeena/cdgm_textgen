@@ -56,7 +56,7 @@ def sq_cdist_chunked(X, Y, chunk_size=1024):
 
     return torch.cat(results, dim=0)
 
-def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
+def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
     with torch.no_grad():
         total = len(vals)
 
@@ -64,17 +64,17 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
         print(f"Unique values: {len(unique_vals)}")
         # dry run first to get the total number of clusters
 
-        num_components = (counts*0.05).int()
+        num_components = (counts*cluster_ratio).int()
         new_total = num_components.sum()
         print(f"Total number of clusters: {new_total}, original total: {total}")
-        with open(f"{args.merged_path}.ntotal.txt", 'w') as tf:
+        with open(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.ntotal.txt", 'w') as tf:
             tf.write(new_total)
 
         # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
-        mapped_keys = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
+        mapped_keys = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.keys.npy", dtype='float32', mode='w+',
                                     shape=(new_total, args.dim))
-        mapped_vals = np.memmap(f"{args.merged_path}.vals.npy", dtype='int32', mode='w+', shape=(new_total,))
-        mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
+        mapped_vals = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.vals.npy", dtype='int32', mode='w+', shape=(new_total,))
+        mapped_weights = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.merge_weights.npy", dtype='int32', mode='w+',
                                    shape=(new_total,))
 
     partical_count = 0
@@ -117,9 +117,6 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
         #save probability of the mixture
         mapped_weights[partical_count:partical_count+len(centers)] = q_zIx.sum(dim=0) / keys_subset.shape[0]
         partical_count += len(centers)
-
-
-
 
 
 if __name__=='__main__':
