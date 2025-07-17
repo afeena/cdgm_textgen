@@ -10,10 +10,8 @@ from fairseq import metrics
 from fairseq.criterions import register_criterion
 from torch import Tensor
 
-from cdgm_textgen.criterions import (ARPowerSphericalRevKLCriterionConfig,
-                                     ARPowerSphericalRevKLCriterion,
-                                     ARPowerSphericalCriterion,
-                                     ARPowerSphericalCriterionConfig)
+from cdgm_textgen.criterions.prob_loss import (ARPowerSphericalRevKLCriterionConfig,
+                                     ARPowerSphericalRevKLCriterion)
 from cdgm_textgen.modules.utils import (softmax_with_temperature_scriptable,
                                         log_softmax_with_temperature_scriptable,
                                         log_prob_scriptable)
