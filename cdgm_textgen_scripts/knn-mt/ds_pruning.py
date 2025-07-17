@@ -95,8 +95,8 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
             print(f"fitting gmm for index {vocab_idx} with cluster centers {num_clusters}")
 
             for it in range(n_iters):
-                if len(keys_subset) > 4096:
-                    sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=4096)
+                if len(keys_subset) >= 2048:
+                    sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=2048)
                 else:
                     sq_cdists = sq_cdist(keys_subset, centers)
                 logp_xIz = -sq_cdists / (2 * sigma ** 2)
