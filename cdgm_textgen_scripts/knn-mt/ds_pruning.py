@@ -57,6 +57,7 @@ def sq_cdist_chunked(X, Y, chunk_size=1024):
     return torch.cat(results, dim=0)
 
 def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     with torch.no_grad():
         total = len(vals)
 
@@ -82,7 +83,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         with torch.no_grad():
             mask = vals == vocab_idx
 
-            keys_subset = torch.from_numpy(keys[mask]).to(device=vals.device, dtype=torch.float32)
+            keys_subset = torch.from_numpy(keys[mask]).to(device=device, dtype=torch.float32)
 
             num_clusters = num_components[i]
 
