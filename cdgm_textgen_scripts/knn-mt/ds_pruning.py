@@ -39,7 +39,6 @@ def sq_cdist(X, Y):
     return (X.unsqueeze(dim=1) - Y.unsqueeze(dim=0)).pow_(2).sum(dim=-1)  # len(X) by len(Y)
 
 def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
-
     total = len(vals)
 
     unique_vals, counts = torch.unique(vals, return_inverse=False, return_counts=True)
@@ -53,42 +52,41 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
                                #shape=(total,))
 
     for i,vocab_idx in enumerate(unique_vals):
-        mask = vals == vocab_idx
-
-        keys_subset = torch.from_numpy(keys[mask.cpu()]).to(device=vals.device, dtype=torch.float32)
-
-        num_clusters = torch.tensor([max(1, int(counts[i]*0.01))])
-
-        # Initialize centroids using k-means++
-        centers, _ = kmeans_plusplus(keys_subset.cpu().numpy(), n_clusters=num_clusters, random_state=42)
-        centers = torch.tensor(centers, dtype=torch.float32).to(keys_subset.device)
-
-        new_keys = torch.zeros((num_clusters,args.dim), dtype=torch.float32, device=keys_subset.device)
-        #new_probs = torch.zeros((centers.shape[0],num_clusters), dtype=torch.float32, device=keys_subset.device)i
         with torch.no_grad():
+            mask = vals == vocab_idx
+
+            keys_subset = torch.from_numpy(keys[mask.cpu()]).to(device=vals.device, dtype=torch.float32)
+
+            num_clusters = torch.tensor([max(1, int(counts[i]*0.01))])
+
+            # Initialize centroids using k-means++
+            centers, _ = kmeans_plusplus(keys_subset.cpu().numpy(), n_clusters=num_clusters, random_state=42)
+            centers = torch.tensor(centers, dtype=torch.float32).to(keys_subset.device)
+
+            new_keys = torch.zeros((num_clusters,args.dim), dtype=torch.float32, device=keys_subset.device)
+            #new_probs = torch.zeros((centers.shape[0],num_clusters), dtype=torch.float32, device=keys_subset.device)i
+
             for it in range(n_iters):
                 print(f"fitting gmm for index {vocab_idx} iter: {it}")
                 print(keys_subset.shape, centers.shape)
                 sq_cdists = sq_cdist(keys_subset, centers)
                 logp_xIz = -sq_cdists / (2 * sigma ** 2)
-            # version 1: in log domain, then take exp
-            # logq_zIx = logp_xIz - torch.logsumexp(logp_xIz, dim=1, keepdim=True)
-            # q_zIx = torch.exp(logq_zIx)
-            #
-            # version 2 (more readable?)
+                # version 1: in log domain, then take exp
+                # logq_zIx = logp_xIz - torch.logsumexp(logp_xIz, dim=1, keepdim=True)
+                # q_zIx = torch.exp(logq_zIx)
+                #
+                # version 2 (more readable?)
                 q_zIx = torch.softmax(logp_xIz, dim=1)
 
 
                 new_keys[:] = centers.clone()
-            #new_probs[:] = q_zIx
+                #new_probs[:] = q_zIx
 
-            #elbo = (q_zIx * logp_xIz).sum() - (q_zIx * torch.log(q_zIx)).sum()
+                #elbo = (q_zIx * logp_xIz).sum() - (q_zIx * torch.log(q_zIx)).sum()
 
-            # recalculate center means
+                # recalculate center means
                 centers = (q_zIx.T @ keys_subset) / q_zIx.sum(dim=0).unsqueeze(dim=-1)
-                del q_zIx
-                del sq_cdists
-                del logp_xIz
+                del q_zIx, sq_cdists, logp_xIz
                 torch.cuda.empty_cache()
 
         new_total += len(centers)
