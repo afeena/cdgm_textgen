@@ -66,6 +66,9 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
 
         num_components = (counts*0.05).int()
         new_total = num_components.sum()
+        print(f"Total number of clusters: {new_total}, original total: {total}")
+        with open(f"{args.merged_path}.ntotal.txt", 'w') as tf:
+            tf.write(new_total)
 
         # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
         mapped_keys = np.memmap(f"{args.merged_path}.keys.npy", dtype='float32', mode='w+',
@@ -74,7 +77,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
         mapped_weights = np.memmap(f"{args.merged_path}.merge_weights.npy", dtype='int32', mode='w+',
                                    shape=(new_total,))
 
-
+    partical_count = 0
     for i,vocab_idx in enumerate(unique_vals):
         with torch.no_grad():
             mask = vals == vocab_idx
@@ -109,14 +112,13 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0):
 
         #calculate soft counts for each mixture component
 
-        mapped_keys[new_total:new_total + len(centers)] = centers.cpu().numpy()
-        mapped_vals[new_total:new_total+len(centers)] = vocab_idx.cpu().numpy()
+        mapped_keys[partical_count:partical_count + len(centers)] = centers.cpu().numpy()
+        mapped_vals[partical_count:partical_count+len(centers)] = vocab_idx.cpu().numpy()
         #save probability of the mixture
-        mapped_weights[new_total:new_total+i] = q_zIx.sum(dim=0) / keys_subset.shape[0]
+        mapped_weights[partical_count:partical_count+len(centers)] = q_zIx.sum(dim=0) / keys_subset.shape[0]
+        partical_count += len(centers)
 
-    print(f"size before pruning: {total} new total size after pruning: {new_total}")
-    with open(f"{args.merged_path}.ntotal.txt",'w') as tf:
-        tf.write(new_total)
+
 
 
 
