@@ -68,7 +68,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         new_total = num_components.sum()
         print(f"Total number of clusters: {new_total}, original total: {total}")
         with open(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.ntotal.txt", 'w') as tf:
-            tf.write(new_total)
+            tf.write(str(new_total.item()))
 
         # open memmaps for merged keys and vals, real size is not known in advance, so we can set it to total and re-save with correct size later
         mapped_keys = np.memmap(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.keys.npy", dtype='float32', mode='w+',
@@ -82,7 +82,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         with torch.no_grad():
             mask = vals == vocab_idx
 
-            keys_subset = torch.from_numpy(keys[mask.cpu()]).to(device=vals.device, dtype=torch.float32)
+            keys_subset = torch.from_numpy(keys[mask]).to(device=vals.device, dtype=torch.float32)
 
             num_clusters = num_components[i]
 
@@ -151,7 +151,7 @@ if __name__=='__main__':
 
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(ntotal,))
-    vals = torch.zeros(ntotal, dtype=torch.int64, device='cuda' if torch.cuda.is_available() else 'cpu')
+    vals = torch.zeros(ntotal, dtype=torch.int64)
     vals[:] = torch.from_numpy(vals_memmap[:])
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r', shape=(ntotal, args.dim))
