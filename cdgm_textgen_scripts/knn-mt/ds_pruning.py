@@ -130,7 +130,7 @@ if __name__=='__main__':
     argp.add_argument('--dstore_size', type=int, help='number of items saved in the datastore memmap')
     argp.add_argument("--faiss_index", type=str, default=None)
     argp.add_argument("--dim", type=int, default=128)
-    argp.add_argument("--knn_k", type=int, default=8, help="number of nearest neighbors to consider for merging")
+    argp.add_argument("--cluster_ratio", type=float, default=0.1, help="how many centers to retain based on the counts of each vocab index")
     argp.add_argument("--merged_path", type=str, required=True, help="path to save merged keys and vals")
 
 
@@ -156,7 +156,7 @@ if __name__=='__main__':
     vals[:] = torch.from_numpy(vals_memmap[:])
 
     keys = np.memmap(args.keys_path, dtype=np.float32, mode='r', shape=(ntotal, args.dim))
-    gmm_merge(keys, vals, args, n_iters=10, sigma=1.0)
+    gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=args.cluster_ratio)
 
 
 
