@@ -65,7 +65,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         print(f"Unique values: {len(unique_vals)}")
         # dry run first to get the total number of clusters
 
-        num_components = (counts*cluster_ratio).int()
+        num_components = (counts*cluster_ratio).int().clip(min=1)
         new_total = num_components.sum()
         print(f"Total number of clusters: {new_total}, original total: {total}")
         with open(f"{args.merged_path}.mixtures_ratio{cluster_ratio}.sigma{sigma}.niters{n_iters}.ntotal.txt", 'w') as tf:
@@ -95,8 +95,8 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
             print(f"fitting gmm for index {vocab_idx} with cluster centers {num_clusters}")
 
             for it in range(n_iters):
-                if len(keys_subset) >= 2048:
-                    sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=2048)
+                if len(keys_subset) >= 1024:
+                    sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=1024)
                 else:
                     sq_cdists = sq_cdist(keys_subset, centers)
                 logp_xIz = -sq_cdists / (2 * sigma ** 2)
@@ -119,7 +119,7 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
         mapped_keys[partical_count:partical_count + len(centers)] = centers.cpu().numpy()
         mapped_vals[partical_count:partical_count+len(centers)] = vocab_idx.cpu().numpy()
         #save probability of the mixture
-        mapped_weights[partical_count:partical_count+len(centers)] = q_zIx.sum(dim=0) / keys_subset.shape[0]
+        mapped_weights[partical_count:partical_count+len(centers)] = (q_zIx.sum(dim=0) / keys_subset.shape[0]).cpu().numpy()
         partical_count += len(centers)
 
 
