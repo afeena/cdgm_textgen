@@ -148,7 +148,6 @@ if __name__=='__main__':
         assert ntotal is not None, "If no faiss index is provided, dstore_size must be specified"
         knn_index = None
 
-    knn_k = args.knn_k
 
     print("load vals to retrieve vocab indices")
     vals_memmap = np.memmap(args.values_path, dtype=np.int32, mode='r', shape=(ntotal,))
