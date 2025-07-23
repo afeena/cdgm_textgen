@@ -96,7 +96,10 @@ def gmm_merge(keys, vals, args, n_iters=10, sigma=1.0, cluster_ratio=0.05):
 
             for it in range(n_iters):
                 if len(keys_subset) >= 1024:
-                    sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=1024)
+                    if len(centers)>=512:
+                        sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=128)
+                    else:
+                        sq_cdists = sq_cdist_chunked(keys_subset, centers, chunk_size=1024)
                 else:
                     sq_cdists = sq_cdist(keys_subset, centers)
                 logp_xIz = -sq_cdists / (2 * sigma ** 2)
