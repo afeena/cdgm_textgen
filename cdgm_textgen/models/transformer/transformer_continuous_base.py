@@ -120,7 +120,8 @@ class TransformerModelContinuous(TransformerModelBase):
 
         if metric == "cosine":
             scores = self.decoder.get_cosine_similarity_scores(model_out)
-
+        if metric == "l22":
+            scores = self.decoder.get_l22_scores(model_out)
         return scores
 
     # legacy

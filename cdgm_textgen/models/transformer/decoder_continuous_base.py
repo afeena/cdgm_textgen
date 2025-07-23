@@ -70,6 +70,15 @@ class ContinuousTransformerDecoderBase(TransformerDecoderBase):
 
             return output_proj
 
+    def get_l22_scores(self, features: Tensor) -> Tensor:
+        with torch.no_grad():
+            bs, seq_len, dim = features.shape
+            dist = torch.pow(torch.norm(features.view(-1,dim).unsqueeze(0) - self.target_embed.unsqueeze(1), p=2.0, dim=-1), 2).sum(-1)
+            dist_p = torch.log_softmax(-dist / 1.0, dim=-1)
+            output_proj = dist_p.view(bs, seq_len, -1)
+
+            return output_proj
+
     def get_acos_similarity_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             kappa = torch.tensor([1.], device=features.device)
@@ -95,6 +104,8 @@ class ContinuousTransformerDecoderBase(TransformerDecoderBase):
             scores = None
             if metric == "cosine":
                 scores = self.get_cosine_similarity_scores(net_output[0])
+            if metric == "l22":
+                scores = self.get_l22_scores(net_output[0])
             if metric == "ps":
                 scores = self.get_ps_likelihood_scores(net_output[0])
             if metric == "acos":
