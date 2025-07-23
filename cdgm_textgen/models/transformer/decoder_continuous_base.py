@@ -73,7 +73,7 @@ class ContinuousTransformerDecoderBase(TransformerDecoderBase):
     def get_l22_scores(self, features: Tensor) -> Tensor:
         with torch.no_grad():
             bs, seq_len, dim = features.shape
-            dist = torch.pow(torch.norm(features.view(-1,dim).unsqueeze(0) - self.target_embed.unsqueeze(1), p=2.0, dim=-1), 2).sum(-1)
+            dist = torch.pow(torch.norm(features.view(-1,dim).unsqueeze(0) - self.target_embed.weight.unsqueeze(1), p=2.0, dim=-1), 2).sum(-1)
             dist_p = torch.log_softmax(-dist / 1.0, dim=-1)
             output_proj = dist_p.view(bs, seq_len, -1)
 
