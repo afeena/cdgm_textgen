@@ -206,8 +206,9 @@ class DispersedDistanceCriterion(DistanceCriterion):
             features = model.decoder.target_embed.weight
         elif self.dispersion_features == 'output':
             features = net_output[0][mask]
+        dispersion = self.dispersion(F.normalize(features, dim=-1))
+        return dispersion
 
-        return self.dispersion(features)
     def compute_loss(self, model, net_output, sample, reduce=True):
         target = model.get_targets(sample, net_output)
         mask = sample["target"].ne(self.padding_idx)
@@ -231,7 +232,7 @@ class DispersedDistanceCriterion(DistanceCriterion):
         elif dispersion_type == 'sliced':
             return ledoh_torch.SlicedSphereDispersion()
         elif dispersion_type == 'ssw':
-            return ledoh_torch.SphericalSlicedWassersteinDispersion()
+            return ledoh_torch.SphericalSlicedWassersteinDispersion(n_projections=1)
         else:
             raise ValueError(f"Unknown dispersion type: {dispersion_type}")
 
