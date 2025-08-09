@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import Tuple, Dict
 
 import torch
 from fairseq import metrics, utils
@@ -22,6 +22,10 @@ class LSCrossEntropyOutDispCriterionConfig(LSCrossEntropyDispersedCriterionConfi
         default='mhe-gaussian-eucl',
         metadata={"help": "dispersion type"}
     )
+    dispersion_features: str = field(
+        default='dec_out',
+        metadata={"help": "dispersion type"}
+    )
 @register_criterion("ls_ce_output_dispersion", dataclass=LSCrossEntropyOutDispCriterionConfig)
 class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
     def __init__(self,
@@ -32,6 +36,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  report_accuracy=False,
                  dispersed_weight=0.0,
                  report_dispersed=True,
+                 dispersion_features="dec_out",
                  dispersion_type='mhe-gaussian'):
 
         super().__init__(task, sentence_avg,label_smoothing,
@@ -39,6 +44,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                  report_accuracy=report_accuracy)
 
         self.dispersed_weight = dispersed_weight
+        self.dispersion_features = dispersion_features
         self.report_dispersed = report_dispersed
         if dispersion_type == 'mhe-gaussian-eucl':
             self.disp = KernelSphereDispersion(kernel="gaussian",
@@ -80,8 +86,8 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         net_output = model(**sample["net_input"])
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
-            dispersed_loss = self.dispersed_weight*self.compute_dispersed_loss(model,net_output,sample)
-            loss = loss + dispersed_loss.mean()
+            dispersed_loss, disp_log = self.compute_dispersed_loss(model,net_output,sample)
+            loss = loss + self.dispersed_weight*dispersed_loss.mean()
 
         sample_size = 1
 
@@ -98,30 +104,34 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             logging_output["n_correct"] = utils.item(n_correct.data)
             logging_output["total"] = utils.item(total.data)
 
-        if self.report_dispersed:
-            cosine_min_dist, var = self.compute_dispersed_metrics(model,net_output,sample,self.padding_idx)
+        if self.report_dispersed and self.dispersed_weight>0 and "disperse_features" in disp_log:
+            cosine_min_dist, var = self.compute_dispersed_metrics(disp_log["disperse_features"])
             logging_output["min_acos_dist"] = cosine_min_dist.detach()
             logging_output["circular_variance"] = var.detach()
 
         return loss, sample_size, logging_output
 
     @staticmethod
-    def compute_dispersed_metrics(model, net_output, sample, pad_idx) -> Tuple[Tensor, Tensor]:
+    def compute_dispersed_metrics(disperse_features) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            target = model.get_targets(sample, net_output)
-            pad_mask = target.eq(pad_idx)
-            features = (net_output[-1]["features"][~pad_mask]).detach()
-            features = features / features.norm(dim=-1, keepdim=True)
-            min_acos_dist = minimum_acos_distance(features,features)
-            var = circular_variance(features)
+            min_acos_dist = minimum_acos_distance(disperse_features,disperse_features)
+            var = circular_variance(disperse_features)
         return min_acos_dist, var
 
-    def compute_dispersed_loss(self, model, net_output,sample) -> torch.Tensor:
-        target = model.get_targets(sample, net_output)
-        pad_mask = target.eq(self.padding_idx)
-        features = net_output[-1]["features"][~pad_mask]
+    def compute_dispersed_loss(self, model, net_output,sample) -> Tuple[torch.Tensor, Dict[str, Tensor]]:
+        features = None
+        if self.dispersion_features in ("dec_out","dec_inner") :
+            target = model.get_targets(sample, net_output)
+            pad_mask = target.eq(self.padding_idx)
+            if self.dispersion_features == "dec_out":
+                features = net_output[-1]["features"][~pad_mask]
+            elif self.dispersion_features == "dec_inner":
+                features = net_output["inner_states"][-1].transpose(0, 1)[~pad_mask]
+        elif self.dispersion_features == "dec_emb":
+            features = model.decoder.embed_tokens.weight
+        assert features is not None, "dispersion features cannot be None"
         features = features / features.norm(dim=-1, keepdim=True)
-        return self.disp(features)
+        return self.disp(features), {"disperse_features": features.detach().clone()}
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
