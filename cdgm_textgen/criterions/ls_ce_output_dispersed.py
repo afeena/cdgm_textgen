@@ -130,7 +130,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         elif self.dispersion_features == "dec_emb":
             #take random sample over the decoder embedding
             features = model.decoder.output_projection.weight
-            idx = torch.randperm(features.size(0))[:int(features.size(0) * 0.3)]
+            idx = torch.randperm(features.size(0))[:int(features.size(0) * 0.1)]
             features = features[idx]
 
         elif self.dispersion_features == "enc_out":
