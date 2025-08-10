@@ -87,7 +87,10 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
         if self.dispersed_weight > 0.0:
             dispersed_loss, disp_log = self.compute_dispersed_loss(model,net_output,sample)
-            loss = loss + self.dispersed_weight*dispersed_loss.mean()
+            if torch.any(torch.isnan(dispersed_loss)):
+                print("Dispersed loss contains NaN values. Skip the batch")
+            else:
+                loss = loss + self.dispersed_weight*dispersed_loss.mean()
 
         sample_size = 1
 
@@ -130,7 +133,7 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
         elif self.dispersion_features == "dec_emb":
             #take random sample over the decoder embedding
             features = model.decoder.embed_tokens.weight
-            idx = torch.randperm(features.size(0))[:int(features.size(0) * 0.1)]
+            idx = torch.randperm(features.size(0))[:int(features.size(0) * 0.05)]
             features = features[idx]
 
         elif self.dispersion_features == "enc_out":
