@@ -129,6 +129,9 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
                 features = net_output[-1]["inner_states"][-1].transpose(0, 1)[~pad_mask]
         elif self.dispersion_features == "dec_emb":
             features = model.decoder.embed_tokens.weight
+        elif self.dispersion_features == "enc_out":
+            pad_mask = sample["net_input"]["src_tokens"].eq(self.padding_idx)
+            features = net_output[-1]["encoder_out"][0].transpose(0,1)[~pad_mask]
         assert features is not None, "dispersion features cannot be None"
         features = features / features.norm(dim=-1, keepdim=True)
         return self.disp(features), {"disperse_features": features.detach().clone()}
