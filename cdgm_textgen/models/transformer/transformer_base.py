@@ -157,6 +157,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
             src_lengths=src_lengths,
             return_all_hiddens=return_all_hiddens,
         )
+        decoder_out[-1]["encoder_out"] = encoder_out["encoder_out"]
         return decoder_out
 
     # Since get_normalized_probs is in the Fairseq Model which is not scriptable,
