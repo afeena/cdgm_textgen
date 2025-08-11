@@ -103,7 +103,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         data_folder = cfg.common_eval.results_path
         dec_out_file = os.path.join(data_folder, f"{subset}.decoder_out.eacs.csv")
 
-        alpha = 1.0
+        alpha = 0.999
         dec_out_entropies = []
         enc_out_entropies = []
         dec_out_avg_cosine_sims = []
