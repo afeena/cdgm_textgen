@@ -98,7 +98,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             shard_id=data_parallel_rank,
             num_workers=cfg.dataset.num_workers,
             data_buffer_size=cfg.dataset.data_buffer_size,
-        ).next_epoch_itr(shuffle=False)
+        ).next_epoch_itr(shuffle=True)
 
         data_folder = cfg.common_eval.results_path
         dec_out_file = os.path.join(data_folder, f"{subset}.stats.entropy.cosine.csv")
