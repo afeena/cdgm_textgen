@@ -101,36 +101,54 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         ).next_epoch_itr(shuffle=False)
 
         data_folder = cfg.common_eval.results_path
-        dec_out_file = os.path.join(data_folder, f"{subset}.decoder_out.eacs.csv")
+        dec_out_file = os.path.join(data_folder, f"{subset}.stats.entropy.cosine.csv")
 
         alpha = 0.999
         dec_out_entropies = []
         enc_out_entropies = []
         dec_out_avg_cosine_sims = []
         enc_out_avg_cosine_sims = []
-
-        for i, sample in enumerate(itr):
-            sample = utils.move_to_cuda(sample) if use_cuda else sample
-
-            decoder_out = model(**sample["net_input"])
-            dec_out_features = decoder_out[-1]["features"]
-            target = model.get_targets(sample, dec_out_features)
-            pad_mask = target.eq(task.target_dictionary.pad())
-            dec_out_features = dec_out_features[~pad_mask]
-
-            pad_mask = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
-            enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask]
-
-            dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
-            enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
-            dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
-            enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
-
         with open(dec_out_file, "w") as f:
             f.write("decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\n")
-            for re_dec,avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims, enc_out_entropies, enc_out_avg_cosine_sims):
-                f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
 
+        try:
+            for i, sample in enumerate(itr):
+                sample = utils.move_to_cuda(sample) if use_cuda else sample
+
+                decoder_out = model(**sample["net_input"])
+                dec_out_features = decoder_out[-1]["features"]
+                target = model.get_targets(sample, dec_out_features)
+                pad_mask = target.eq(task.target_dictionary.pad())
+                dec_out_features = dec_out_features[~pad_mask]
+
+                pad_mask = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
+                enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask]
+
+                dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
+                enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
+                dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
+                enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
+
+                if i % 1000 == 0 and i > 0:
+                    logger.info(f"Processed {i} samples")
+                    with open(dec_out_file, "a") as f:
+                        for re_dec,avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims, enc_out_entropies, enc_out_avg_cosine_sims):
+                            f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
+                    dec_out_entropies = []
+                    enc_out_entropies = []
+                    dec_out_avg_cosine_sims = []
+                    enc_out_avg_cosine_sims = []
+
+        except Exception as e:
+            logger.error(f"Error processing samples: {e}")
+            with open(dec_out_file, "a") as f:
+                for re_dec, avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims,
+                                                                  enc_out_entropies, enc_out_avg_cosine_sims):
+                    f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
+            dec_out_entropies = []
+            enc_out_entropies = []
+            dec_out_avg_cosine_sims = []
+            enc_out_avg_cosine_sims = []
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
