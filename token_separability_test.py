@@ -101,21 +101,28 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         ).next_epoch_itr(shuffle=False)
 
         all_target_token_features = []
+        all_source_token_features = []
         target_token_idx = 5
+        source_token_idx = 5
 
         data_folder = cfg.common_eval.results_path
-        out_file = os.path.join(data_folder, f"{subset}.token{target_token_idx}.features.npy")
+        dec_out_file = os.path.join(data_folder, f"{subset}.dec_out.token{target_token_idx}.features.npy")
+        enc_out_file = os.path.join(data_folder, f"{subset}.enc_out.token{target_token_idx}.features.npy")
 
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             target_token_mask = sample["target"].eq(target_token_idx)
-            if not any(target_token_mask):
+            source_token_mask = sample["net_input"]["src_tokens"].eq(source_token_idx)
+            if not any(target_token_mask) or not any(source_token_mask):
                 continue
             decoder_out = model(**sample["net_input"])
             target_token_features = decoder_out[-1]["features"][target_token_mask]
             all_target_token_features.append(target_token_features)
+            enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[source_token_mask]
+            all_source_token_features.append(enc_out_features)
 
-        np.save(out_file, torch.cat(all_target_token_features).cpu().numpy())
+        np.save(dec_out_file, torch.cat(all_target_token_features).cpu().numpy())
+        np.save(enc_out_file, torch.cat(all_source_token_features).cpu().numpy())
 
 
 
