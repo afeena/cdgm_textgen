@@ -17,6 +17,16 @@ import faiss
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
 
+def calc_renyi_entr(features, alpha=0.5):
+    K = features @ features.t()
+    v = torch.log((torch.linalg.eigvals(K) / torch.trace(K)))
+    renyi_entr = (1.0 / (1.0 - alpha)) * v.pow(alpha).sum()
+    return renyi_entr
+
+def calc_avg_cosine(features):
+    normalized_features = features / features.norm(p=2, dim=-1, keepdim=True)
+    cosine_sim_batch = normalized_features @ normalized_features.t()
+    return cosine_sim_batch.mean()
 def main(cfg: DictConfig, ntotal, override_args=None):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
@@ -95,30 +105,31 @@ def main(cfg: DictConfig, ntotal, override_args=None):
 
         alpha = 1.0
         dec_out_entropies = []
+        enc_out_entropies = []
         dec_out_avg_cosine_sims = []
+        enc_out_avg_cosine_sims = []
 
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
 
             decoder_out = model(**sample["net_input"])
             dec_out_features = decoder_out[-1]["features"]
-
             target = model.get_targets(sample, dec_out_features)
-
             pad_mask = target.eq(task.target_dictionary.pad())
             dec_out_features = dec_out_features[~pad_mask]
-            K = dec_out_features @ dec_out_features.t()
-            v = torch.log((torch.linalg.eigvals(K) / torch.trace(K)))
-            reni_entr = (1.0/(1.0-alpha))*v.pow(alpha).sum()
-            dec_out_entropies.append(reni_entr.item())
 
-            normalized_features = dec_out_features / dec_out_features.norm(p=2, dim=-1, keepdim=True)
-            cosine_sim_batch = normalized_features @ normalized_features.t()
-            avg_sim = cosine_sim_batch.mean().item()
-            dec_out_avg_cosine_sims.append(avg_sim)
+            pad_mask = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
+            enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask]
+
+            dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
+            enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
+            dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
+            enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
+
         with open(dec_out_file, "w") as f:
-            for e,avgcos in zip(dec_out_entropies, dec_out_avg_cosine_sims):
-                f.write(f"{e}\t{avgcos}\n")
+            f.write("decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\n")
+            for re_dec,avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims, enc_out_entropies, enc_out_avg_cosine_sims):
+                f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
 
 
 if __name__ == "__main__":
