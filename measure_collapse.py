@@ -1,32 +1,34 @@
+import argparse
 import logging
 import os
 from argparse import Namespace
-import numpy as np
-import torch
-from omegaconf import DictConfig
-import argparse
 
+import ledoh_torch.utils as ledoh_utils
+import torch
 from fairseq import distributed_utils, utils, checkpoint_utils
 from fairseq.utils import reset_logging
+from omegaconf import DictConfig
 
 from cdgm_textgen import options
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
 
-import faiss
-
 logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
+
 
 def calc_renyi_entr(features, alpha=0.5):
     K = features @ features.t()
     v = (torch.linalg.eigvals(K) / torch.trace(K))
-    renyi_entr = (1.0 / (1.0 - alpha))*torch.log(v.pow(alpha).sum())
+    renyi_entr = (1.0 / (1.0 - alpha)) * torch.log(v.pow(alpha).sum())
     return renyi_entr
+
 
 def calc_avg_cosine(features):
     normalized_features = features / features.norm(p=2, dim=-1, keepdim=True)
     cosine_sim_batch = normalized_features @ normalized_features.t()
     return cosine_sim_batch.mean()
+
+
 def main(cfg: DictConfig, ntotal, override_args=None):
     if isinstance(cfg, Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
@@ -36,7 +38,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
     reset_logging()
 
     assert (
-        cfg.dataset.max_tokens is not None or cfg.dataset.batch_size is not None
+            cfg.dataset.max_tokens is not None or cfg.dataset.batch_size is not None
     ), "Must specify batch size either with --max-tokens or --batch-size"
 
     use_fp16 = cfg.common.fp16
@@ -108,8 +110,11 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         enc_out_entropies = []
         dec_out_avg_cosine_sims = []
         enc_out_avg_cosine_sims = []
+        enc_out_spherical_dists = []
+        dec_out_spherical_dists = []
         with open(dec_out_file, "w") as f:
-            f.write("decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\n")
+            f.write(
+                "decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tdecoder_spherical_dist\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\tencoder_spherical_dist\n")
 
         try:
             for i, sample in enumerate(itr):
@@ -128,27 +133,42 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
                 dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
                 enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
+                dec_out_spherical_dists.append(ledoh_utils.circular_variance(dec_out_features))
+                enc_out_spherical_dists.append(ledoh_utils.circular_variance(enc_out_features))
 
-                if i % 1000 == 0 and i > 0:
+                if i % 100 == 0 and i > 0:
                     logger.info(f"Processed {i} samples")
                     with open(dec_out_file, "a") as f:
-                        for re_dec,avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims, enc_out_entropies, enc_out_avg_cosine_sims):
-                            f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
+                        for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc in zip(
+                                dec_out_entropies,
+                                dec_out_avg_cosine_sims,
+                                dec_out_spherical_dists,
+                                enc_out_entropies,
+                                enc_out_avg_cosine_sims,
+                                enc_out_spherical_dists):
+                            f.write(
+                                f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\n")
                     dec_out_entropies = []
                     enc_out_entropies = []
                     dec_out_avg_cosine_sims = []
                     enc_out_avg_cosine_sims = []
+                    enc_out_spherical_dists = []
+                    dec_out_spherical_dists = []
 
         except Exception as e:
             logger.error(f"Error processing samples: {e}")
             with open(dec_out_file, "a") as f:
-                for re_dec, avgcos_dec, re_enc, avgcos_enc in zip(dec_out_entropies, dec_out_avg_cosine_sims,
-                                                                  enc_out_entropies, enc_out_avg_cosine_sims):
-                    f.write(f"{re_dec}\t{avgcos_dec}\t{re_enc}\t{avgcos_enc}\n")
-            dec_out_entropies = []
-            enc_out_entropies = []
-            dec_out_avg_cosine_sims = []
-            enc_out_avg_cosine_sims = []
+                for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc in zip(
+                        dec_out_entropies,
+                        dec_out_avg_cosine_sims,
+                        dec_out_spherical_dists,
+                        enc_out_entropies,
+                        enc_out_avg_cosine_sims,
+                        enc_out_spherical_dists):
+                    f.write(
+                        f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\n")
+
+
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
@@ -158,14 +178,10 @@ if __name__ == "__main__":
     parser = options.get_validation_parser()
     args, _ = options.parse_args_and_arch(parser, parse_known=True)
 
-
     # only override args that are explicitly given on the command line
     override_parser = options.get_validation_parser()
-    override_args  = options.parse_args_and_arch(override_parser, suppress_defaults=True, parse_known=True)
-
+    override_args = options.parse_args_and_arch(override_parser, suppress_defaults=True, parse_known=True)
 
     main(
         convert_namespace_to_omegaconf(args), user_args.ntotal, override_args=override_args
     )
-
-
