@@ -18,8 +18,8 @@ torch.set_grad_enabled(False)
 
 
 def calc_renyi_entr(features, alpha=0.999, eps=1e-6):
-    K = features @ features.t()
-    eigvals = torch.linalg.eigvalsh(K).clamp_min(0.0)
+    s = torch.linalg.svdvals(features)
+    eigvals = (s * s)
     tarceK = eigvals.sum().clamp_min(eps)
 
     if abs(alpha - 1.0) < 1e-6:
