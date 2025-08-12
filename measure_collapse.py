@@ -148,15 +148,15 @@ def main(cfg: DictConfig, ntotal, override_args=None):
 
             dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
             dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
-            dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_out_features, dim=-1)))
+            dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_out_features, dim=-1)).item())
 
             enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
             enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
-            enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(enc_out_features, dim=-1)))
+            enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(enc_out_features, dim=-1)).item())
 
             dec_emb_entropies.append(calc_renyi_entr(dec_emb_features, alpha=alpha).item())
             dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
-            dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_emb_features, dim=-1)))
+            dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_emb_features, dim=-1)).item())
 
             if i % 100 == 0 and i > 0:
                 logger.info(f"Processed {i} samples")
