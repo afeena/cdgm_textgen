@@ -19,8 +19,8 @@ torch.set_grad_enabled(False)
 
 def calc_renyi_entr(features, alpha=0.5):
     K = features @ features.t()
-    v = torch.log((torch.linalg.eigvals(K) / torch.trace(K)))
-    renyi_entr = (1.0 / (1.0 - alpha)) * v.pow(alpha).sum()
+    v = (torch.linalg.eigvals(K) / torch.trace(K))
+    renyi_entr = (1.0 / (1.0 - alpha))*torch.log(v.pow(alpha).sum())
     return renyi_entr
 
 def calc_avg_cosine(features):
