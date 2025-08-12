@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 from argparse import Namespace
-
+import torch.nn.functional as F
 import ledoh_torch.utils as ledoh_utils
 import torch
 from fairseq import distributed_utils, utils, checkpoint_utils
@@ -16,10 +16,17 @@ logger = logging.getLogger("cdgm_textgen_cli.build_datastore")
 torch.set_grad_enabled(False)
 
 
-def calc_renyi_entr(features, alpha=0.5):
+def calc_renyi_entr(features, alpha=0.999, eps=1e-6):
     K = features @ features.t()
-    v = (torch.linalg.eigvals(K) / torch.trace(K))
-    renyi_entr = (1.0 / (1.0 - alpha)) * torch.log(v.pow(alpha).sum())
+    eigvals = torch.linalg.eigvalsh(K).clamp_min(0.0)
+    tarceK = eigvals.sum().clamp_min(eps)
+
+    if abs(alpha - 1.0) < 1e-6:
+        # Shannon limit: -sum p log p
+        p = (eigvals / tarceK).clamp_min(eps)
+        return -(p * p.log()).sum()
+    norm_eigvals = (eigvals / tarceK).clamp_min(eps)
+    renyi_entr = (1.0 / (1.0 - alpha)) * torch.log(norm_eigvals.pow(alpha).sum())
     return renyi_entr
 
 
@@ -105,7 +112,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         data_folder = cfg.common_eval.results_path
         dec_out_file = os.path.join(data_folder, f"{subset}.stats.entropy.cosine.csv")
 
-        alpha = 0.999
+        alpha = 0.99
         dec_out_entropies = []
         enc_out_entropies = []
         dec_out_avg_cosine_sims = []
@@ -133,8 +140,8 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
                 dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
                 enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
-                dec_out_spherical_dists.append(ledoh_utils.circular_variance(dec_out_features))
-                enc_out_spherical_dists.append(ledoh_utils.circular_variance(enc_out_features))
+                dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(dec_out_features, dim=-1)))
+                enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(enc_out_features,dim=-1)))
 
                 if i % 100 == 0 and i > 0:
                     logger.info(f"Processed {i} samples")
