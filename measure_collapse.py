@@ -130,75 +130,59 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             f.write(
                 "decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tdecoder_spherical_dist\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\tencoder_spherical_dist\n")
 
-        try:
-            for i, sample in enumerate(itr):
-                sample = utils.move_to_cuda(sample) if use_cuda else sample
 
-                decoder_out = model(**sample["net_input"])
-                dec_out_features = decoder_out[-1]["features"]
-                target = model.get_targets(sample, dec_out_features)
-                pad_mask = target.eq(task.target_dictionary.pad())
-                dec_out_features = dec_out_features[~pad_mask]
+        for i, sample in enumerate(itr):
+            sample = utils.move_to_cuda(sample) if use_cuda else sample
 
-                pad_mask = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
-                enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask]
+            decoder_out = model(**sample["net_input"])
+            dec_out_features = decoder_out[-1]["features"]
+            target = model.get_targets(sample, dec_out_features)
+            pad_mask_tgt = target.eq(task.target_dictionary.pad())
+            dec_out_features = dec_out_features[~pad_mask_tgt]
 
-                target_tokens_no_pad = target[~pad_mask]
-                dec_emb_features = model.decoder.embed_tokens.weight.index_select(0, target_tokens_no_pad)
+            pad_mask_enc = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
+            enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask_enc]
 
-                dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
-                dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
-                dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(dec_out_features, dim=-1)))
+            target_tokens_no_pad = target[~pad_mask_tgt]
+            dec_emb_features = model.decoder.embed_tokens.weight.index_select(0, target_tokens_no_pad)
 
-                enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
-                enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
-                enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(enc_out_features, dim=-1)))
+            dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
+            dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
+            dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(dec_out_features, dim=-1)))
 
-                dec_emb_entropies.append(calc_renyi_entr(dec_emb_features, alpha=alpha).item())
-                dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
-                dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(dec_emb_features, dim=-1)))
+            enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
+            enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
+            enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(enc_out_features, dim=-1)))
 
-                if i % 100 == 0 and i > 0:
-                    logger.info(f"Processed {i} samples")
-                    with open(dec_out_file, "a") as f:
-                        for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc, re_dec_emb, avgcos_dec_emb, spherical_var_decemb in zip(
-                                dec_out_entropies,
-                                dec_out_avg_cosine_sims,
-                                dec_out_spherical_dists,
-                                enc_out_entropies,
-                                enc_out_avg_cosine_sims,
-                                enc_out_spherical_dists,
-                                dec_emb_entropies,
-                                dec_emb_avg_cosine_sims,
-                                dec_emb_spherical_dists):
-                            f.write(
-                                f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{dec_emb_entropies}\t{dec_emb_avg_cosine_sims}\t{dec_emb_spherical_dists}\n")
-                    dec_out_entropies = []
-                    enc_out_entropies = []
-                    dec_out_avg_cosine_sims = []
-                    enc_out_avg_cosine_sims = []
-                    enc_out_spherical_dists = []
-                    dec_out_spherical_dists = []
+            dec_emb_entropies.append(calc_renyi_entr(dec_emb_features, alpha=alpha).item())
+            dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
+            dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.norlmize(dec_emb_features, dim=-1)))
 
-                    dec_emb_entropies = []
-                    dec_emb_avg_cosine_sims = []
-                    dec_emb_spherical_dists = []
+            if i % 100 == 0 and i > 0:
+                logger.info(f"Processed {i} samples")
+                with open(dec_out_file, "a") as f:
+                    for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc, re_dec_emb, avgcos_dec_emb, spherical_var_decemb in zip(
+                            dec_out_entropies,
+                            dec_out_avg_cosine_sims,
+                            dec_out_spherical_dists,
+                            enc_out_entropies,
+                            enc_out_avg_cosine_sims,
+                            enc_out_spherical_dists,
+                            dec_emb_entropies,
+                            dec_emb_avg_cosine_sims,
+                            dec_emb_spherical_dists):
+                        f.write(
+                            f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{dec_emb_entropies}\t{dec_emb_avg_cosine_sims}\t{dec_emb_spherical_dists}\n")
+                dec_out_entropies = []
+                enc_out_entropies = []
+                dec_out_avg_cosine_sims = []
+                enc_out_avg_cosine_sims = []
+                enc_out_spherical_dists = []
+                dec_out_spherical_dists = []
 
-        except Exception as e:
-            logger.error(f"Error processing samples: {e}")
-            with open(dec_out_file, "a") as f:
-                for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc, re_dec_emb, avgcos_dec_emb, spherical_var_decemb in zip(
-                        dec_out_entropies,
-                        dec_out_avg_cosine_sims,
-                        dec_out_spherical_dists,
-                        enc_out_entropies,
-                        enc_out_avg_cosine_sims,
-                        enc_out_spherical_dists,
-                        dec_emb_entropies,
-                        dec_emb_avg_cosine_sims,
-                        dec_emb_spherical_dists):
-                    f.write(
-                        f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{dec_emb_entropies}\t{dec_emb_avg_cosine_sims}\t{dec_emb_spherical_dists}\n")
+                dec_emb_entropies = []
+                dec_emb_avg_cosine_sims = []
+                dec_emb_spherical_dists = []
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
