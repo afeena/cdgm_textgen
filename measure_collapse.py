@@ -172,7 +172,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                             dec_emb_avg_cosine_sims,
                             dec_emb_spherical_dists):
                         f.write(
-                            f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{dec_emb_entropies}\t{dec_emb_avg_cosine_sims}\t{dec_emb_spherical_dists}\n")
+                            f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{re_dec_emb}\t{avgcos_dec_emb}\t{spherical_var_decemb}\n")
                 dec_out_entropies = []
                 enc_out_entropies = []
                 dec_out_avg_cosine_sims = []
