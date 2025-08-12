@@ -111,7 +111,9 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         ).next_epoch_itr(shuffle=True)
 
         data_folder = cfg.common_eval.results_path
-        dec_out_file = os.path.join(data_folder, f"{subset}.stats.entropy.cosine.csv")
+        dec_out_file = os.path.join(data_folder, f"{subset}.dec_out.stats.csv")
+        dec_emb_file = os.path.join(data_folder, f"{subset}.dec_emb.stats.csv")
+        enc_out_file = os.path.join(data_folder, f"{subset}.enc_out.stats.csv")
 
         alpha = 0.99
         dec_out_entropies = []
@@ -126,10 +128,17 @@ def main(cfg: DictConfig, ntotal, override_args=None):
         enc_out_avg_cosine_sims = []
         enc_out_spherical_dists = []
 
+        #wtite headers
         with open(dec_out_file, "w") as f:
             f.write(
-                "decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tdecoder_spherical_dist\tencoder_renyi_entropy\tencoder_avg_cosine_similarity\tencoder_spherical_dist\n")
+                "decoder_renyi_entropy\tdecoder_avg_cosine_similarity\tdecoder_spherical_dist\n")
 
+        with open(dec_emb_file, "w") as f:
+            f.write(
+                "decoder_emb_renyi_entropy\tdecoder_emb_avg_cosine_similarity\tdecoder_emb_spherical_dist\n")
+        with open(enc_out_file, "w") as f:
+            f.write(
+                "encoder_renyi_entropy\tencoder_avg_cosine_similarity\tencoder_spherical_dist\n")
 
         for i, sample in enumerate(itr):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
@@ -161,18 +170,29 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             if i % 100 == 0 and i > 0:
                 logger.info(f"Processed {i} samples")
                 with open(dec_out_file, "a") as f:
-                    for re_dec, avgcos_dec, spherical_var_dec, re_enc, avgcos_enc, spherical_var_enc, re_dec_emb, avgcos_dec_emb, spherical_var_decemb in zip(
+                    for re_dec, avgcos_dec, spherical_var_dec in zip(
                             dec_out_entropies,
                             dec_out_avg_cosine_sims,
                             dec_out_spherical_dists,
+                           ):
+                        f.write(
+                            f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\n")
+                with open(dec_emb_file, "a") as f:
+                    for re_dec_emb, avgcos_dec_emb, spherical_var_dec_emb in zip(
+                            dec_emb_entropies,
+                            dec_emb_avg_cosine_sims,
+                            dec_emb_spherical_dists,
+                           ):
+                        f.write(
+                            f"{re_dec_emb}\t{avgcos_dec_emb}\t{spherical_var_dec_emb}\n")
+                with open(enc_out_file, "a") as f:
+                    for re_enc, avgcos_enc, spherical_var_enc in zip(
                             enc_out_entropies,
                             enc_out_avg_cosine_sims,
                             enc_out_spherical_dists,
-                            dec_emb_entropies,
-                            dec_emb_avg_cosine_sims,
-                            dec_emb_spherical_dists):
+                           ):
                         f.write(
-                            f"{re_dec}\t{avgcos_dec}\t{spherical_var_dec}\t{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\t{re_dec_emb}\t{avgcos_dec_emb}\t{spherical_var_decemb}\n")
+                            f"{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\n")
                 dec_out_entropies = []
                 enc_out_entropies = []
                 dec_out_avg_cosine_sims = []
