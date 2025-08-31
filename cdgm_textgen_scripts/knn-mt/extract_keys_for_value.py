@@ -16,8 +16,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("load vals to retrieve vocab indices")
-    vals_memmap = np.memmap(f"{args.faiss_index}_vals.npy", dtype=np.int32, mode='r', shape=(args.ntotal,))
-    keys_memmap = np.memmap(f"{args.keys}", dtype=np.float32, mode='r', shape=(args.ntotal,args.dim))
+    vals_memmap = np.memmap(args.vals, dtype=np.int32, mode='r', shape=(args.ntotal,))
+    keys_memmap = np.memmap(args.keys, dtype=np.float32, mode='r', shape=(args.ntotal,args.dim))
 
     target_keys_ids = []
 
