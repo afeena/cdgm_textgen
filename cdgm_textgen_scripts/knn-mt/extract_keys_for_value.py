@@ -1,6 +1,7 @@
 import argparse
 from sklearn.manifold import TSNE
 import numpy as np
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -29,10 +30,21 @@ if __name__ == '__main__':
 
     target_keys = keys_memmap[target_keys_ids]
 
-    target_keys_embedded = TSNE(n_components=2, learning_rate='auto',
-                      init='random', perplexity=3).fit_transform(target_keys)
+    np.save(f"{args.out}_keys_for_val_{args.target_val}.npy", target_keys)
 
-    np.save(f"{args.out}_keys_for_val_{args.target_val}_2d.npy", target_keys_embedded)
+    # target_keys_embedded = TSNE(n_components=2, learning_rate='auto',
+    #                   init='random', perplexity=3).fit_transform(target_keys)
+
+
+
+    # plt.figure(figsize=(6, 5), dpi=150)
+    # plt.scatter(target_keys_embedded[:, 0], target_keys_embedded[:, 1], s=20, alpha=0.8)
+    # plt.title(f"Keys for val {args.target_val}")
+    # plt.xlabel("X")
+    # plt.ylabel("Y")
+    # plt.tight_layout()
+    # plt.savefig(args.out)
+
 
 
 
