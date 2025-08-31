@@ -27,7 +27,7 @@ if __name__ == '__main__':
         if vals_memmap[i]==args.target_val:
             count+=1
             target_keys_ids.append(i)
-
+    print(f"Found {count} keys for value {args.target_val}")
     target_keys = keys_memmap[target_keys_ids]
 
     np.save(f"{args.out}_keys_for_val_{args.target_val}.npy", target_keys)
