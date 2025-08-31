@@ -32,19 +32,6 @@ if __name__ == '__main__':
 
     np.save(f"{args.out}_keys_for_val_{args.target_val}.npy", target_keys)
 
-    # target_keys_embedded = TSNE(n_components=2, learning_rate='auto',
-    #                   init='random', perplexity=3).fit_transform(target_keys)
-
-
-
-    # plt.figure(figsize=(6, 5), dpi=150)
-    # plt.scatter(target_keys_embedded[:, 0], target_keys_embedded[:, 1], s=20, alpha=0.8)
-    # plt.title(f"Keys for val {args.target_val}")
-    # plt.xlabel("X")
-    # plt.ylabel("Y")
-    # plt.tight_layout()
-    # plt.savefig(args.out)
-
 
 
 
