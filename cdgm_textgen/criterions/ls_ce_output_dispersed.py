@@ -131,10 +131,11 @@ class LSCrossEntropyDispersedCriterion(LabelSmoothedCrossEntropyCriterion):
             elif self.dispersion_features == "dec_inner":
                 features = net_output[-1]["inner_states"][-1].transpose(0, 1)[~pad_mask]
         elif self.dispersion_features == "dec_emb":
-            #take random sample over the decoder embedding
+            #take random 50% of the second half of the vocab embedding matrix (rare tokens)
             features = model.decoder.embed_tokens.weight
-            idx = torch.randperm(features.size(0))[:int(features.size(0) * 0.2)]
-            features = features[idx]
+            sec_half_idx = torch.arange(features.size(0)//2,features.size(0))
+            rand_idx_second_half = torch.randperm(sec_half_idx.size(0))[:sec_half_idx.size(0)//2]
+            features = features[sec_half_idx[rand_idx_second_half]]
 
         elif self.dispersion_features == "enc_out":
             pad_mask = sample["net_input"]["src_tokens"].eq(self.padding_idx)
