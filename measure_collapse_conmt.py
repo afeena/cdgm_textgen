@@ -144,16 +144,19 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
 
             decoder_out = model(**sample["net_input"])
-            dec_out_features = decoder_out[0]
-            target = model.get_targets(sample, dec_out_features)
+
+            target = model.get_targets(sample, decoder_out)
             pad_mask_tgt = target.eq(task.target_dictionary.pad())
+            target_tokens_no_pad = target[~pad_mask_tgt]
+
+
+            dec_out_features = decoder_out[0]
             dec_out_features = dec_out_features[~pad_mask_tgt]
 
             pad_mask_enc = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
             enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask_enc]
 
-            target_tokens_no_pad = target[~pad_mask_tgt]
-            dec_emb_features = model.decoder.embed_tokens.weight.index_select(0, target_tokens_no_pad)
+            dec_emb_features = model.decoder.target_embed.weight.index_select(0, target_tokens_no_pad)
 
             dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
             dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
