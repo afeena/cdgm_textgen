@@ -145,9 +145,9 @@ def main(cfg: DictConfig, ntotal, override_args=None):
 
             decoder_out = model(**sample["net_input"])
 
-            target = model.get_targets(sample, decoder_out)
+            target = sample["target"]
             pad_mask_tgt = target.eq(task.target_dictionary.pad())
-            target_tokens_no_pad = target[~pad_mask_tgt]
+            #target_tokens_no_pad = target[~pad_mask_tgt]
 
 
             dec_out_features = decoder_out[0]
@@ -156,7 +156,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             #pad_mask_enc = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
             #enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask_enc]
 
-            dec_emb_features = model.decoder.target_embed.weight.index_select(0, target_tokens_no_pad)
+            dec_emb_features = model.get_targets(sample, decoder_out)[~pad_mask_tgt]
 
             dec_out_entropies.append(calc_renyi_entr(dec_out_features, alpha=alpha).item())
             dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
