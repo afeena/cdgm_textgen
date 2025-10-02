@@ -153,8 +153,8 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             dec_out_features = decoder_out[0]
             dec_out_features = dec_out_features[~pad_mask_tgt]
 
-            pad_mask_enc = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
-            enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask_enc]
+            #pad_mask_enc = sample["net_input"]["src_tokens"].eq(task.target_dictionary.pad())
+            #enc_out_features = decoder_out[-1]["encoder_out"][0].transpose(0, 1)[~pad_mask_enc]
 
             dec_emb_features = model.decoder.target_embed.weight.index_select(0, target_tokens_no_pad)
 
@@ -162,9 +162,9 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             dec_out_avg_cosine_sims.append(calc_avg_cosine(dec_out_features).item())
             dec_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_out_features, dim=-1)).item())
 
-            enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
-            enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
-            enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(enc_out_features, dim=-1)).item())
+            # enc_out_entropies.append(calc_renyi_entr(enc_out_features, alpha=alpha).item())
+            # enc_out_avg_cosine_sims.append(calc_avg_cosine(enc_out_features).item())
+            # enc_out_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(enc_out_features, dim=-1)).item())
 
             dec_emb_entropies.append(calc_renyi_entr(dec_emb_features, alpha=alpha).item())
             dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
@@ -188,19 +188,19 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                            ):
                         f.write(
                             f"{re_dec_emb}\t{avgcos_dec_emb}\t{spherical_var_dec_emb}\n")
-                with open(enc_out_file, "a") as f:
-                    for re_enc, avgcos_enc, spherical_var_enc in zip(
-                            enc_out_entropies,
-                            enc_out_avg_cosine_sims,
-                            enc_out_spherical_dists,
-                           ):
-                        f.write(
-                            f"{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\n")
+                # with open(enc_out_file, "a") as f:
+                #     for re_enc, avgcos_enc, spherical_var_enc in zip(
+                #             enc_out_entropies,
+                #             enc_out_avg_cosine_sims,
+                #             enc_out_spherical_dists,
+                #            ):
+                #         f.write(
+                #             f"{re_enc}\t{avgcos_enc}\t{spherical_var_enc}\n")
                 dec_out_entropies = []
-                enc_out_entropies = []
+                #enc_out_entropies = []
                 dec_out_avg_cosine_sims = []
-                enc_out_avg_cosine_sims = []
-                enc_out_spherical_dists = []
+                # enc_out_avg_cosine_sims = []
+                # enc_out_spherical_dists = []
                 dec_out_spherical_dists = []
 
                 dec_emb_entropies = []
