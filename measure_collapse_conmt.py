@@ -170,7 +170,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
             dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_emb_features, dim=-1)).item())
 
-            if i % 100 == 0 and i > 0:
+            if i % 1000 == 0 and i > 0:
                 logger.info(f"Processed {i} samples")
                 with open(dec_out_file, "a") as f:
                     for re_dec, avgcos_dec, spherical_var_dec in zip(
@@ -206,6 +206,8 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 dec_emb_entropies = []
                 dec_emb_avg_cosine_sims = []
                 dec_emb_spherical_dists = []
+
+                break
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
