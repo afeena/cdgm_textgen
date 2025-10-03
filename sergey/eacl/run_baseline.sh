@@ -1,0 +1,1 @@
+/projects/gus20642/evgeniia/conda-torch-py3.9/bin/python sergey/eacl/run_subfolder.py /projects/gus20642/sergey/models/00019_de_en_transformer_base

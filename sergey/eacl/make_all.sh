@@ -1,0 +1,9 @@
+python sergey/eacl/make_plot.py 00019_de_en_transformer_base
+python sergey/eacl/make_plot.py 00018_de_en_transformer_base
+python sergey/eacl/make_plot.py 00017_de_en_transformer_base
+python sergey/eacl/make_plot.py 00025_de_en_transformer_base
+
+python sergey/eacl/make_comparison_plot.py 00019_de_en_transformer_base 00018_de_en_transformer_base
+python sergey/eacl/make_comparison_plot.py 00019_de_en_transformer_base 00025_de_en_transformer_base
+
+
