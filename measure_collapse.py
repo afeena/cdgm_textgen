@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from fairseq import distributed_utils, utils, checkpoint_utils
 from fairseq.utils import reset_logging
 from omegaconf import DictConfig
+from tqdm import tqdm
 
 from cdgm_textgen import options
 from cdgm_textgen.dataclass.utils import convert_namespace_to_omegaconf
@@ -140,7 +141,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             f.write(
                 "encoder_renyi_entropy\tencoder_avg_cosine_similarity\tencoder_spherical_dist\n")
 
-        for i, sample in enumerate(itr):
+        for i, sample in tqdm(enumerate(itr)):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
 
             decoder_out = model(**sample["net_input"])
@@ -167,7 +168,7 @@ def main(cfg: DictConfig, ntotal, override_args=None):
             dec_emb_avg_cosine_sims.append(calc_avg_cosine(dec_emb_features).item())
             dec_emb_spherical_dists.append(ledoh_utils.circular_variance(F.normalize(dec_emb_features, dim=-1)).item())
 
-            if i % 100 == 0 and i > 0:
+            if i % 1000 == 0 and i > 0:
                 logger.info(f"Processed {i} samples")
                 with open(dec_out_file, "a") as f:
                     for re_dec, avgcos_dec, spherical_var_dec in zip(
@@ -203,6 +204,8 @@ def main(cfg: DictConfig, ntotal, override_args=None):
                 dec_emb_entropies = []
                 dec_emb_avg_cosine_sims = []
                 dec_emb_spherical_dists = []
+
+                break
 
 if __name__ == "__main__":
     user_parser = argparse.ArgumentParser(description="Extract features from a model")
