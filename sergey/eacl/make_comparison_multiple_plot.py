@@ -214,7 +214,7 @@ def main():
         combined_exp.append(comb)
         combined_exp_names.append(exp_name)
 
-    shared_files = sorted(set.intersection(*combined_exp))
+    shared_files = sorted(set.intersection(*combined_exp.keys()))
     if not shared_files:
         raise SystemExit("No overlapping combined CSVs between the two experiments.")
 
