@@ -73,6 +73,10 @@ def map_name(name: str) -> str:
     mappings = {
         "00020_de_en_continuous_transformer": "ConMT + Dispersion",
         "00017_de_en_continuous_transformer": "ConMT (no reg.)",
+        "00018_de_en_transformer_base": "Transformer-big fp16",
+        "00019_de_en_transformer_base": "Transformer-big",
+        "00048_de_en_transformer_base": "Transformer-base",
+        "00025_de_en_transformer_base": "Transformer-big + R(E)",
     }
     return mappings.get(name, name)
 
@@ -99,6 +103,7 @@ def _plot_overlay(
     plt.ylabel(metric_col)
     plt.title(title)
     plt.legend()
+    plt.grid()
 
     if align_limits:
         yA = pd.to_numeric(dfA[metric_col], errors="coerce")
