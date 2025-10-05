@@ -20,16 +20,15 @@ import re
 from typing import Optional
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
+
 from PIL import Image
 from math import ceil, sqrt
 
 STEP_FROM_DIR_RE = re.compile(r"^checkpoint_(\d+)(?:_(\d+))?\.pt\.collapse$")
 DEFAULT_METRICS_ROOT = Path("./metrics_combined")
-font = {'family' : 'normal',
-        'size' : 14}
 
-matplotlib.rc('font', **font)
+
+plt.rcParams.update({'font.size': 22})
 
 def _safe_mkdir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
