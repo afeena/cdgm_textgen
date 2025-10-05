@@ -67,17 +67,17 @@ def _numeric_metric_columns(df: pd.DataFrame) -> list[str]:
 
 def _nice_title(metric_file: str, metric_col: str) -> str:
     mapping = {
-        "decoder_emb_avg_cosine_similarity": "Decoder Emb. Avg. Cosine Similarity",
-        "decoder_emb_renyi_entropy": "Decoder Emb. Rényi Entropy",
-        "decoder_emb_spherical_dist": "Decoder Emb. Spherical Variance",
+        "decoder_emb_avg_cosine_similarity": r"Decoder Emb. Avg. Cosine Similarity($\downarrow$')",
+        "decoder_emb_renyi_entropy": r"Decoder Emb. Rényi Entropy($\uparrow$')",
+        "decoder_emb_spherical_dist": r"Decoder Emb. Spherical Variance($\uparrow$')",
 
-        "decoder_avg_cosine_similarity": "Decoder Out. Avg. Cosine Similarity",
-        "decoder_renyi_entropy": "Decoder Out. Rényi Entropy",
-        "decoder_spherical_dist": "Decoder Out. Spherical Variance",
+        "decoder_avg_cosine_similarity": r"Decoder Out. Avg. Cosine Similarity($\downarrow$')",
+        "decoder_renyi_entropy": r"Decoder Out. Rényi Entropy($\uparrow$')",
+        "decoder_spherical_dist": r"Decoder Out. Spherical Variance($\uparrow$')",
 
-        "encoder_avg_cosine_similarity": "Encoder Out. Avg. Cosine Similarity",
-        "encoder_renyi_entropy": "Encoder Out.Rényi Entropy",
-        "encoder_spherical_dist": "Encoder Out.Spherical Variance",
+        "encoder_avg_cosine_similarity": r"Encoder Out. Avg. Cosine Similarity($\downarrow$')",
+        "encoder_renyi_entropy": r"Encoder Out.Rényi Entropy($\uparrow$')",
+        "encoder_spherical_dist": r"Encoder Out.Spherical Variance($\uparrow$')",
     }
 
     return mapping[metric_col]
@@ -135,7 +135,7 @@ def _plot_overlay(
 
 def _metric_col_mapping(col:str):
     mappings = {
-        "decoder_emb_avg_cosine_similarity": "Avg. Cosine Similarity",
+        "decoder_emb_avg_cosine_similarity": r"Avg. Cosine Similarity",
         "decoder_emb_renyi_entropy": "Rényi Entropy",
         "decoder_emb_spherical_dist": "Spherical Variance",
 
