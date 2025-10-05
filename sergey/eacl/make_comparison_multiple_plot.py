@@ -76,8 +76,8 @@ def _nice_title(metric_file: str, metric_col: str) -> str:
         "decoder_spherical_dist": "Decoder Out. Spherical Variance",
 
         "encoder_avg_cosine_similarity": "Encoder Out. Avg. Cosine Similarity",
-        "encoder_emb_renyi_entropy": "Encoder Out.Rényi Entropy",
-        "encoder_emb_spherical_dist": "Encoder Out.Spherical Variance",
+        "encoder_renyi_entropy": "Encoder Out.Rényi Entropy",
+        "encoder_spherical_dist": "Encoder Out.Spherical Variance",
     }
 
     return mapping[metric_col]
