@@ -144,8 +144,8 @@ def _metric_col_mapping(col:str):
         "decoder_spherical_dist": "Spherical Variance",
 
         "encoder_avg_cosine_similarity": "Avg. Cosine Similarity",
-        "encoder_emb_renyi_entropy": "Rényi Entropy",
-        "encoder_emb_spherical_dist": "Spherical Variance",
+        "encoder_renyi_entropy": "Rényi Entropy",
+        "encoder_spherical_dist": "Spherical Variance",
      }
 
     return mappings[col]
