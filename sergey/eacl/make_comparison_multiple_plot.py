@@ -91,8 +91,22 @@ def map_name(name: str) -> str:
         "00019_de_en_transformer_base": "Transformer-big",
         "00048_de_en_transformer_base": "Transformer-base",
         "00025_de_en_transformer_base": "Transformer-big + R(E)",
+        "00050_de_en_transformer_base": "Transformer-base + R(E)",
     }
     return mappings.get(name, name)
+
+def map_name_to_style(name: str) -> dict:
+    """Map experiment dir names to nicer labels for plots."""
+    mappings = {
+        "00020_de_en_continuous_transformer": {"linestyle": "-", "marker": "o"},
+        "00017_de_en_continuous_transformer": "ConMT (no reg.)",
+        "00018_de_en_transformer_base": {"linestyle": "-", "marker": "s"},
+        "00019_de_en_transformer_base": {"linestyle": "-", "marker": "o"},
+        "00048_de_en_transformer_base": {"linestyle": "--", "marker": "*"},
+        "00050_de_en_transformer_base": {"linestyle": "--", "marker": "*"},
+        "00025_de_en_transformer_base": {"linestyle": "-", "marker": "o"},
+    }
+    return mappings.get(name, {"linestyle": "-", "marker": "o"})
 
 def _plot_overlay(
     dfA: pd.DataFrame,
@@ -161,7 +175,8 @@ def _create_overlay(metric_col: str, title: str):
 
 def _add_to_overlay(plt, df: pd.DataFrame, exp_name: str, metric_col: str):
     exp_name = map_name(exp_name)
-    plt.plot(df["step"], df[metric_col], marker="o", label=exp_name)
+    exp_style = map_name_to_style(exp_name)
+    plt.plot(df["step"], df[metric_col],  linewidth=2, label=exp_name, **exp_style)
     plt.legend()
     return plt
 
