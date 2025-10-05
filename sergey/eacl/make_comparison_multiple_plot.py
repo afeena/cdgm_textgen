@@ -66,7 +66,21 @@ def _numeric_metric_columns(df: pd.DataFrame) -> list[str]:
     return [c for c in df.select_dtypes(include="number").columns if c not in meta]
 
 def _nice_title(metric_file: str, metric_col: str) -> str:
-    return f"{metric_file} • {metric_col}"
+    mapping = {
+        "decoder_emb_avg_cosine_similarity": "Decoder Emb. Avg. Cosine Similarity",
+        "decoder_emb_renyi_entropy": "Decoder Emb. Rényi Entropy",
+        "decoder_emb_spherical_dist": "Decoder Emb. Spherical Variance",
+
+        "decoder_avg_cosine_similarity": "Decoder Out. Avg. Cosine Similarity",
+        "decoder_renyi_entropy": "Decoder Out. Rényi Entropy",
+        "decoder_spherical_dist": "Decoder Out. Spherical Variance",
+
+        "encoder_avg_cosine_similarity": "Encoder Out. Avg. Cosine Similarity",
+        "encoder_emb_renyi_entropy": "Encoder Out.Rényi Entropy",
+        "encoder_emb_spherical_dist": "Encoder Out.Spherical Variance",
+    }
+
+    return mapping[metric_col]
 
 def map_name(name: str) -> str:
     """Map experiment dir names to nicer labels for plots."""
@@ -119,10 +133,26 @@ def _plot_overlay(
     plt.savefig(save_to, dpi=300)
     plt.close()
 
+def _metric_col_mapping(col:str):
+    mappings = {
+        "decoder_emb_avg_cosine_similarity": "Avg. Cosine Similarity",
+        "decoder_emb_renyi_entropy": "Rényi Entropy",
+        "decoder_emb_spherical_dist": "Spherical Variance",
+
+        "decoder_avg_cosine_similarity": "Avg. Cosine Similarity",
+        "decoder_renyi_entropy": "Rényi Entropy",
+        "decoder_spherical_dist": "Spherical Variance",
+
+        "encoder_avg_cosine_similarity": "Avg. Cosine Similarity",
+        "encoder_emb_renyi_entropy": "Rényi Entropy",
+        "encoder_emb_spherical_dist": "Spherical Variance",
+     }
+
+    return mappings[col]
 def _create_overlay(metric_col: str, title: str):
     plt.figure(figsize=(7, 4))
     plt.xlabel("Checkpoint step")
-    plt.ylabel(metric_col)
+    plt.ylabel(_metric_col_mapping(metric_col))
     plt.title(title)
     plt.legend()
     plt.grid()
