@@ -288,7 +288,7 @@ def main():
         base = metric_file.replace(".csv", "")
 
         j=0
-        save_path = outdir / f"layer_{base}_{mcol}.pdf"
+        save_path = outdir / f"layer_{base}.pdf"
         for mcol in common_metrics:
             title = _nice_title(metric_file, mcol)
             for df, exp_name in zip(dfs, combined_exp_names):
