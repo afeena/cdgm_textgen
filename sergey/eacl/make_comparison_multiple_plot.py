@@ -305,6 +305,7 @@ def main():
             j+=1
         fig.legend(loc='outside lower center')
         plt.savefig(save_path, bbox_inches='tight')
+        produced+=1
     if produced == 0:
         print("No overlay plots produced.")
     else:
