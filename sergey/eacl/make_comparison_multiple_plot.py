@@ -184,8 +184,7 @@ def _add_to_overlay(plt, df: pd.DataFrame, exp_name: str, metric_col: str):
 def _save_overlay(plt, fig, save_to: Path):
     _safe_mkdir(save_to.parent)
     extent = plt.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    plt.savefig(save_to, dpi=300, bbox_inches=extent.expanded(1.1, 1.2))
-    plt.close()
+    fig.savefig(save_to, dpi=300, bbox_inches=extent.expanded(1.1, 1.2))
 
 
 def _make_grid(
