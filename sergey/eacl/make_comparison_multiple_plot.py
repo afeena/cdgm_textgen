@@ -269,7 +269,6 @@ def main():
     produced = 0
 
     for metric_file in shared_files:
-        i = 0
         fig, ax = plt.subplots(figsize=(15, 5), ncols=3)
         dfs = []
         cols_all_exp = []
@@ -294,11 +293,11 @@ def main():
             for df, exp_name in zip(dfs, combined_exp_names):
                 exp_style = map_name_to_style(exp_name)
                 exp_name = map_name(exp_name)
-                ax[i,j].plot(df["step"], df[mcol], label=exp_name, **exp_style)
-            ax[i,j].set_xlabel("Checkpoint step")
-            ax[i,j].set_ylabel(_metric_col_mapping(mcol))
-            ax[i,j].set_title(title)
-            ax[i,j].grid(True)
+                ax[j].plot(df["step"], df[mcol], label=exp_name, **exp_style)
+            ax[j].set_xlabel("Checkpoint step")
+            ax[j].set_ylabel(_metric_col_mapping(mcol))
+            ax[j].set_title(title)
+            ax[j].grid(True)
             #_save_overlay(ax[i,j], fig, save_path)
            # _plot_overlay(dfA, dfB, expA_name, expB_name, mcol, title, save_path)
            #  print(f"Saved {save_path}")
@@ -306,7 +305,6 @@ def main():
             j+=1
         fig.legend(loc='outside lower center')
         plt.savefig(save_path, bbox_inches='tight')
-        i+=1
     if produced == 0:
         print("No overlay plots produced.")
     else:
