@@ -301,7 +301,7 @@ def main():
             produced += 1
             j+=1
         i+=1
-    fig.legend(loc='outside bottom center')
+    fig.legend(loc='outside lower center')
     plt.savefig(Path(outdir) / "all_overlay_plots.pdf")
     if produced == 0:
         print("No overlay plots produced.")
