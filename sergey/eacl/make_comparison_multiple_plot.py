@@ -28,7 +28,7 @@ STEP_FROM_DIR_RE = re.compile(r"^checkpoint_(\d+)(?:_(\d+))?\.pt\.collapse$")
 DEFAULT_METRICS_ROOT = Path("./metrics_combined")
 
 
-plt.rcParams.update({'font.size': 22})
+plt.rcParams.update({'font.size': 14})
 
 def _safe_mkdir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
@@ -165,27 +165,26 @@ def _metric_col_mapping(col:str):
      }
 
     return mappings[col]
-def _create_overlay(metric_col: str, title: str):
-    plt.figure(figsize=(7, 4))
-    plt.xlabel("Checkpoint step")
-    plt.ylabel(_metric_col_mapping(metric_col))
-    plt.title(title)
-    plt.legend()
-    plt.grid()
-
-    return plt
+# def _create_overlay(metric_col: str, title: str):
+#     plt.figure(figsize=(7, 4))
+#     plt.xlabel("Checkpoint step")
+#     plt.ylabel(_metric_col_mapping(metric_col))
+#     plt.title(title)
+#     plt.legend()
+#     plt.grid()
+#
+#     return plt
 
 def _add_to_overlay(plt, df: pd.DataFrame, exp_name: str, metric_col: str):
     exp_style = map_name_to_style(exp_name)
     exp_name = map_name(exp_name)
     plt.plot(df["step"], df[metric_col],  linewidth=2, label=exp_name, **exp_style)
-    plt.legend()
     return plt
 
-def _save_overlay(plt, save_to: Path):
+def _save_overlay(plt, fig, save_to: Path):
     _safe_mkdir(save_to.parent)
-    plt.tight_layout()
-    plt.savefig(save_to, dpi=300)
+    extent = plt.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    plt.savefig(save_to, dpi=300, bbox_inches=extent.expanded(1.1, 1.2))
     plt.close()
 
 
@@ -269,6 +268,9 @@ def main():
     _safe_mkdir(outdir)
 
     produced = 0
+    fig, ax = plt.subplots(figsize=(10, 10), ncols=3,nrows=3)
+
+    i=0
     for metric_file in shared_files:
         dfs = []
         cols_all_exp = []
@@ -285,17 +287,23 @@ def main():
             continue
 
         base = metric_file.replace(".csv", "")
+
+        j=0
         for mcol in common_metrics:
             title = _nice_title(metric_file, mcol)
             save_path = outdir / f"overlay__{base}__{mcol}.png"
-            plt = _create_overlay(mcol, title)
             for df, exp_name in zip(dfs, combined_exp_names):
-                plt = _add_to_overlay(plt, df, exp_name, mcol)
-            _save_overlay(plt, save_path)
+                plot = _add_to_overlay(plt, df, exp_name, mcol)
+            ax[i,j].set_xlabel("Checkpoint step")
+            ax[i,j].set_ylabel(_metric_col_mapping(mcol))
+            _save_overlay(ax[i,j], fig, save_path)
            # _plot_overlay(dfA, dfB, expA_name, expB_name, mcol, title, save_path)
             print(f"Saved {save_path}")
             produced += 1
-
+            j+=1
+        i+=1
+    fig.legend(loc='outside bottom center')
+    plt.savefig(Path(outdir) / "all_overlay_plots.pdf")
     if produced == 0:
         print("No overlay plots produced.")
     else:
