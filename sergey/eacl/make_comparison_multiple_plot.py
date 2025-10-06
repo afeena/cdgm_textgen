@@ -292,7 +292,7 @@ def main():
             title = _nice_title(metric_file, mcol)
             save_path = outdir / f"overlay__{base}__{mcol}.png"
             for df, exp_name in zip(dfs, combined_exp_names):
-                plot = _add_to_overlay(plt, df, exp_name, mcol)
+                _add_to_overlay(ax[i,j], df, exp_name, mcol)
             ax[i,j].set_xlabel("Checkpoint step")
             ax[i,j].set_ylabel(_metric_col_mapping(mcol))
             _save_overlay(ax[i,j], fig, save_path)
